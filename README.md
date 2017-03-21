@@ -1,2 +1,2 @@
 # BebionicFingerSensor
-FingerSensor files of Bebionic hand
+FingerSensor calibration data files for Bebionic hand
