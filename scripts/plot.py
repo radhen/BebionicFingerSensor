@@ -1,15 +1,16 @@
 import matplotlib.pyplot as plt
 import os
-from scipy import stats
+import scipy.stats
 import numpy as np
+import scipy.signal as signal
 
 os.getcwd()
 # os.path.exists()
 # print (os.getcwd())
 
 # data plotting
-for j in range(4):
-    file = open("../calibTest_1_15-3/forceData15-3/test{}_Al.txt".format(j+1), "r")
+for j in range(7):
+    file = open("../calibTest_1_15-3/forceData15-3/test{}_Cu.txt".format(j+1), "r")
     data = file.read()
     # print (type(data))
 
@@ -24,11 +25,13 @@ for j in range(4):
         b.append(i)
     # print len(a)
     # print (b)
-    slope, intercept, r_value, p_value, std_err = stats.linregress(a,b)
+    # yconst = signal.detrend(a, type='linear')
+    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(a,b)
     # print abs(slope)
-    print np.degrees(np.arctan(slope))
+    print np.degrees(np.arctan(slope)) #print slope in degrees
     # print ("max - min is: "+str(max(a)-min(a)))
     plt.plot(a,'.',linewidth = 0.25, label = "test{}_Cu".format(j+1))
+    # plt.plot(yconst,linewidth = 0.25, label = "test{}_Cu".format(j+1))
     plt.hold(True)
 
 plt.legend()
