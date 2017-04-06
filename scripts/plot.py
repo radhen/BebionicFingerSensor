@@ -9,7 +9,7 @@ os.getcwd()
 # print (os.getcwd())
 
 # data plotting
-for j in range(1):
+for j in range(7):
     file = open("../calibTest_1_15-3/forceData15-3/test{}_Cu.txt".format(j+1), "r")
     data = file.read()
     # print (type(data))
@@ -26,13 +26,13 @@ for j in range(1):
     # print len(a)
     # print (b)
     # yconst = signal.detrend(a, type='linear')
-    del b[-1]
-    c = np.ediff1d(a).tolist()
-    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(c,b)
+    # del b[-1]
+    # c = np.ediff1d(a).tolist()
+    # slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(a,b)
     # print abs(slope)
-    print np.degrees(np.arctan(slope)) #print slope in degrees
+    # print np.degrees(np.arctan(slope)) #print slope in degrees
     # print ("max - min is: "+str(max(a)-min(a)))
-    plt.plot(map(abs,c),linewidth = 0.25, label = "test{}_Cu".format(j+1))
+    plt.plot(b,a,linewidth = 0.6, label = "test{}_Cu".format(j+1))
     # plt.plot(yconst,linewidth = 0.25, label = "test{}_Cu".format(j+1))
     plt.hold(True)
 #
