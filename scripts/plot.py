@@ -9,8 +9,8 @@ os.getcwd()
 # print (os.getcwd())
 
 # data plotting
-for j in range(4):
-    file = open("../calibTest_1_15-3/forceData15-3/test{}_Al.txt".format(j+1), "r")
+for j in range(5):
+    file = open("../calibTest_2_13-4/forceData13-4/20mA/test{}_Cu.txt".format(j+1), "r")
     data = file.read()
     # print (type(data))
 
@@ -20,15 +20,19 @@ for j in range(4):
     for i in range(len(data.split("\n"))-1):
         ints = [int(x) for x in data.split("\n")[i].split()]
         # print (data.split("\n")[i].split())
-        # print (ints[0]+ints[1])
-        if (i==0):
-            baseValue = ints[0]+ints[1]
-        # a.append((ints[0]+ints[1])) # plotting raw values
-        a.append((ints[0]+ints[1]) - baseValue) # plotting raw values
+        # print (ints[2])
+
+        # if (i==0):
+        #     baseValue = ints[2]+ints[3]
+        # a.append((ints[2]+ints[3]) - baseValue) # plotting raw values
+
+        a.append((ints[2]+ints[3])) # plotting raw values
+
         b.append(i)
 
 
-    # print (a)
+
+    print (len(a))
     # print ("base value is: " + str(baseValue))
 
     # ===== Calculating slopes ===== #
@@ -38,7 +42,7 @@ for j in range(4):
     # print np.degrees(np.arctan(slope)) #print slope in degrees
 
     # ===== plotting ===== #
-    plt.plot(b,np.absolute(a),linewidth = 0.6, label = "test{}_Cu".format(j+1))
+    plt.plot(b,a,linewidth = 0.6, label = "test{}_Cu".format(j+1))
     plt.hold(True)
 
 plt.legend()

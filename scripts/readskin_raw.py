@@ -23,7 +23,7 @@ ECHO = True
 #     SERIAL_PORT = '/dev/ttyACM0'
 # elif platform == "win32":
 #     SERIAL_PORT = 'COM3'
-SERIAL_PORT = "/dev/cu.usbmodem1411"
+SERIAL_PORT = "/dev/cu.usbmodem11"
 BAUDRATE = 115200
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
