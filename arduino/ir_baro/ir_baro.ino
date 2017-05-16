@@ -36,7 +36,7 @@ unsigned int data[3];
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
 
   // clear serial
@@ -71,7 +71,7 @@ void loop()
         
         for (int i = 0; i < num_devices_; i++)
         {
-          readSensorStripValues(i2c_ids_[i]);
+          readIRValues(i2c_ids_[i]);
           delay(0);
         }
         
@@ -89,8 +89,8 @@ void loop()
 
 
 void readPressureValues(int muxAddr){
-    for(int i=0; i < NUM_SENSORS; i+=2){
-        i=6;  //DELETE ME
+    for(int i=1; i < NUM_SENSORS; i+=2){
+        //i=6;  //DELETE ME
         selectSensor(muxAddr, i);
       
                 // Start I2C Transmission
@@ -201,28 +201,29 @@ void readPressureValues(int muxAddr){
         float fTemp = ctemp * 1.8 + 32.0;
         
         // Output data to serial monitor
-        Serial.print("Temperature in Celsius : ");
-        Serial.print(ctemp);
-        Serial.println(" C");
-        Serial.print("Temperature in Fahrenheit : ");
-        Serial.print(fTemp);
-        Serial.println(" F");
-        Serial.print("Pressure : ");
-        Serial.print(pressure);
-        Serial.println(" mbar");
+//        Serial.print("Temperature in Celsius : ");
+//        Serial.print(ctemp);
+//        Serial.println(" C");
+//        Serial.print("Temperature in Fahrenheit : ");
+//        Serial.print(fTemp);
+//        Serial.println(" F");
+//        Serial.print("Pressure : ");
+          Serial.print(pressure);
+          Serial.println('\t');
+        //Serial.println(" mbar");
         delay(250);
-        break;  //DELETE ME
+        //break;  //DELETE ME
     }
 }
 
-void readSensorStripValues(int id)
+void readIRValues(int id)
 {
   char buf[8];
 //  Serial.print(id);
   // read all 8 sensors on the strip
-  for (int i = 1; i < NUM_SENSORS; i+=2)
+  for (int i = 0; i < NUM_SENSORS; i+=2)
   {
-    i=7;  //DELETE ME
+    //i=7;  //DELETE ME
     selectSensor(id, i);
     
     //ambient_value_ = readAmbient();
@@ -234,7 +235,7 @@ void readSensorStripValues(int id)
     //Serial.print(", ");
     sprintf(buf, "%6u", proximity_value_);
     Serial.print(buf);
-    break; //DELETE ME
+    //break; //DELETE ME
   }
   Serial.println();
   Wire.beginTransmission(id);
@@ -282,11 +283,13 @@ void initIRSensor(int id)
   Serial.println(errcode); 
 
   // initialize each IR sensor
-  for (int i = 1; i < NUM_SENSORS; i+=2)
+  for (int i = 0; i < NUM_SENSORS; i+=2)
   {
     // specify IR sensor
     selectSensor(id, i);
-    
+    //Wire.beginTransmission(id);
+    //Wire.write(1 << i);
+    //Wire.endTransmission();
     //Feel free to play with any of these values, but check the datasheet first!
     writeByte(AMBIENT_PARAMETER, 0x7F);
     writeByte(IR_CURRENT, ir_current_);
@@ -324,7 +327,7 @@ void initPressSensors(int muxID)
 //  Serial.println(errcode); 
 
   // initialize each Pressure Sensor
-  for (int i = 0; i < NUM_SENSORS; i+=2){
+  for (int i = 1; i < NUM_SENSORS; i+=2){
     // specify sensor
     selectSensor(muxID, i);
     
