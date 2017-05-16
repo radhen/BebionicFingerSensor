@@ -14,8 +14,8 @@
 #define MUX_ADDR  (0b01110000 | J0<<1 | J1<<2)
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {112};//, MUX_ADDR|1};
-int ir_current_ = 2; // range = [0, 20]. current = value * 10 mA
+int i2c_ids_[] = {112};//, MUX_ADDR|1}; 
+int ir_current_ = 8; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
 int averaging_function_ = 7;  // range [0, 7] measurements per run are 2**value, with range [1, 2**7 = 128]
@@ -32,13 +32,12 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define PROXIMITY_RESULT_MSB 0x87  // High byte of proximity measure
 #define PROXIMITY_RESULT_LSB 0x88  // low byte of proximity measure
 #define PROXIMITY_MOD 0x8F  // proximity modulator timing
-#define NUM_SENSORS 2
+#define NUM_SENSORS 8
 
 /***** GLOBAL VARIABLES *****/
 int num_devices_;
 unsigned int ambient_value_;
 unsigned int proximity_value_;
-byte serialByte;
 
 void setup()
 {
@@ -48,39 +47,32 @@ void setup()
   // clear serial
   //Serial.println();
   //Serial.println();
-  delay(1000);
+//  delay(1000);
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-//  Serial.print("Attached i2c devices: ");
-//  Serial.println(num_devices_);
+  Serial.print("Attached i2c devices: ");
+  Serial.println(num_devices_);
 
   // initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
-//    Serial.print("Initializing IR Sensor Strip: ");
-//    Serial.println(i2c_ids_[i]);
+    Serial.print("Initializing IR Sensor Strip: ");
+    Serial.println(i2c_ids_[i]);
     initSensorStrip(i2c_ids_[i]);
   }
   //Serial.println("Starting main loop...");
   //Serial.println("strip id, ambient value[0], proximity value[0], ambient value[1], ... ");
-  delay(100);
+//  delay(100);
 }
 
 void loop()
 {
-  if(Serial.available()>0){
-    serialByte = Serial.read();
-    if(serialByte == 's'){
-      // Read sensor values
-      while(1){
-        for (int i = 0; i < num_devices_; i++)
-        {
-          readSensorStripValues(i2c_ids_[i]);
-          delay(0);
-        }
-      }
-    }
+  // Read sensor values
+  for (int i = 0; i < num_devices_; i++)
+  {
+    readSensorStripValues(i2c_ids_[i]);
+    delay(0);
   }
 delay(50);
 }
@@ -104,6 +96,7 @@ void readSensorStripValues(int id)
     //Serial.print(buf);
     //Serial.print(", ");
     sprintf(buf, "%6u", proximity_value_);
+    delay(5);
     Serial.print(buf);
   }
   Serial.println();
@@ -147,10 +140,10 @@ void initSensorStrip(int id)
 {
   Wire.beginTransmission(id);
   Wire.write(0);
-//  Serial.println("WIRE IN");
+  Serial.println("WIRE IN");
   int errcode = Wire.endTransmission();
-//  Serial.println(errcode); 
-
+  Serial.println(errcode); 
+            
   // initialize each IR sensor
   for (int i = 0; i < NUM_SENSORS; i++)
   {
@@ -177,8 +170,8 @@ void initSensorStrip(int id)
     }
     else
     {
-//      Serial.print("IR sensor online: id = ");
-//      Serial.println(i);
+      Serial.print("IR sensor online: id = ");
+      Serial.println(i);
     }
   }
   Wire.beginTransmission(id);
