@@ -38,7 +38,7 @@ void setup()
 {
   Serial.begin(115200);
   Wire.begin();
-  TWBR = 18;  // This sets the I2C clock rate to 400kHz
+  //TWBR = 18;  // This sets the I2C clock rate to 400kHz
 
   // clear serial
   // Serial.println();
@@ -64,43 +64,35 @@ void setup()
 
 void loop()
 {
-  if(Serial.available()>0){
-    serialByte = Serial.read();
-    if(serialByte == 's'){
+  //if(Serial.available()>0){
+    //serialByte = Serial.read();
+    //if(serialByte == 's'){
       // Read sensor values
       while(1){
+        unsigned long start_time = millis(); 
 
-
-        unsigned long start_time = millis();
-
-        for (int i = 0; i < num_devices_; i++)
-        {
-          readIRValues(i2c_ids_[i]);
-          delay(0);
-        }
-
+        //for (int i = 0; i < num_devices_; i++){
+          //readIRValues(i2c_ids_[i]);}
 
         for(int i=0;i < num_devices_; i++){
-             readPressureValues(i2c_ids_[i]);
-        }
-        
-        unsigned long end_time = millis();
+          readPressureValues(i2c_ids_[i]);}
 
-        Serial.print(end_time - start_time);
-        Serial.println("ms");
+        //delay(10);
+        unsigned long end_time = millis();
+        //Serial.print(end_time - start_time); // calculating sensor read time
+        //Serial.println("ms");
 
       }
-    }
-  }
-  delay(50);
+    //}
+  //}
 }
 
 
 void readPressureValues(int muxAddr){
-    for(int i=1; i < NUM_SENSORS; i+=2){
-        //i=6;  //DELETE ME
+//    for(int i=1; i < NUM_SENSORS; i+=2){
+    for(int i=7; i<NUM_SENSORS; i+=2){
         selectSensor(muxAddr, i);
-
+        
         // Start I2C Transmission
         Wire.beginTransmission(BARO_ADDRESS);
         // Send reset command
@@ -114,7 +106,7 @@ void readPressureValues(int muxAddr){
         Wire.write(0x40);
         // Stop I2C Transmission
         Wire.endTransmission();
-        delay(1);
+        delay(10);
 
         // Start I2C Transmission
         Wire.beginTransmission(BARO_ADDRESS);
@@ -144,7 +136,7 @@ void readPressureValues(int muxAddr){
         Wire.write(0x50);
         // Stop I2C Transmission
         Wire.endTransmission();
-        delay(1);
+        delay(10);
 
         // Start I2C Transmission
         Wire.beginTransmission(BARO_ADDRESS);
@@ -217,12 +209,12 @@ void readPressureValues(int muxAddr){
 //        Serial.println(" F");
 //        Serial.print("Pressure : ");
           Serial.print(pressure);
-          Serial.println('\t');
+          Serial.println();
 
 
         //Serial.println(" mbar");
         //delay(250);
-        //break;  //DELETE ME
+ 
     }
 }
 
@@ -231,7 +223,8 @@ void readIRValues(int id)
   char buf[8];
 //  Serial.print(id);
   // read all 8 sensors on the strip
-  for (int i = 0; i < NUM_SENSORS; i+=2)
+//  for (int i = 0; i < NUM_SENSORS; i+=2)
+  for (int i = 6; i < NUM_SENSORS; i+=2)
   {
     //i=7;  //DELETE ME
     selectSensor(id, i);
@@ -254,6 +247,7 @@ void readIRValues(int id)
 }
 
 unsigned int readProximity(){
+  
   byte temp = readByte(0x80);
   writeByte(0x80, temp | 0x08);  // command the sensor to perform a proximity measure
   unsigned long startTime = millis();
@@ -262,6 +256,7 @@ unsigned int readProximity(){
      return 0;
    }
   }
+  
   unsigned int data = readByte(0x87) << 8;
   data |= readByte(0x88);
 
@@ -269,6 +264,7 @@ unsigned int readProximity(){
 }
 
 unsigned int readAmbient(){
+  
   byte temp = readByte(0x80);
   writeByte(0x80, temp | 0x10);  // command the sensor to perform ambient measure
 
@@ -278,6 +274,7 @@ unsigned int readAmbient(){
      return 0;
    }
   }
+  
   unsigned int data = readByte(0x85) << 8;
   data |= readByte(0x86);
 
@@ -288,9 +285,9 @@ void initIRSensor(int id)
 {
   Wire.beginTransmission(id);
   Wire.write(0);
-  Serial.println("WIRE IN");
+  //Serial.println("WIRE IN");
   int errcode = Wire.endTransmission();
-  Serial.println(errcode);
+  //Serial.println(errcode);
 
   // initialize each IR sensor
   for (int i = 0; i < NUM_SENSORS; i+=2)
@@ -311,10 +308,10 @@ void initIRSensor(int id)
     byte proximityregister = readByte(IR_CURRENT);
     //Serial.println(proximityregister);
     if (temp != 0x21){  // Product ID Should be 0x21 for the 4010 sensor
-      Serial.print("IR sensor failed to initialize: id = ");
-      Serial.print(i);
-      Serial.print(". ");
-      Serial.println(temp, HEX);
+      //Serial.print("IR sensor failed to initialize: id = ");
+      //Serial.print(i);
+      //Serial.print(". ");
+      //Serial.println(temp, HEX);
     }
     else
     {
