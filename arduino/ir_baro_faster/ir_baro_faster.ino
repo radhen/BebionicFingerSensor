@@ -26,6 +26,8 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define NUM_SENSORS 8
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
 
+#define I2C_FASTMODE 1 
+
 /***** GLOBAL VARIABLES *****/
 int num_devices_;
 unsigned int ambient_value_;
@@ -36,9 +38,8 @@ unsigned int data[3];
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(57600);
   Wire.begin();
-  //TWBR = 18;  // This sets the I2C clock rate to 400kHz
 
   // clear serial
   // Serial.println();
@@ -55,36 +56,23 @@ void setup()
   {
     // Serial.print("Initializing IR Sensor Strip: ");
     // Serial.println(i2c_ids_[i]);
-    initIRSensor(i2c_ids_[i]);
+    //initIRSensor(i2c_ids_[i]);
     initPressSensors(i2c_ids_[i]);
   }
   // Serial.println("Starting main loop...");
   delay(100);
 }
 
-void loop()
-{
-  //if(Serial.available()>0){
-    //serialByte = Serial.read();
-    //if(serialByte == 's'){
-      // Read sensor values
-      while(1){
-        unsigned long start_time = millis(); 
+#define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
-        //for (int i = 0; i < num_devices_; i++){
-          //readIRValues(i2c_ids_[i]);}
-
-        for(int i=0;i < num_devices_; i++){
-          readPressureValues(i2c_ids_[i]);}
-
-        //delay(10);
-        unsigned long end_time = millis();
-        //Serial.print(end_time - start_time); // calculating sensor read time
-        //Serial.println("ms");
-
-      }
-    //}
-  //}
+void loop(){
+    //for (int i = 0; i < num_devices_; i++){
+      //readIRValues(i2c_ids_[i]);}
+    
+    for(int i=0;i < num_devices_; i++){
+      readPressureValues(i2c_ids_[i]);}
+    
+    delay(10);
 }
 
 
@@ -106,7 +94,7 @@ void readPressureValues(int muxAddr){
         Wire.write(0x40);
         // Stop I2C Transmission
         Wire.endTransmission();
-        delay(10);
+        delay(PRESS_MEAS_DELAY_MS);
 
         // Start I2C Transmission
         Wire.beginTransmission(BARO_ADDRESS);
@@ -136,7 +124,7 @@ void readPressureValues(int muxAddr){
         Wire.write(0x50);
         // Stop I2C Transmission
         Wire.endTransmission();
-        delay(10);
+        delay(PRESS_MEAS_DELAY_MS);
 
         // Start I2C Transmission
         Wire.beginTransmission(BARO_ADDRESS);
