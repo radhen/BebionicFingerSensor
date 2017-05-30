@@ -285,8 +285,8 @@ float readPressure(int muxAddr, int sensor) {
   //  Serial.print("\t");
   signed long dT = D2 - (Coff[4] << 8);
   signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5]) >> 23;
-  signed long long OFF = Coff[1] << 17;// + (Coff[3]*((unsigned long long)dT))>>6;
-  signed long long SENS = Coff[0] << 16;// + (Coff[2]*((unsigned long long)dT))>>7;
+  signed long long OFF = Coff[1] << 17 + (Coff[3]*((unsigned long long)dT))>>6;
+  signed long long SENS = Coff[0] << 16 + (Coff[2]*((unsigned long long)dT))>>7;
   float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
   float mbar = P / 100.0;
   //  Serial.print((mbar));
