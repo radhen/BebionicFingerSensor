@@ -13,8 +13,9 @@ int averaging_function_ = 7;  // range [0, 7] measurements per run are 2**value,
 int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 3.125MHz
 
 /***** GLOBAL CONSTANTS *****/
-#define NFINGERS 1
+
 #define VCNL4010_ADDRESS 0x13
+#define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
 #define COMMAND_0 0x80  // starts measurements, relays data ready info
 #define PRODUCT_ID 0x81  // product ID/revision ID, should read 0x21
 #define IR_CURRENT 0x83  // sets IR current in steps of 10mA 0-200mA
@@ -24,8 +25,10 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define PROXIMITY_RESULT_MSB 0x87  // High byte of proximity measure
 #define PROXIMITY_RESULT_LSB 0x88  // low byte of proximity measure
 #define PROXIMITY_MOD 0x8F  // proximity modulator timing
-#define NUM_SENSORS 8
-#define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
+
+
+#define NUM_SENSORS 8 // Total number of sensors(ir + baro) connected
+#define NFINGERS 1 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -33,12 +36,14 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 #define I2C_FASTMODE 1
 
+// Touch/release detection
+#define EA 0.3  // exponential average weight parameter / cut-off frequency for high-pass filter
+
 
 
 /***** GLOBAL VARIABLES *****/
 int num_devices_;
 unsigned int ambient_value_;
-unsigned int proximity_value_;
 byte serialByte;
 unsigned long Coff[6];
 unsigned long Ti = 0, offi = 0, sensi = 0;
@@ -55,8 +60,8 @@ unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
 signed int  fa1[NFINGERS];              // FA-I value;
 signed int fa1derivative[NFINGERS];     // Derivative of the FA-I value;
 signed int fa1deriv_last[NFINGERS];     // Last value of the derivative (for zero-crossing detection)
-signed int sensitivity = 50;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
-
+signed int sensitivity = 45;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
+int touch_analysis = 1;
 
 void setup()
 {
@@ -92,12 +97,12 @@ void setup()
   touched = false;
   // Serial.println("Starting main loop...");
   delay(100);
-//
-//  for (int i = 0; i < NFINGERS; i++) {
-//    proximity_value[i] = readProximity();
-//    average_value[i] = proximity_value[i];
-//    fa1[i] = 0;
-//  }
+
+  for (int i = 0; i < NFINGERS; i++) {
+    proximity_value[i] = readProximity();
+    average_value[i] = proximity_value[i];
+    fa1[i] = 0;
+  }
 
 }
 
@@ -118,81 +123,114 @@ unsigned int readProximity() {
   return data;
 }
 
-void readIRValues(int id) {
+unsigned int readIRValues(int id) {
   char buf[8];
   //  Serial.print(id);
   // read all 8 sensors on the strip
-  //  for (int i = 0; i < NUM_SENSORS; i+=2)
-  for (int i = 6; i < NUM_SENSORS; i += 2)
+  for (int i = 6; i < NUM_SENSORS; i += 2) // i should strt from 0
   {
     selectSensor(id, i);
 
     //ambient_value_ = readAmbient();
-    proximity_value_ = readProximity();
+    unsigned int proximity_value_ = readProximity();
 
-    sprintf(buf, "%6u", proximity_value_);
-    Serial.print(buf);
+    //sprintf(buf, "%6u", proximity_value_);
+    return (proximity_value_);
     //return (buf);
 
   }
-  Serial.println();
+  Serial.print('\t');
   //  Wire.beginTransmission(id);
   //  Wire.write(0);
   //  Wire.endTransmission();
 }
 
-float convert_mbar_to_force(float above_baseline){
-  return (above_baseline/0.19);
-  }
+float convert_mbar_to_force(float above_baseline) {
+  return (above_baseline / 0.19);
+}
 
-bool touch_ended(float mbar, float delta_mbar){
-   return (delta_mbar<DELTA_MBAR_THRESH);
-  }
+bool touch_ended(float mbar, float delta_mbar) {
+  return (delta_mbar < DELTA_MBAR_THRESH);
+}
 
-bool touch_started(float mbar, float delta_mbar){
-   return (delta_mbar>DELTA_MBAR_THRESH);
-  }
+bool touch_started(float mbar, float delta_mbar) {
+  return (delta_mbar > DELTA_MBAR_THRESH);
+}
 
 
 void loop() {
 
-//  for (int i = 0; i < num_devices_; i++) {
-//    readIRValues(i2c_ids_[i]);
-//  }
+  for (int i = 0; i < num_devices_; i++) {
+    unsigned int prox_value = readIRValues(i2c_ids_[i]);
+    Serial.print(prox_value);
+    Serial.println();
+
+    //------- Touch detection -----//
+    proximity_value[i] = prox_value;
+    fa1deriv_last[i] = fa1derivative[i];
+    fa1derivative[i] = (signed int) average_value[i] - proximity_value[i] - fa1[i];
+    fa1[i] = (signed int) average_value[i] - proximity_value[i];
+    //Serial.print(proximity_value[i]); Serial.print('\t'); //Serial.print(","); Serial.print(fa2derivative);
+
+    if (touch_analysis) {
+      //        Serial.print(",");
+      if ((fa1deriv_last[i] < -sensitivity && fa1derivative[i] > sensitivity) || (fa1deriv_last[i] > 50 && fa1derivative[i] < -50)) { // zero crossing detected
+        // Serial.print(proximity_value); Serial.print(","); Serial.print(fa2); Serial.print(","); Serial.println(fa2derivative);
+        if (fa1[i] < -sensitivity) // minimum
+        {
+          //Serial.print("don't touch me!");
+          touched = true;
+        }
+        else if (fa1[i] > sensitivity) // maximum
+        {
+          Serial.print("R");
+        }
+      }
+      //        else {
+      //          Serial.print("0");
+      //        }
+      //        if(i<NFINGERS-1) Serial.print(",");
+    }
+  }
 
   for (int i = 0; i < num_devices_; i++) {
     float mbar = readPressure(i2c_ids_[i], 7);
 
 
-    unsigned long now = millis();
-    unsigned long delta_time = now - prev_time;
-    prev_time = now;
-    float delta_mbar = (mbar - prev_mbar) / (delta_time / 1000.0);
-
-
-    if (touched) {
-      force = convert_mbar_to_force(mbar - touch_baseline);
-      if (touch_ended(mbar, delta_mbar)) {
-        touched = false;
-      }
-    } else {
-      if (touch_started(mbar, delta_mbar)) {
-        touched = true;
-        touch_baseline = prev_mbar;
-        force = convert_mbar_to_force(mbar - touch_baseline);
-      }
-    }
+    //    unsigned long now = millis();
+    //    unsigned long delta_time = now - prev_time;
+    //    prev_time = now;
+    //    float delta_mbar = (mbar - prev_mbar) / (delta_time / 1000.0);
+    //
+    //
+        if (touched) {
+          //if (touch_ended(mbar, delta_mbar)) {
+          touched = false;
+          //}
+          force = convert_mbar_to_force(mbar - touch_baseline);
+          Serial.print(force);
+          Serial.print('\t');
+        } 
+         else {
+//          if (touch_started(mbar, delta_mbar)) {
+//            touched = true;
+              touch_baseline = mbar;
+//            force = convert_mbar_to_force(mbar - touch_baseline);
+//          }
+        }
 
     Serial.print(mbar);
-    Serial.println();
-    Serial.print("\t");
-    Serial.print(delta_mbar);
-    if (touched) {
-      Serial.print("\t");
-      Serial.print(force);
-    }
-    Serial.println();
-    prev_mbar = mbar;
+    Serial.print(' ');
+    //Serial.println();
+
+    //    Serial.print("\t");
+    //    Serial.print(delta_mbar);
+    //    if (touched) {
+    //      Serial.print("\t");
+    //      Serial.print(force);
+    //    }
+    //    Serial.println();
+    //    prev_mbar = mbar;
   }
 
 
@@ -247,8 +285,8 @@ float readPressure(int muxAddr, int sensor) {
   //  Serial.print("\t");
   signed long dT = D2 - (Coff[4] << 8);
   signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5]) >> 23;
-  signed long long OFF = Coff[1] << 17; // + (Coff[3]*((unsigned long long)dT))>>6;
-  signed long long SENS = Coff[0] << 16; // + (Coff[2]*((unsigned long long)dT))>>7;
+  signed long long OFF = Coff[1] << 17;// + (Coff[3]*((unsigned long long)dT))>>6;
+  signed long long SENS = Coff[0] << 16;// + (Coff[2]*((unsigned long long)dT))>>7;
   float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
   float mbar = P / 100.0;
   //  Serial.print((mbar));
