@@ -61,7 +61,7 @@ signed int  fa1[NFINGERS];              // FA-I value;
 signed int fa1derivative[NFINGERS];     // Derivative of the FA-I value;
 signed int fa1deriv_last[NFINGERS];     // Last value of the derivative (for zero-crossing detection)
 signed int sensitivity = 45;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
-int touch_analysis = 1;
+int touch_analysis = 0;
 
 void setup()
 {
@@ -162,8 +162,8 @@ void loop() {
 
   for (int i = 0; i < num_devices_; i++) {
     unsigned int prox_value = readIRValues(i2c_ids_[i]);
-    Serial.print(prox_value);
-    Serial.println();
+    //Serial.print(prox_value);
+    //Serial.println();
 
     //------- Touch detection -----//
     proximity_value[i] = prox_value;
@@ -221,7 +221,7 @@ void loop() {
 
     Serial.print(mbar);
     Serial.print(' ');
-    //Serial.println();
+    Serial.println();
 
     //    Serial.print("\t");
     //    Serial.print(delta_mbar);
@@ -262,8 +262,8 @@ void initPressure(int muxAddr, int sensor) {
 
     // Convert the data
     Coff[i] = ((data[0] << 8) | data[1]);
-    //      Serial.print(Coff[i] );
-    //      Serial.print("\t");
+    //Serial.print(Coff[i] );
+    //Serial.print("\t");
   }
   //    Serial.println();
   delay(300);
@@ -273,24 +273,24 @@ void initPressure(int muxAddr, int sensor) {
 float readPressure(int muxAddr, int sensor) {
   selectSensor(muxAddr, sensor);
   unsigned long D1 = getPressureReading();
+//  Serial.println(D1);
+//  Serial.println();
   unsigned long D2 = getTempReading();
+  //Serial.println("D2: " ); Serial.println(D2);
+  //Serial.println();
 
-  //  unsigned int PRESS_SENS = Coff[0];
-  //  unsigned int PRESS_OFFS = Coff[1];
-  //  unsigned int TCPS = Coff[2];
-  //  unsigned int TCPO = Coff[3];
-  //  unsigned int TEMP_REF = Coff[4];
-  //  unsigned int TCT = Coff[5];
-  //  Serial.print(D1);
-  //  Serial.print("\t");
-  signed long dT = D2 - (Coff[4] << 8);
-  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5]) >> 23;
-  signed long long OFF = Coff[1] << 17 + (Coff[3]*((unsigned long long)dT))>>6;
-  signed long long SENS = Coff[0] << 16 + (Coff[2]*((unsigned long long)dT))>>7;
-  float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
-  float mbar = P / 100.0;
-  //  Serial.print((mbar));
-  //  Serial.println();
+  //Serial.println(Coff[4] << 8);
+  unsigned long dT = D2 - (Coff[4] * 256);
+  //Serial.println(dT);
+  unsigned long TEMP = 2000 + dT*(Coff[5]/8388608);
+  //Serial.println(TEMP);
+  //Serial.println((Coff[3]*dT) >> 6);
+  unsigned long long OFF = Coff[1]*131072 + (Coff[3]*dT)/64;
+  unsigned long long SENS = Coff[0]*65536 + (Coff[2]*dT)/128;
+  unsigned long P = (((D1*SENS)/2097152) - OFF)/32768.0;
+  float mbar = P/ 100.0;
+  //Serial.print((mbar));
+  //Serial.println();
   return (mbar);
 }
 
@@ -399,9 +399,9 @@ void initIRSensor(int id)
 {
   Wire.beginTransmission(id);
   Wire.write(0);
-  //Serial.println("WIRE IN");
+  Serial.println("WIRE IN");
   int errcode = Wire.endTransmission();
-  //Serial.println(errcode);
+  Serial.println(errcode);
 
   // initialize each IR sensor
   for (int i = 0; i < NUM_SENSORS; i += 2)
@@ -422,15 +422,15 @@ void initIRSensor(int id)
     byte proximityregister = readByte(IR_CURRENT);
     //Serial.println(proximityregister);
     if (temp != 0x21) { // Product ID Should be 0x21 for the 4010 sensor
-      //      Serial.print("IR sensor failed to initialize: id = ");
-      //      Serial.print(i);
-      //      Serial.print(". ");
-      //      Serial.println(temp, HEX);
+            Serial.print("IR sensor failed to initialize: id = ");
+            Serial.print(i);
+            Serial.print(". ");
+            Serial.println(temp, HEX);
     }
     else
     {
-      //      Serial.print("IR sensor online: id = ");
-      //      Serial.println(i);
+            Serial.print("IR sensor online: id = ");
+            Serial.println(i);
     }
   }
   Wire.beginTransmission(id);
