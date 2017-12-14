@@ -11,7 +11,7 @@ import sys
 
 # File to write to, should be command line arguments
 if len(sys.argv) < 2:
-  print "Error: No filename to save to!"
+  print ("Error: No filename to save to!")
   exit()
 FILENAME = sys.argv[1]
 
@@ -23,7 +23,7 @@ ECHO = True
 #     SERIAL_PORT = '/dev/ttyACM0'
 # elif platform == "win32":
 #     SERIAL_PORT = 'COM3'
-SERIAL_PORT = "/dev/ttyACM0"
+SERIAL_PORT = "/dev/cu.usbserial-A603AX4O"
 BAUDRATE = 57600
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
@@ -37,7 +37,7 @@ time.sleep(3)
 print ("slept for 3s..")
 # Did the serial port open?
 if not ser.isOpen():
-   print "Error:  Serial port did not open!"
+   print ("Error:  Serial port did not open!")
    exit()
 
 # Open the file to write to
@@ -49,8 +49,8 @@ readSerial = True
 # dummy = ser.readline()
 
 dur = 0.0
-cmmnd = raw_input('press s to start.\n')
-ser.write(str(cmmnd))
+cmmnd = input('press s to start.\n')
+ser.write(b"cmmnd")
 print ('char s written on serial..')
 # Flush anything that is in the buffer, and read in a dummy line
 # ser.flushInput()
@@ -65,8 +65,10 @@ try:
         # if num_bytes > 0:
         data = ser.readline()
         # data_raw = data.split()
-        out_file.write(data)
+        data = str(data,'utf-8') # convert bytes to string
+        out_file.write(data+'\n')
         if ECHO:
+            # print(type(b'data'.decode(encoding)))
             print(data)
 
         # end = time.time()
@@ -79,9 +81,9 @@ try:
         time.sleep(0.1)
 
 except KeyboardInterrupt:
-   # Read in the last bit of data
+   # Read in the last bit of data. why?
    data = ser.readline()
-   out_file.write(data)
+   # out_file.write(str(data))
 
 out_file.close()
-print dur
+# print (dur)

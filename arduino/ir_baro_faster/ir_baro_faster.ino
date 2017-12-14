@@ -75,8 +75,8 @@ void setup()
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-  Serial.print("Attached i2c devices: ");
-  Serial.println(num_devices_);
+//  Serial.print("Attached i2c devices: ");
+//  Serial.println(num_devices_);
 
 
   //initialize attached devices
@@ -357,9 +357,9 @@ byte readByte(byte address) {
 void initIRSensor(int id) {
   Wire.beginTransmission(id);
   Wire.write(0);
-  Serial.println("WIRE IN");
+//  Serial.println("WIRE IN");
   int errcode = Wire.endTransmission();
-  Serial.println(errcode);
+//  Serial.println(errcode);
 
   // initialize each IR sensor
   for (int i = 0; i < NFINGERS; i += 2)
@@ -387,8 +387,8 @@ void initIRSensor(int id) {
     }
     else
     {
-            Serial.print("IR sensor online: id = ");
-            Serial.println(i);
+//            Serial.print("IR sensor online: id = ");
+//            Serial.println(i);
     }
   }
   Wire.beginTransmission(id);
