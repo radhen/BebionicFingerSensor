@@ -66,7 +66,7 @@ try:
         data = ser.readline()
         # data_raw = data.split()
         data = str(data,'utf-8') # convert bytes to string
-        out_file.write(data+'\n')
+        out_file.write(data)
         if ECHO:
             # print(type(b'data'.decode(encoding)))
             print(data)
@@ -78,7 +78,7 @@ try:
         #     readSerial=False
         #     print
         #     print "30 Seconds!"
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
 except KeyboardInterrupt:
    # Read in the last bit of data. why?

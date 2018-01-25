@@ -54,6 +54,8 @@ unsigned long Ti = 0, offi = 0, sensi = 0;
 unsigned int data[3];
 unsigned long prev_time;
 
+unsigned long starttime;
+
 bool touched;
 float touch_baseline;
 float force;
@@ -104,6 +106,8 @@ void setup()
     average_value[i] = proximity_value[i];
     fa1[i] = 0;
   }
+
+  starttime = micros();
 
 }
 
@@ -454,9 +458,19 @@ void readIRValues() {
 
 
 void loop() {
+  unsigned long curtime;
 
+  curtime = micros();
+
+  Serial.print(curtime - starttime);
+  Serial.print('\t');
+  
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  
+
+
+//  Serial.print("Duration: ");
+//  Serial.print(endtime - starttime);
+//  Serial.println("us");
 }
 
