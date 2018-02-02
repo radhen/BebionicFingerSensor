@@ -14,7 +14,7 @@ for angle in angles:
     for maxForce in maxForces:
         df = pd.read_excel('{}deg_{}N.xls'.format(angle, maxForce),sheet_name='Sheet1')
         data=df.as_matrix() #converting into numpy array
-        ## row_1=IR, row_2=baro, row_3=force, row_4=deg
+        ## DATAFIELDSrow_1=IR, row_2=baro, row_3=force, row_4=deg
 
         ## finding the first occurence of nan to cal length of IR/Force (16 bit)
         len_sensorData = np.where(np.isnan(data[:,2]))[0][1] - 1
@@ -31,9 +31,8 @@ for angle in angles:
         # plt.title('{}degree {}N maxF'.format(angle, maxForce))
         # plt.show()
 
-# print (df_empty['IR'].values[0])
+print (df_empty)
 
-lable_encoder = LabelEncoder().fit(df_empty.degree)
-# print (lables)
-lables = lable_encoder.transform(df_empty.degree)
-print (lable_encoder.classes_)
+# lable_encoder = LabelEncoder().fit(df_empty.degree)
+# lables = lable_encoder.transform(df_empty.degree)
+# print (lable_encoder.classes_)
