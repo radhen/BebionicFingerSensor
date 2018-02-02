@@ -12,7 +12,7 @@ d = {}
 df_empty = pd.DataFrame()
 for angle in angles:
     for maxForce in maxForces:
-        df = pd.read_excel('{}deg_{}N.xls'.format(angle, maxForce),sheet_name='Sheet1')
+        df = pd.read_excel('{}deg_{}N.xls'.format(angle, maxForce))
         data=df.as_matrix() #converting into numpy array
         ## DATAFIELDSrow_1=IR, row_2=baro, row_3=force, row_4=deg
 
@@ -33,6 +33,6 @@ for angle in angles:
 
 print (df_empty)
 
-# lable_encoder = LabelEncoder().fit(df_empty.degree)
-# lables = lable_encoder.transform(df_empty.degree)
+lable_encoder = LabelEncoder().fit(df_empty.degree)
+lables = lable_encoder.transform(df_empty.degree)
 # print (lable_encoder.classes_)
