@@ -1,0 +1,1 @@
+f = fit(linspace(1,23478,23478)',deg50N.ForceN(:),'linearinterp')
