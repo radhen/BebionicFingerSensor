@@ -18,12 +18,7 @@ FILENAME = sys.argv[1]
 # Should the data be written to the console also?
 ECHO = True
 
-# Serial port information.  Should be command line arguments, but later
-# if platform == "linux" or platform == "linux2":
-#     SERIAL_PORT = '/dev/ttyACM0'
-# elif platform == "win32":
-#     SERIAL_PORT = 'COM3'
-SERIAL_PORT = "/dev/cu.usbserial-A603AX4O"
+SERIAL_PORT = "/dev/cu.usbmodem1411"
 BAUDRATE = 57600
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
@@ -55,35 +50,21 @@ print ('char s written on serial..')
 # Flush anything that is in the buffer, and read in a dummy line
 # ser.flushInput()
 
-try:
-   # start = time.time()
-
-   while readSerial:
-
-      # Is there stuff to read?
-        # num_bytes = ser.inWaiting()
-        # if num_bytes > 0:
+# try:
+while ser.read():
+    # inp = input(">> ")
+    if inp == 'exit':
+        print ('y')
+        ser.close()
+        out_file.close()
+        exit()
+    else:
+        print ('n')
         data = ser.readline()
         # data_raw = data.split()
         data = str(data,'utf-8') # convert bytes to string
         out_file.write(data)
-        if ECHO:
-            # print(type(b'data'.decode(encoding)))
-            print(data)
-
-        # end = time.time()
-        # dur = end-start
-
-        # if dur >= 30.0:
-        #     readSerial=False
-        #     print
-        #     print "30 Seconds!"
-        #time.sleep(0.1)
-
-except KeyboardInterrupt:
+        print(data)
+# except KeyboardInterrupt:
    # Read in the last bit of data. why?
-   data = ser.readline()
    # out_file.write(str(data))
-
-out_file.close()
-# print (dur)
