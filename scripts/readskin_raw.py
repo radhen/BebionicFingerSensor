@@ -48,23 +48,19 @@ cmmnd = input('press s to start.\n')
 ser.write(b"cmmnd")
 print ('char s written on serial..')
 # Flush anything that is in the buffer, and read in a dummy line
-# ser.flushInput()
+ser.flushInput()
 
-# try:
-while ser.read():
-    # inp = input(">> ")
-    if inp == 'exit':
-        print ('y')
-        ser.close()
-        out_file.close()
-        exit()
-    else:
-        print ('n')
+with open(FILENAME,'w',buffering=1) as out_file:
+    while ser.read():
         data = ser.readline()
         # data_raw = data.split()
         data = str(data,'utf-8') # convert bytes to string
-        out_file.write(data)
         print(data)
+        out_file.write(data)
+        # out_file.flush()
+
+# try:
 # except KeyboardInterrupt:
-   # Read in the last bit of data. why?
-   # out_file.write(str(data))
+#     time.sleep(5)
+#     ser.close()
+#     out_file.close()

@@ -5,7 +5,7 @@
 #define MUX_ADDRESS (0b01110000 | J0<<1 | J1<<2)
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {113};//, MUX_ADDR|1};
+int i2c_ids_[] = {112};//, MUX_ADDR|1};
 int ir_current_ = 4; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
@@ -43,8 +43,8 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_Bar_ports[NFINGERS] = {0};//Mux board ports for each IR sensor {0,2,4,6}
-int sensor_IR_ports[NFINGERS] = {0};//{4};// Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_Bar_ports[NFINGERS] = {6};//Mux board ports for each IR sensor {0,2,4,6}
+int sensor_IR_ports[NFINGERS] = {6};//{4};// Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -197,6 +197,14 @@ void initPressure(int muxAddr, int sensor, int index) {
 //      Serial.println();
   delay(300);
 }
+
+//typedef struct finger_struct{
+//  int muxAddr;
+//  int irPort;
+//  int sensorPort;
+//}FingerStruct;
+//
+//FingerStruct fingers[NUM_FINGERS] = {{112, 4, 4}};
 
 
 float readPressure(int muxAddr, int sensor) {
