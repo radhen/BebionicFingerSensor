@@ -1,9 +1,13 @@
-[p,loc]=findpeaks(zeroDeg30N1.baro,'MinPeakHeight', 1570)
-[p_1,loc_1]=findpeaks(zeroDeg30N1.newton,'MinPeakHeight', 30)
+% [p_b,loc_b]=findpeaks(deg2030N.baro,'MinPeakHeight', 1554)
+% [p_n,loc_n]=findpeaks(deg2030N.newton,'MinPeakHeight', 30)
+% [p_i,loc_i]=findpeaks(deg2030N.ir,'MinPeakHeight', 2000, 'MinPeakWidth', 25)
+
+w_size = 75;
 
 for i=1:5
+    figure (i)
     yyaxis left; 
-    plot(zeroDeg30N1.newton(loc_1(i)-75:loc_1(i)+75)); 
+    plot(deg2030N.newton(loc_n(i)-w_size:loc_n(i)+w_size)); 
     yyaxis right; 
-    plot(zeroDeg30N1.baro(loc(i)-75:loc(i)+75));
+    plot(deg2030N.baro(loc_b(i)-w_size:loc_b(i)+w_size));
 end    
