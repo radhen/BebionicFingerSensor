@@ -89,11 +89,11 @@ def load_data():
         # print (train_y[10])
     return (train_x, train_y)
 
-class RNN:
+class NN:
     '''
-    RNN classifier
+    NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=3, batch_size=1):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=10, batch_size=2):
 
         self.epoches = epoches
         self.batch_size = batch_size
@@ -104,7 +104,7 @@ class RNN:
         self.test_y = np_utils.to_categorical(test_y, 3)
 
         self.model = Sequential()
-        self.model.add(Dense(500, input_dim=151))
+        self.model.add(Dense(151, input_dim=151))
         self.model.add(Activation('relu'))
         self.model.add(Dropout(0.4))
         self.model.add(Dense(300))
@@ -139,18 +139,27 @@ class RNN:
 
 
 if __name__ == '__main__':
-    test_x = np.zeros([1,151])
-    train_x, train_y = load_data()
-    test_x[0,:] = train_x[4]
-    test_y = train_y[4]
 
-    # train_x = train_x.T
-    # test_x = test_x.T
+    train_x, train_y = load_data()
+
+    # create array to store testing data
+    test_x = np.zeros([3,151])
+    test_y = np.zeros([3,1])
+    # test_x = np.zeros([3,151])
+    test_x[0,:] = train_x[4]
+    test_x[1,:] = train_x[9]
+    test_x[2,:] = train_x[14]
+    test_y[0,0] = train_y[4]
+    test_y[1,0] = train_y[9]
+    test_y[2,0] = train_y[14]
+
     print (train_x.shape)
     print (test_x.shape)
+    print (train_y.shape)
+    print (test_y.shape)
 
-    rnn = RNN(train_x, train_y, test_x, test_y)
-    rnn.train()
-    score, acc = rnn.evaluate()
+    nn = NN(train_x, train_y, test_x, test_y)
+    nn.train()
+    score, acc = nn.evaluate()
     print('Test score:', score)
     print('Test accuracy:', acc)
