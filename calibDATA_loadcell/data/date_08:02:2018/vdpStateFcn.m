@@ -23,12 +23,11 @@ function x = vdpStateFcn(x)
 % MATLAB Coder.
 
 % Euler integration of continuous-time dynamics x'=f(x) with sample time dt
-% dt = 0.05; % [s] Sample time
- x = x; %+ vdpStateFcnContinuous(x)*dt;
- x
+dt = 0.05; % [s] Sample time 20Hz
+x = x ;%+ vdpStateFcnContinuous(x)*dt;
 end
 
 % function dxdt = vdpStateFcnContinuous(x)
 % %vdpStateFcnContinuous Evaluate the van der Pol ODEs for mu = 1
-% dxdt = [x(2); (1-x(1)^2)*x(2)-x(1)];
+% dxdt = ;
 % end
