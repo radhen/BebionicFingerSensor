@@ -16,9 +16,11 @@ from keras.layers import MaxPooling1D
 from keras.preprocessing.text import Tokenizer
 from keras.layers import Merge
 
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
+
+from sklearn.model_selection import train_test_split
 
 
 def make_patch_spines_invisible(ax):
@@ -66,56 +68,68 @@ def plot():
 def load_data():
     angles = [0,20,-20] # all probing angles
     maxForces = [30] # all maxForces
-    d = {}
-    df_1 = pd.DataFrame()
-    train_x = np.zeros([15,151])
-    train_y = np.zeros([15,])
+    # df_1 = pd.DataFrame()
+    train_x = np.zeros([30,151,2]) #(no. of examples , windowSize, channels(baro+ir))
+    train_y = np.zeros([30,])
     for maxForce in maxForces:
-        df = pd.read_excel('baro_{}N.xlsx'.format(maxForce),header=None)
-        # print (df[0])
-        data=df.as_matrix() #converting into numpy array
-        # print (data)
-        for i in range(15):
+        df_baro = pd.read_excel('baro_{}N.xlsx'.format(maxForce),header=None)
+        df_ir = pd.read_excel('ir_{}N.xlsx'.format(maxForce),header=None)
+        data_baro = df_baro.as_matrix() #converting into numpy array
+        data_ir = df_ir.as_matrix()
 
-            if data[0,i] == -20:
+        for i in range(30):
+            # y-labels
+            if data_baro[0,i] == -20:
                 train_y[i] = 0
-            elif int(data[0,i]) == 0:
+            elif int(data_baro[0,i]) == 0:
                 train_y[i] = 1
-            elif int(data[0,i]) == 20:
+            elif int(data_baro[0,i]) == 20:
                 train_y[i] = 2
+            # Xs (zipping baro and ir)
+            # data = np.hstack(zip(data_baro[1:,i], data_ir[1:,i]))
+            # data = np.concatenate((data_baro[1:,i],data_ir[1:,i]), axis=0)
+            train_x[i,:,0] = (data_baro[1:,i].tolist())
+            train_x[i,:,1] = (data_ir[1:,i].tolist())
 
-            train_x[i] = (data[1:,i].tolist())
-        # print (train_y)
-        # print (train_y[10])
     return (train_x, train_y)
 
 class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=10, batch_size=2):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=15, batch_size=2):
 
         self.epoches = epoches
         self.batch_size = batch_size
 
         self.train_x = train_x
         self.test_x = test_x
-        self.train_y = np_utils.to_categorical(train_y, 3)
-        self.test_y = np_utils.to_categorical(test_y, 3)
+
+        # TODO: one hot encoding for train_y and test_y
+        num_classes = 3
+        self.train_y = np_utils.to_categorical(train_y, num_classes)
+        self.test_y = np_utils.to_categorical(test_y, num_classes)
 
         self.model = Sequential()
-        self.model.add(Dense(151, input_dim=151))
+        self.model.add(Conv1D(15, kernel_size=(10), padding='valid',
+                                    activation='relu',
+                                    input_shape=(151,2)))
+        self.model.add(MaxPooling1D(pool_size=4))
+        # self.model.add(Flatten())
+        self.model.add(Conv1D(15, kernel_size=(10), padding='same',
+                                    activation='relu',
+                                    input_shape=(151,2)))
+        self.model.add(MaxPooling1D(pool_size=2))
+        self.model.add(Flatten())
+        self.model.add(Dense(10))
         self.model.add(Activation('relu'))
-        self.model.add(Dropout(0.4))
-        self.model.add(Dense(300))
+        self.model.add(Dense(5))
         self.model.add(Activation('relu'))
-        self.model.add(Dense(100))
-        self.model.add(Activation('relu'))
-        self.model.add(Dropout(0.4))
+        # self.model.add(Dropout(0.4))
         self.model.add(Dense(3))
         self.model.add(Activation('softmax'))
 
-        rms = RMSprop()
+        rms = RMSprop(lr=.01)
         self.model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
 
 
@@ -141,24 +155,14 @@ class NN:
 if __name__ == '__main__':
 
     train_x, train_y = load_data()
+    X_train, X_test, y_train, y_test = train_test_split(train_x, train_y, test_size=0.2, random_state=5)
 
-    # create array to store testing data
-    test_x = np.zeros([3,151])
-    test_y = np.zeros([3,1])
-    # test_x = np.zeros([3,151])
-    test_x[0,:] = train_x[4]
-    test_x[1,:] = train_x[9]
-    test_x[2,:] = train_x[14]
-    test_y[0,0] = train_y[4]
-    test_y[1,0] = train_y[9]
-    test_y[2,0] = train_y[14]
+    print ('X_train shape: '+str(X_train.shape))
+    print (X_test.shape)
+    print (y_train.shape)
+    print (y_test)
 
-    print (train_x.shape)
-    print (test_x.shape)
-    print (train_y.shape)
-    print (test_y.shape)
-
-    nn = NN(train_x, train_y, test_x, test_y)
+    nn = NN(X_train, y_train, X_test, y_test)
     nn.train()
     score, acc = nn.evaluate()
     print('Test score:', score)

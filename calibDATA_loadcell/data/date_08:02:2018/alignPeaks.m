@@ -1,18 +1,18 @@
 % load('test_deg20.mat')
 
-% [p_b,loc_b]=findpeaks(deg2030N.baro,'MinPeakHeight', 1554)
+% [p_b,loc_b]=findpeaks(degNEG201N1.baro,'MinPeakHeight', 1537, 'MinPeakProminence',0.5)
 % [p_n,loc_n]=findpeaks(deg2030N.newton,'MinPeakHeight', 30)
-% [p_i,loc_i]=findpeaks(deg2030N.ir,'MinPeakHeight', 2000, 'MinPeakWidth', 25)
+% [p_ir,loc_ir]=findpeaks(degNEG201N1.ir,'MinPeakHeight', 9500, 'MinPeakWidth', 20)
 
 w_size = 75;
 
 N=[];
 B=[];
 IR=[];
-for i=1:5
-    N(:,i) = (deg2030N.newton(loc_n(i)-w_size:loc_n(i)+w_size));
-    B(:,i) = (deg2030N.baro(loc_b(i)-w_size:loc_b(i)+w_size));
-    IR(:,i) = (deg2030N.ir(loc_ir(i)-w_size:loc_ir(i)+w_size));
+for i=1:10
+%     N(:,i) = (deg2030N.newton(loc_n(i)-w_size:loc_n(i)+w_size));
+    B(:,i) = (degNEG2050N1.baro(loc_b(i)-w_size:loc_b(i)+w_size));
+    IR(:,i) = (degNEG2050N1.ir(loc_ir(i)-w_size:loc_ir(i)+w_size));
     
     
     
