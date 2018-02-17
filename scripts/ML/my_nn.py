@@ -67,37 +67,38 @@ def plot():
 
 def load_data():
     angles = [0,20,-20] # all probing angles
-    maxForces = [30] # all maxForces
+    maxForces = [1,5,30,50] # all maxForces
     # df_1 = pd.DataFrame()
-    train_x = np.zeros([30,151,2]) #(no. of examples , windowSize, channels(baro+ir))
-    train_y = np.zeros([30,])
+    train_x = np.zeros([120,151,2]) #(no. of examples , windowSize, channels(baro+ir))
+    train_y = np.zeros([120,])
+    jj = 0
     for maxForce in maxForces:
-        df_baro = pd.read_excel('baro_{}N.xlsx'.format(maxForce),header=None)
-        df_ir = pd.read_excel('ir_{}N.xlsx'.format(maxForce),header=None)
+        df_baro = pd.read_excel('{}N.xlsx'.format(maxForce),sheetname='Sheet1',header=None)
+        df_ir = pd.read_excel('{}N.xlsx'.format(maxForce),sheetname='Sheet2',header=None)
         data_baro = df_baro.as_matrix() #converting into numpy array
         data_ir = df_ir.as_matrix()
 
         for i in range(30):
             # y-labels
-            if data_baro[0,i] == -20:
+            if data_baro[0,i] == angles[0]:
                 train_y[i] = 0
-            elif int(data_baro[0,i]) == 0:
+            elif int(data_baro[0,i]) == angles[1]:
                 train_y[i] = 1
-            elif int(data_baro[0,i]) == 20:
+            elif int(data_baro[0,i]) == angles[2]:
                 train_y[i] = 2
             # Xs (zipping baro and ir)
             # data = np.hstack(zip(data_baro[1:,i], data_ir[1:,i]))
             # data = np.concatenate((data_baro[1:,i],data_ir[1:,i]), axis=0)
-            train_x[i,:,0] = (data_baro[1:,i].tolist())
-            train_x[i,:,1] = (data_ir[1:,i].tolist())
-
+            train_x[i+jj,:,0] = data_baro[1:,i].tolist()
+            train_x[i+jj,:,1] = data_ir[1:,i].tolist()
+        jj=jj+30
     return (train_x, train_y)
 
 class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=15, batch_size=2):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=10, batch_size=30):
 
         self.epoches = epoches
         self.batch_size = batch_size
@@ -111,19 +112,19 @@ class NN:
         self.test_y = np_utils.to_categorical(test_y, num_classes)
 
         self.model = Sequential()
-        self.model.add(Conv1D(15, kernel_size=(10), padding='valid',
+        self.model.add(Conv1D(13, kernel_size=(30), padding='valid',
                                     activation='relu',
                                     input_shape=(151,2)))
         self.model.add(MaxPooling1D(pool_size=4))
         # self.model.add(Flatten())
-        self.model.add(Conv1D(15, kernel_size=(10), padding='same',
+        self.model.add(Conv1D(13, kernel_size=(10), padding='same',
                                     activation='relu',
                                     input_shape=(151,2)))
         self.model.add(MaxPooling1D(pool_size=2))
         self.model.add(Flatten())
-        self.model.add(Dense(10))
-        self.model.add(Activation('relu'))
-        self.model.add(Dense(5))
+        # self.model.add(Dense(10))
+        # self.model.add(Activation('relu'))
+        # self.model.add(Dense(5))
         self.model.add(Activation('relu'))
         # self.model.add(Dropout(0.4))
         self.model.add(Dense(3))
@@ -155,12 +156,13 @@ class NN:
 if __name__ == '__main__':
 
     train_x, train_y = load_data()
-    X_train, X_test, y_train, y_test = train_test_split(train_x, train_y, test_size=0.2, random_state=5)
+    # print (len(train_x[:,1,1]))
+    X_train, X_test, y_train, y_test = train_test_split(train_x, train_y, test_size=0.2, random_state=42)
 
-    print ('X_train shape: '+str(X_train.shape))
-    print (X_test.shape)
-    print (y_train.shape)
-    print (y_test)
+    # print ('X_train shape: '+str(X_train.shape))
+    # print (X_test.shape)
+    # print (y_train.shape)
+    # print (y_test)
 
     nn = NN(X_train, y_train, X_test, y_test)
     nn.train()
