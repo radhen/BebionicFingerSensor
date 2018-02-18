@@ -21,7 +21,12 @@ from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 
+
+# fix random seed for reproducibility
+seed = 7
+np.random.seed(seed)
 
 def make_patch_spines_invisible(ax):
     '''
@@ -69,8 +74,8 @@ def load_data():
     angles = [0,20,-20] # all probing angles
     maxForces = [1,5,30,50] # all maxForces
     # df_1 = pd.DataFrame()
-    train_x = np.zeros([120,151,2]) #(no. of examples , windowSize, channels(baro+ir))
-    train_y = np.zeros([120,])
+    X = np.zeros([120,151,2]) #(no. of examples , windowSize, channels(baro+ir))
+    Y = np.zeros([120,])
     jj = 0
     for maxForce in maxForces:
         df_baro = pd.read_excel('{}N.xlsx'.format(maxForce),sheetname='Sheet1',header=None)
@@ -81,24 +86,24 @@ def load_data():
         for i in range(30):
             # y-labels
             if data_baro[0,i] == angles[0]:
-                train_y[i] = 0
+                Y[i] = 0
             elif int(data_baro[0,i]) == angles[1]:
-                train_y[i] = 1
+                Y[i] = 1
             elif int(data_baro[0,i]) == angles[2]:
-                train_y[i] = 2
+                Y[i] = 2
             # Xs (zipping baro and ir)
             # data = np.hstack(zip(data_baro[1:,i], data_ir[1:,i]))
             # data = np.concatenate((data_baro[1:,i],data_ir[1:,i]), axis=0)
-            train_x[i+jj,:,0] = data_baro[1:,i].tolist()
-            train_x[i+jj,:,1] = data_ir[1:,i].tolist()
+            X[i+jj,:,0] = data_baro[1:,i].tolist()
+            X[i+jj,:,1] = data_ir[1:,i].tolist()
         jj=jj+30
-    return (train_x, train_y)
+    return (X, Y)
 
 class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=10, batch_size=30):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=5, batch_size=30):
 
         self.epoches = epoches
         self.batch_size = batch_size
@@ -112,21 +117,18 @@ class NN:
         self.test_y = np_utils.to_categorical(test_y, num_classes)
 
         self.model = Sequential()
-        self.model.add(Conv1D(13, kernel_size=(30), padding='valid',
+        self.model.add(Conv1D(14, kernel_size=(15), padding='valid',
                                     activation='relu',
                                     input_shape=(151,2)))
         self.model.add(MaxPooling1D(pool_size=4))
-        # self.model.add(Flatten())
-        self.model.add(Conv1D(13, kernel_size=(10), padding='same',
+        # # self.model.add(Flatten())
+        self.model.add(Conv1D(14, kernel_size=(10), padding='same',
                                     activation='relu',
                                     input_shape=(151,2)))
-        self.model.add(MaxPooling1D(pool_size=2))
-        self.model.add(Flatten())
-        # self.model.add(Dense(10))
-        # self.model.add(Activation('relu'))
-        # self.model.add(Dense(5))
-        self.model.add(Activation('relu'))
-        # self.model.add(Dropout(0.4))
+        # self.model.add(MaxPooling1D(pool_size=8))
+        # self.model.add(Flatten())
+        self.model.add(LSTM(5, activation='tanh', recurrent_activation='hard_sigmoid'))
+        # self.model.add(Flatten())
         self.model.add(Dense(3))
         self.model.add(Activation('softmax'))
 
@@ -144,6 +146,7 @@ class NN:
           batch_size=self.batch_size,
           epochs=self.epoches,
           validation_data=(self.test_x, self.test_y))
+          #validation_split=0.2)
 
     def evaluate(self):
         '''
@@ -155,17 +158,25 @@ class NN:
 
 if __name__ == '__main__':
 
-    train_x, train_y = load_data()
-    # print (len(train_x[:,1,1]))
-    X_train, X_test, y_train, y_test = train_test_split(train_x, train_y, test_size=0.2, random_state=42)
+    X, Y = load_data()
 
-    # print ('X_train shape: '+str(X_train.shape))
-    # print (X_test.shape)
-    # print (y_train.shape)
-    # print (y_test)
+    # single split of data into training and testing
+    # X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=22)
 
-    nn = NN(X_train, y_train, X_test, y_test)
-    nn.train()
-    score, acc = nn.evaluate()
-    print('Test score:', score)
-    print('Test accuracy:', acc)
+    # define 5-fold cross validation test harness
+    kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=14)
+    cvscores = []
+    for train, test in kfold.split(X, Y):
+
+        print (X[train].shape)
+        print (X[test].shape)
+        print (Y[train].shape)
+        print (Y[test])
+
+        nn = NN(X[train], Y[train], X[test], Y[test])
+        nn.train()
+        score, acc = nn.evaluate()
+        print('Test score:', score)
+        print('Test accuracy:', acc)
+        cvscores.append(acc * 100)
+    print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
