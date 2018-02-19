@@ -9,12 +9,13 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import GRU
-from keras.layers import Conv1D
+from keras.layers import Conv1D, Conv2D
 from keras.layers.embeddings import Embedding
 from keras.preprocessing import sequence
-from keras.layers import MaxPooling1D
+from keras.layers import MaxPooling1D, MaxPooling2D
 from keras.preprocessing.text import Tokenizer
 from keras.layers import Merge
+from keras.layers.normalization import BatchNormalization
 
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.optimizers import RMSprop
@@ -86,24 +87,25 @@ def load_data():
         for i in range(30):
             # y-labels
             if data_baro[0,i] == angles[0]:
-                Y[i] = 0
+                Y[i+jj] = 0
             elif int(data_baro[0,i]) == angles[1]:
-                Y[i] = 1
+                Y[i+jj] = 1
             elif int(data_baro[0,i]) == angles[2]:
-                Y[i] = 2
+                Y[i+jj] = 2
             # Xs (zipping baro and ir)
             # data = np.hstack(zip(data_baro[1:,i], data_ir[1:,i]))
             # data = np.concatenate((data_baro[1:,i],data_ir[1:,i]), axis=0)
             X[i+jj,:,0] = data_baro[1:,i].tolist()
             X[i+jj,:,1] = data_ir[1:,i].tolist()
         jj=jj+30
+    # print
     return (X, Y)
 
 class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=5, batch_size=30):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=50, batch_size=2):
 
         self.epoches = epoches
         self.batch_size = batch_size
@@ -111,29 +113,42 @@ class NN:
         self.train_x = train_x
         self.test_x = test_x
 
+        # self.train_y = train_y
+        # self.test_y = test_y
+
         # TODO: one hot encoding for train_y and test_y
         num_classes = 3
         self.train_y = np_utils.to_categorical(train_y, num_classes)
         self.test_y = np_utils.to_categorical(test_y, num_classes)
+        # print (self.train_y.shape)
+        # print (self.test_y)
 
         self.model = Sequential()
-        self.model.add(Conv1D(14, kernel_size=(15), padding='valid',
+        self.model.add(Conv1D(2, kernel_size=10, strides=5, padding='valid',
                                     activation='relu',
                                     input_shape=(151,2)))
-        self.model.add(MaxPooling1D(pool_size=4))
-        # # self.model.add(Flatten())
-        self.model.add(Conv1D(14, kernel_size=(10), padding='same',
+        # self.model.add(BatchNormalization())
+        # self.model.add(MaxPooling1D(pool_size=2))
+        self.model.add(Conv1D(2, kernel_size=3, strides=2, padding='valid',
                                     activation='relu',
-                                    input_shape=(151,2)))
-        # self.model.add(MaxPooling1D(pool_size=8))
+                                    input_shape=(35,2)))
+        # self.model.add(MaxPooling1D(pool_size=2))
+        self.model.add(Flatten())
+        # self.model.add(Conv1D(13, kernel_size=5, padding='valid',
+        #                             activation='relu'))
         # self.model.add(Flatten())
-        self.model.add(LSTM(5, activation='tanh', recurrent_activation='hard_sigmoid'))
+        # self.model.add(LSTM(15, input_shape = (151,2)))
+        # self.model.add(LSTM(5, input_shape = (151,2)))
+        # self.model.add(LSTM(5, activation='tanh', recurrent_activation='hard_sigmoid'))
         # self.model.add(Flatten())
+        # self.model.add(Dense(10))
+        # self.model.add(Activation('relu'))
         self.model.add(Dense(3))
         self.model.add(Activation('softmax'))
 
-        rms = RMSprop(lr=.01)
+        rms = RMSprop()
         self.model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
+        # print (self.model.summary())
 
 
     def train(self):
@@ -160,18 +175,25 @@ if __name__ == '__main__':
 
     X, Y = load_data()
 
-    # single split of data into training and testing
-    # X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=22)
+    # print (X[0,:,0])
 
-    # define 5-fold cross validation test harness
-    kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=14)
+    # normalizing data
+    for i in range(120):
+        X[i,:,0] = (X[i,:,0] - min(X[i,:,0]))/float(max(X[i,:,0])-min(X[i,:,0]))
+        X[i,:,1] = (X[i,:,1] - min(X[i,:,1]))/float(max(X[i,:,1])-min(X[i,:,1]))
+
+    # print (X[0,:,0])
+
+    '''' single split of data into training and testing '''
+    # X[train], X[test], Y[train], Y[test] = train_test_split(X, Y, test_size=0.20, random_state=22)
+
+    '''define 5-fold cross validation test harness'''
+    kfold = StratifiedKFold(n_splits=6, shuffle=True, random_state=27)
     cvscores = []
     for train, test in kfold.split(X, Y):
 
-        print (X[train].shape)
-        print (X[test].shape)
-        print (Y[train].shape)
-        print (Y[test])
+        print ('\n','train X',X[train].shape,'test X',X[test].shape)
+        print ('train Y',Y[train].shape,'test Y',Y[test])
 
         nn = NN(X[train], Y[train], X[test], Y[test])
         nn.train()
