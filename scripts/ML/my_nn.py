@@ -24,6 +24,11 @@ from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
 
+from pandas import Series
+from sklearn.preprocessing import StandardScaler
+
+import math
+
 
 # fix random seed for reproducibility
 seed = 7
@@ -72,6 +77,9 @@ def plot():
     plt.show()
 
 def load_data():
+    '''
+    loads data creates labels 0,1,2 for 0deg,20deg,-20deg
+    '''
     angles = [0,20,-20] # all probing angles
     maxForces = [1,5,30,50] # all maxForces
     # df_1 = pd.DataFrame()
@@ -101,20 +109,52 @@ def load_data():
     # print
     return (X, Y)
 
+def preprocessData(X):
+
+    '''normalizing data to zero mean and 1 std. dev.
+    '''
+    for i in range(120):
+        # ----- normalizing between 0 and 1 ----- #
+        # X[i,:,0] = (X[i,:,0] - min(X[i,:,0]))/float(max(X[i,:,0])-min(X[i,:,0]))
+        # X[i,:,1] = (X[i,:,1] - min(X[i,:,1]))/float(max(X[i,:,1])-min(X[i,:,1]))
+
+        # ----- normalizing with 0 mean and 1 std. dev. ----- #
+        for j in range(2):
+            series = Series(X[i,:,j])
+            # prepare data for normalization
+            values = series.values
+            values = values.reshape((len(values), 1))
+            # train the normalization
+            scaler = StandardScaler()
+            scaler = scaler.fit(values)
+            print('Mean: %f, StandardDeviation: %f' % (scaler.mean_, math.sqrt(scaler.var_)))
+            # normalize the dataset and print
+            standardized = scaler.transform(values)
+            # print (standardized[:,0])
+            X[i,:,j] = standardized[:,0]
+            # print(standardized.shape)
+            # inverse transform and print
+            # inversed = scaler.inverse_transform(standardized)
+            # print(inversed.shape)
+            # X[i,:,0] = inversed[:]
+            # print (type(inversed))
+
+    # print (X[0,:,0])
+    # print (X[0,:,1])
+    return (X)
+
+
 class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=50, batch_size=2):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=100, batch_size=5):
 
         self.epoches = epoches
         self.batch_size = batch_size
 
         self.train_x = train_x
         self.test_x = test_x
-
-        # self.train_y = train_y
-        # self.test_y = test_y
 
         # TODO: one hot encoding for train_y and test_y
         num_classes = 3
@@ -175,14 +215,7 @@ if __name__ == '__main__':
 
     X, Y = load_data()
 
-    # print (X[0,:,0])
-
-    # normalizing data
-    for i in range(120):
-        X[i,:,0] = (X[i,:,0] - min(X[i,:,0]))/float(max(X[i,:,0])-min(X[i,:,0]))
-        X[i,:,1] = (X[i,:,1] - min(X[i,:,1]))/float(max(X[i,:,1])-min(X[i,:,1]))
-
-    # print (X[0,:,0])
+    X = preprocessData(X) # normalizing values
 
     '''' single split of data into training and testing '''
     # X[train], X[test], Y[train], Y[test] = train_test_split(X, Y, test_size=0.20, random_state=22)
@@ -191,7 +224,7 @@ if __name__ == '__main__':
     kfold = StratifiedKFold(n_splits=6, shuffle=True, random_state=27)
     cvscores = []
     for train, test in kfold.split(X, Y):
-
+    #
         print ('\n','train X',X[train].shape,'test X',X[test].shape)
         print ('train Y',Y[train].shape,'test Y',Y[test])
 
