@@ -61,7 +61,7 @@ if __name__ == '__main__':
     reframed = series_to_supervised(scaled)
     # drop columns we don't want to predict
     reframed.drop(reframed.columns[[2,3,4]], axis=1, inplace=True)
-    # print (reframed)
+    print (reframed)
 
     ## split into train and test sets
     values = reframed.values
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     model.add(Dense(1))
     model.compile(loss='mae', optimizer='adam')
     # fit network
-    history = model.fit(train_X, train_y, epochs=150, batch_size=5, validation_data=(test_X, test_y), verbose=2, shuffle=False)
+    history = model.fit(train_X, train_y, epochs=50, batch_size=10, validation_data=(test_X, test_y), verbose=2, shuffle=False)
     # plot history
     pyplot.plot(history.history['loss'], label='train')
     pyplot.plot(history.history['val_loss'], label='test')
