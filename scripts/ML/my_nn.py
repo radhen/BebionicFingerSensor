@@ -148,7 +148,7 @@ class NN:
     '''
     NN classifier
     '''
-    def __init__(self, train_x, train_y, test_x, test_y, epoches=100, batch_size=5):
+    def __init__(self, train_x, train_y, test_x, test_y, epoches=250, batch_size=5):
 
         self.epoches = epoches
         self.batch_size = batch_size
