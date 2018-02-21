@@ -36,7 +36,7 @@ def preprocessData(X):
     return (X)
 
 
-# load data
+'''load data'''
 df_newton = pd.read_excel('30N_gp.xlsx',sheetname='Sheet1',header=None)
 df_baro = pd.read_excel('30N_gp.xlsx',sheetname='Sheet2',header=None)
 df_ir = pd.read_excel('30N_gp.xlsx',sheetname='Sheet3',header=None)
@@ -45,15 +45,11 @@ data_x = df_baro.values[:75]
 data_x1 = df_ir.values[:75]
 data_y = df_newton.values[:75]
 
-'''Test data'''
 n = data_x1.shape[0]
-
-# Xtest = np.linspace(-5, 5, n).reshape(-1,1)
+'''Normalizing test data b/w 0 and 1'''
 Xtest = data_x1[:,2].reshape(-1,1)
 Xtest = preprocessData(Xtest[:,0])
-# # print (Xtest.shape)
 Xtest = Xtest.reshape(-1,1)
-# print (Xtest.shape)
 
 '''Define the kernel function'''
 def kernel(a, b, param):
@@ -62,12 +58,13 @@ def kernel(a, b, param):
 
 param = 0.5
 K_ss = kernel(Xtest, Xtest, param)
+print (K_ss)
 
 '''Get cholesky decomposition (square root) of the covariance matrix'''
 L = np.linalg.cholesky(K_ss + 1e-15*np.eye(n))
 '''Sample 3 sets of standard normals for our test points,
 multiply them by the square root of the covariance matrix'''
-f_prior = np.dot(L, np.random.normal(size=(n,1)))
+f_prior = np.dot(L, np.random.normal(size=(n,3)))
 
 '''Now let's plot the 3 sampled functions.'''
 pl.plot(Xtest, f_prior)
@@ -75,8 +72,7 @@ pl.axis([-1.5, 1.5, -2, 2])
 pl.title('Three samples from the GP prior')
 pl.show()
 
-# Noiseless training data
-# Xtrain = np.array([-4, -3, -2, -1, 1]).reshape(5,1)
+''''Normalizing training data b/w 0 and 1'''
 Xtrain = data_x1[:,0].reshape(-1,1)
 Xtrain = preprocessData(Xtrain[:,0])
 Xtrain = Xtrain.reshape(-1,1)
@@ -84,21 +80,21 @@ ytrain = data_y[:,0].reshape(-1,1)
 ytrain = preprocessData(ytrain[:,0])
 ytrain = ytrain.reshape(-1,1)
 
-# Apply the kernel function to our training points
+''''Apply the kernel function to our training points'''
 K = kernel(Xtrain, Xtrain, param)
 L = np.linalg.cholesky(K + 0.00005*np.eye(len(Xtrain)))
 
-# Compute the mean at our test points.
+'''Compute the mean at our test points'''
 K_s = kernel(Xtrain, Xtest, param)
 Lk = np.linalg.solve(L, K_s)
 mu = np.dot(Lk.T, np.linalg.solve(L, ytrain)).reshape((n,))
 
-# Compute the standard deviation so we can plot it
+'''Compute the standard deviation so we can plot it'''
 s2 = np.diag(K_ss) - np.sum(Lk**2, axis=0)
 stdv = np.sqrt(s2)
 # Draw samples from the posterior at our test points.
 L = np.linalg.cholesky(K_ss + 1e-6*np.eye(n) - np.dot(Lk.T, Lk))
-f_post = mu.reshape(-1,1) + np.dot(L, np.random.normal(size=(n,1)))
+f_post = mu.reshape(-1,1) + np.dot(L, np.random.normal(size=(n,3)))
 
 pl.plot(Xtrain, ytrain, 'bs', ms=2)
 pl.plot(Xtest, f_post)
