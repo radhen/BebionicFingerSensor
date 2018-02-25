@@ -34,32 +34,32 @@ def sortData(A):
 
 def load_data():
     '''load data'''
-    df_newton = pd.read_excel('301550N_gp.xlsx',sheetname='newton',header=None)
-    df_baro = pd.read_excel('301550N_gp.xlsx',sheetname='baro',header=None)
-    df_ir = pd.read_excel('301550N_gp.xlsx',sheetname='ir',header=None)
+    df_newton = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='newton',header=None)
+    df_baro = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='baro',header=None)
+    df_ir = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='ir',header=None)
 
-    data_x = df_baro.values[:]
-    data_x1 = df_ir.values[:]
+    data_baro = df_baro.values[:]
+    data_ir = df_ir.values[:]
     data_y = df_newton.values[:]
 
-    return (data_x, data_x1, data_y)
+    return (data_baro, data_ir, data_y)
 
 
 def plot_2d():
     '''Plot 2D function, the prediction and the 95% confidence interval based on
     the MSE'''
     fig = plt.figure()
-    plt.plot(x, y, 'bs', ms=2)#, label=u'$f(x) = x\,\sin(x)$')
-    plt.plot(X, y)#, 'r.', markersize=1, label=u'Observations')
-    plt.plot(x, y_pred, 'r--', label=u'Prediction', linewidth=1)
-    plt.fill(np.concatenate([x, x[::-1]]),
-             np.concatenate([y_pred - 1.96 * sigma,
-                            (y_pred + 1.96 * sigma)[::-1]]),
-             alpha=.5, color="#dddddd")
+    plt.plot(x, y*max(data_y[:,3]), 'bs', ms=2, label='Measurement')
+    # plt.plot(X, y)#, 'r.', markersize=1, label=u'Observations')
+    plt.plot(x, y_pred*max(data_y[:,3]), 'r--', label='Prediction', linewidth=1)
+    # plt.fill(np.concatenate([x, x[::-1]]),
+    #          np.concatenate([y_pred*max(data_y[:,3]) - 1.96 * sigma,
+    #                         (y_pred*max(data_y[:,3]) + 1.96 * sigma)[::-1]]),
+    #          alpha=.5, color="#dddddd")
 
-    plt.xlabel('Baro & IR')
-    plt.ylabel('f(baro,ir)$')
-    pl.axis([-0.25, 1.25, -0.3, 1.2])
+    plt.xlabel('Force(N)')
+    plt.ylabel('IR')
+    # plt.axis([-0.25, 1.25, -0.3, 1.2])
     plt.legend(loc='upper left')
     plt.show()
 
@@ -67,9 +67,9 @@ def plot_3d():
     mpl.rcParams['legend.fontsize'] = 10
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.plot(x[:,0], x[:,1], y[:,0]*max(data_y[:,3]), 'bs', ms=2, label='Measurements')
+    ax.plot(x[:,0], x[:,1], y[:,0], 'bs', ms=2, label='Measurements')
     # ax.plot(X[:,0], X[:,1], y[:,0], label='')
-    ax.plot(X[:,0], X[:,1], y_pred[:,0]*max(data_y[:,3]), 'r--', label='Estimate')
+    ax.plot(X[:,0], X[:,1], y_pred[:,0], 'r--', label='Estimate')
     ax.legend()
     ax.set_xlabel('Baro')
     ax.set_ylabel('IR')
@@ -77,55 +77,7 @@ def plot_3d():
     plt.show()
 
 
-
-if __name__ == '__main__':
-
-    data_x, data_x1, data_y = load_data()
-    n = data_x.shape[0]
-
-    # randonly take m number of points
-    m = 200
-    indices = random.sample(range(n), m)
-
-    Xtest = data_x[:,2].reshape(-1,1) # baro readings test
-    Xtest = preprocessData(Xtest[:,0])
-
-    Xtest1 = data_x1[:,2].reshape(-1,1) # ir readings test
-    Xtest1 = preprocessData(Xtest1[:,0])
-    # print (Xtest.shape)
-    X = np.concatenate((Xtest, Xtest1), axis=1)
-    # X = Xtest
-
-    Xtrain = data_x[:,3].reshape(-1,1) # baro readings train
-    Xtrain = preprocessData(Xtrain[:,0])
-
-    Xtrain1 = data_x1[:,3].reshape(-1,1) # ir readings train
-    Xtrain1 = preprocessData(Xtrain1[:,0])
-
-    x = np.concatenate((Xtrain, Xtrain1), axis=1)
-    # x = Xtrain
-
-    ytrain = data_y[:,3].reshape(-1,1)
-    ytrain = preprocessData(ytrain[:,0])
-
-    y = ytrain
-    addNoise = False
-    if (addNoise):
-        '''adding noise'''
-        dy = 0.05 + 0.01 * np.random.random(y.shape)
-        noise = np.random.normal(0, dy)
-        y += noise
-        y = sortData(y)
-
-    if (randomSelection):
-        X = Xtest[np.array(indices)] # select data points at randomly generated indices
-        X = sortData(X) # since random selection sort again
-        x = Xtrain[np.array(indices)] # select data points at randomly generated indices
-        x = sortData(x)
-        y = ytrain[np.array(indices)] # select data points at randomly generated indices
-        y = sortData(y)
-
-
+def gaussian_process(X,x,y):
     kernel = RBF(length_scale=0.01, length_scale_bounds=(10, 100))
 
     gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10)
@@ -136,9 +88,125 @@ if __name__ == '__main__':
     # Make the prediction on the meshed x-axis (ask for MSE as well)
     y_pred, sigma = gp.predict(x, return_std=True)
 
-    MSE = metrics.mean_squared_error(y_pred, y)
-    print ('Mean Square Error:', MSE)
+    # MSE = metrics.mean_squared_error(y_pred, y)
+    # print ('Mean Square Error:', MSE)
+    RMSE = np.sqrt(((y_pred - y) ** 2).mean())
+    print ('Root mean square err:', RMSE)
+    print ('RMSE^2:', RMSE**2)
 
-    print ('Mean accuray:', gp.score(X,y)) # Returns the mean accuracy on the given test data and labels.
+    return (y_pred, RMSE, RMSE**2)
 
-    plot_3d()
+
+def split_train_test(data_baro,data_ir,data_y):
+    '''Using all the data, 50/50 train test split
+    Train Test length need to be SAME for gp(X,y)'''
+    # cross-validation
+    cols = np.array([1,2,3,4,5,6,7,8,9,0])
+    np.random.shuffle(cols)
+    train_indices = cols[:5]
+    test_indices = cols[-5:]
+
+    X_tstBaro = []
+    X_tstIR = []
+    for i in test_indices:
+        X_tstBaro.append(data_baro[:,i].tolist())
+        X_tstIR.append(data_ir[:,i].tolist())
+    X_tstBaro = np.array(X_tstBaro)
+    X_tstIR = np.array(X_tstIR)
+    X_tstBaro = X_tstBaro.reshape(-1,1)
+    X_tstIR = X_tstIR.reshape(-1,1)
+    X_tstBaro = preprocessData(X_tstBaro[:,0])
+    X_tstIR = preprocessData(X_tstIR[:,0])
+    X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
+    print (X.shape)
+
+    X_trBaro = []
+    X_trIR = []
+    for i in train_indices:
+        X_trBaro.append(data_baro[:,i].tolist())
+        X_trIR.append(data_ir[:,i].tolist())
+    X_trBaro = np.array(X_trBaro)
+    X_trIR = np.array(X_trIR)
+    X_trBaro = X_trBaro.reshape(-1,1)
+    X_trIR = X_trIR.reshape(-1,1)
+    X_trBaro = preprocessData(X_trBaro[:,0])
+    X_trIR = preprocessData(X_trIR[:,0])
+    x = np.concatenate((X_trBaro, X_trIR), axis=1)
+    print (x.shape)
+
+    y_tr = []
+    for i in train_indices:
+        y_tr.append(data_y[:,i].tolist())
+    y_tr = np.array(y_tr)
+    y_tr = y_tr.reshape(-1,1)
+    y = preprocessData(y_tr[:,0])
+    print (y.shape)
+
+    return (X,x,y)
+
+def split_train_test_SINGLE(data_baro,data_ir,data_y):
+    '''one column test, one column train, from excel file'''
+    X_tstBaro = data_baro[:,2].reshape(-1,1) # baro readings test
+    X_tstBaro = preprocessData(X_tstBaro[:,0])
+    # plt.plot (Xtest)
+    # plt.show()
+
+    X_tstIR = data_ir[:,2].reshape(-1,1) # ir readings test
+    X_tstIR = preprocessData(X_tstIR[:,0])
+    X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
+    # X = Xtest
+
+    X_trBaro = data_baro[:,3].reshape(-1,1) # baro readings train
+    X_trBaro = preprocessData(X_trBaro[:,0])
+
+    X_trIR = data_ir[:,3].reshape(-1,1) # ir readings train
+    X_trIR = preprocessData(X_trIR[:,0])
+    x = np.concatenate((X_trBaro, X_trIR), axis=1)
+    # x = Xtrain
+
+    ytrain = data_y[:,3].reshape(-1,1)
+    ytrain = preprocessData(ytrain[:,0])
+
+    y = ytrain
+
+    return (X,x,y)
+
+
+
+if __name__ == '__main__':
+
+    data_baro, data_ir, data_y = load_data()
+    n = data_baro.shape[0]
+
+    # randonly take m number of points
+    m = 200
+    indices = random.sample(range(n), m)
+
+    # X,x,y = split_train_test(data_baro,data_ir,data_y)
+
+    # X,x,y = split_train_test_SINGLE(data_baro,data_ir,data_y)
+
+    # if (randomSelection):
+    #     X = Xtest[np.array(indices)] # select data points at randomly generated indices
+    #     X = sortData(X) # since random selection sort again
+    #     x = Xtrain[np.array(indices)] # select data points at randomly generated indices
+    #     x = sortData(x)
+    #     y = ytrain[np.array(indices)] # select data points at randomly generated indices
+    #     y = sortData(y)
+
+    rmse_list = []
+    r2_list = []
+    for j in range(5):
+        X,x,y = split_train_test(data_baro,data_ir,data_y)
+        y_pred, rmse, r2 = gaussian_process(X,x,y)
+
+    rmse_list.append(rmse)
+    r2_list.append(r2)
+
+    print ('rmse mean', np.mean(rmse_list))
+    print ('rmse st dev', np.std(rmse_list))
+
+
+
+    # plot_2d()
+    # plot_3d()
