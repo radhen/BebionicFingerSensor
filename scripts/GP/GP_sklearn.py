@@ -45,17 +45,17 @@ def load_data():
     return (data_baro, data_ir, data_y)
 
 
-def plot_2d():
+def plot_2d(y_pred, sigma, X, x, y):
     '''Plot 2D function, the prediction and the 95% confidence interval based on
     the MSE'''
     fig = plt.figure()
-    plt.plot(x, y*max(data_y[:,3]), 'bs', ms=2, label='Measurement')
-    # plt.plot(X, y)#, 'r.', markersize=1, label=u'Observations')
-    plt.plot(x, y_pred*max(data_y[:,3]), 'r--', label='Prediction', linewidth=1)
-    # plt.fill(np.concatenate([x, x[::-1]]),
-    #          np.concatenate([y_pred*max(data_y[:,3]) - 1.96 * sigma,
-    #                         (y_pred*max(data_y[:,3]) + 1.96 * sigma)[::-1]]),
-    #          alpha=.5, color="#dddddd")
+    plt.plot(x, y, 'bs', ms=1.5, label='Measurement')
+    plt.plot(X, y, markersize=1, label='Observations')
+    plt.plot(X, y_pred, 'r--', label='Prediction', linewidth=1)
+    plt.fill(np.concatenate([x, x[::-1]]),
+             np.concatenate([y_pred - 1.96 * sigma,
+                            (y_pred + 1.96 * sigma)[::-1]]),
+             alpha=.5, color="#dddddd")
 
     plt.xlabel('Force(N)')
     plt.ylabel('IR')
@@ -63,7 +63,7 @@ def plot_2d():
     plt.legend(loc='upper left')
     plt.show()
 
-def plot_3d():
+def plot_3d(y_pred, sigma, X, x, y):
     mpl.rcParams['legend.fontsize'] = 10
     fig = plt.figure()
     ax = fig.gca(projection='3d')
@@ -91,10 +91,10 @@ def gaussian_process(X,x,y):
     # MSE = metrics.mean_squared_error(y_pred, y)
     # print ('Mean Square Error:', MSE)
     RMSE = np.sqrt(((y_pred - y) ** 2).mean())
-    print ('Root mean square err:', RMSE)
+    print ('RMSE:', RMSE)
     print ('RMSE^2:', RMSE**2)
 
-    return (y_pred, RMSE, RMSE**2)
+    return (y_pred, sigma, RMSE, RMSE**2)
 
 
 def split_train_test(data_baro,data_ir,data_y):
@@ -154,7 +154,7 @@ def split_train_test_SINGLE(data_baro,data_ir,data_y):
     X_tstIR = data_ir[:,2].reshape(-1,1) # ir readings test
     X_tstIR = preprocessData(X_tstIR[:,0])
     X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
-    # X = Xtest
+    # X = X_tstBaro
 
     X_trBaro = data_baro[:,3].reshape(-1,1) # baro readings train
     X_trBaro = preprocessData(X_trBaro[:,0])
@@ -162,7 +162,7 @@ def split_train_test_SINGLE(data_baro,data_ir,data_y):
     X_trIR = data_ir[:,3].reshape(-1,1) # ir readings train
     X_trIR = preprocessData(X_trIR[:,0])
     x = np.concatenate((X_trBaro, X_trIR), axis=1)
-    # x = Xtrain
+    # x = X_trBaro
 
     ytrain = data_y[:,3].reshape(-1,1)
     ytrain = preprocessData(ytrain[:,0])
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
     # X,x,y = split_train_test(data_baro,data_ir,data_y)
 
-    # X,x,y = split_train_test_SINGLE(data_baro,data_ir,data_y)
+    X,x,y = split_train_test_SINGLE(data_baro,data_ir,data_y)
 
     # if (randomSelection):
     #     X = Xtest[np.array(indices)] # select data points at randomly generated indices
@@ -194,19 +194,19 @@ if __name__ == '__main__':
     #     y = ytrain[np.array(indices)] # select data points at randomly generated indices
     #     y = sortData(y)
 
-    rmse_list = []
-    r2_list = []
-    for j in range(5):
-        X,x,y = split_train_test(data_baro,data_ir,data_y)
-        y_pred, rmse, r2 = gaussian_process(X,x,y)
+    # rmse_list = []
+    # r2_list = []
+    # for j in range(5):
+    #     X,x,y = split_train_test(data_baro,data_ir,data_y)
+    #     y_pred, rmse, r2 = gaussian_process(X,x,y)
+    #
+    # rmse_list.append(rmse)
+    # r2_list.append(r2)
+    #
+    # print ('rmse mean', np.mean(rmse_list))
+    # print ('rmse st dev', np.std(rmse_list))
 
-    rmse_list.append(rmse)
-    r2_list.append(r2)
+    y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
 
-    print ('rmse mean', np.mean(rmse_list))
-    print ('rmse st dev', np.std(rmse_list))
-
-
-
-    # plot_2d()
-    # plot_3d()
+    # plot_2d(y_pred, sigma, X, x, y)
+    plot_3d(y_pred, sigma, X, x, y)

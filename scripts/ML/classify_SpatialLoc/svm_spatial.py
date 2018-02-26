@@ -12,6 +12,9 @@ from scipy.stats import moment
 
 from sklearn.model_selection import StratifiedKFold
 
+from sklearn.decomposition import PCA
+from matplotlib import pyplot as plt
+
 
 def load_data():
     '''
@@ -90,11 +93,50 @@ if __name__ == '__main__':
 
     X_eng = preprocessData(X_eng)
 
-    # X_train, X_test, y_train, y_test = train_test_split(X_eng, Y, test_size=0.30, random_state=4)
+    # X_train, X_test, y_train, y_test = train_test_split(X_eng, Y, test_size=0.20, random_state=7)
+
+    # '''contour map'''
+    # # reduce features from 153 to 2 for plotting purpose
+    # pca = PCA(n_components=2).fit(X_train)
+    # pca_2d = pca.transform(X_train)
+    #
+    # pca1 = PCA(n_components=2).fit(X_test)
+    # pca_2d1 = pca1.transform(X_test)
+    #
+    # # clf = SVC(kernel = 'poly', C = 1)
+    # # clf.fit(pca_2d, y_train)
+    # svm_model_linear = SVC(kernel = 'rbf', C = 2).fit(pca_2d, y_train)
+    # svm_predictions = svm_model_linear.predict(pca_2d1)
+    # acc = svm_model_linear.score(pca_2d1, y_test)
+    # print (acc)
+    #
+    # for i in range(0, pca_2d.shape[0]):
+    #     if y_train[i] == 0:
+    #         c1 = plt.scatter(pca_2d[i,0],pca_2d[i,1],c='r',    s=50,marker='+')
+    #     elif y_train[i] == 1:
+    #         c2 = plt.scatter(pca_2d[i,0],pca_2d[i,1],c='g',    s=50,marker='o')
+    #     elif y_train[i] == 2:
+    #         c3 = plt.scatter(pca_2d[i,0],pca_2d[i,1],c='b',    s=50,marker='*')
+    #     elif y_train[i] == 3:
+    #         c3 = plt.scatter(pca_2d[i,0],pca_2d[i,1],c='b',    s=50,marker='^')
+    #     elif y_train[i] == 4:
+    #         c3 = plt.scatter(pca_2d[i,0],pca_2d[i,1],c='b',    s=50,marker='.')
+    #
+    # plt.legend([c1, c2, c3], ['O degree', '20 degree',   '-20 degree'])
+    # x_min, x_max = pca_2d[:, 0].min() - 1,   pca_2d[:,0].max() + 1
+    # y_min, y_max = pca_2d[:, 1].min() - 1,   pca_2d[:, 1].max() + 1
+    # xx, yy = np.meshgrid(np.arange(x_min, x_max, .01),   np.arange(y_min, y_max, .01))
+    # Z = svm_model_linear.predict(np.c_[xx.ravel(),  yy.ravel()])
+    # Z = Z.reshape(xx.shape)
+    # plt.contour(xx, yy, Z)
+    # plt.title('Support Vector Machine Decision Surface')
+    # plt.axis('off')
+    #
+    # plt.show()
 
 
     '''define 5-fold cross validation test harness'''
-    kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=5)
+    kfold = StratifiedKFold(n_splits=6, shuffle=True, random_state=5)
     cvscores = []
 
     for train, test in kfold.split(X_eng, Y):

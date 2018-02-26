@@ -164,3 +164,24 @@ if __name__ == '__main__':
         print('Test accuracy:', acc)
         cvscores.append(acc * 100)
     print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
+
+
+# Test score: 0.247594068056
+# Test accuracy: 0.885714285714
+#
+# Test score: 0.245620905714
+# Test accuracy: 0.914285714286
+#
+# Test score: 0.167806153638
+# Test accuracy: 0.971428571429
+#
+# Test score: 0.163811375839
+# Test accuracy: 0.971428571429
+#
+# Test score: 0.974278867245
+# Test accuracy: 0.866666674614
+#
+# Test score: 0.327069580555
+# Test accuracy: 0.933333337307
+#
+# mean = 92.38% (+/- 3.97%)

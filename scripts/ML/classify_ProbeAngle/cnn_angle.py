@@ -235,3 +235,7 @@ if __name__ == '__main__':
         print('Test accuracy:', acc)
         cvscores.append(acc * 100)
     print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
+    print (cvscores)
+
+# 82.54% (+/- 4.58%)
+# [85.71428656578064, 76.190477609634399, 85.71428656578064, 80.95238208770752, 88.88888955116272, 77.777779102325439]
