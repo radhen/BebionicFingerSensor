@@ -466,7 +466,7 @@ void loop() {
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
 
-  Serial.print(curtime - starttime);
-  Serial.print("\t");
+//  Serial.print(curtime - starttime);
+//  Serial.print("\t");
 }
 

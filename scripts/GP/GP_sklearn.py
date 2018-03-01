@@ -16,6 +16,8 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 import random
 
+from sklearn.metrics import r2_score
+
 randomSelection = False
 
 
@@ -207,6 +209,6 @@ if __name__ == '__main__':
     # print ('rmse st dev', np.std(rmse_list))
 
     y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
-
-    # plot_2d(y_pred, sigma, X, x, y)
-    plot_3d(y_pred, sigma, X, x, y)
+    print ('r2 score', r2_score(y, y_pred))
+    plot_2d(y_pred, sigma, X, x, y)
+    # plot_3d(y_pred, sigma, X, x, y)
