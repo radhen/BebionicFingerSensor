@@ -76,6 +76,11 @@ def plot_3d(y_pred, sigma, X, x, y):
     ax.set_xlabel('Baro')
     ax.set_ylabel('IR')
     ax.set_zlabel('Force(N)')
+    # fig.figsize(10,10)
+    # make the panes transparent
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     plt.show()
 
 
@@ -209,6 +214,6 @@ if __name__ == '__main__':
     # print ('rmse st dev', np.std(rmse_list))
 
     y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
-    print ('r2 score', r2_score(y, y_pred))
-    plot_2d(y_pred, sigma, X, x, y)
-    # plot_3d(y_pred, sigma, X, x, y)
+    # print ('r2 score', r2_score(y, y_pred))
+    # plot_2d(y_pred, sigma, X, x, y)
+    plot_3d(y_pred, sigma, X, x, y)

@@ -18,7 +18,7 @@ FILENAME = sys.argv[1]
 # Should the data be written to the console also?
 ECHO = True
 
-SERIAL_PORT = "/dev/cu.usbmodem1411"
+SERIAL_PORT = "/dev/cu.usbserial-A603AX4O"
 BAUDRATE = 57600
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
