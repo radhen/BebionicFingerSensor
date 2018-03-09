@@ -5,7 +5,7 @@
 #define MUX_ADDRESS (0b01110000 | J0<<1 | J1<<2)
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {112};//, MUX_ADDR|1};
+int i2c_ids_[] = {113};//, MUX_ADDR|1};
 int ir_current_ = 4; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
@@ -28,8 +28,8 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 //#define PS_DATA_M //High byte of PS_DATA_L
 #define ID  0x0C
 
-#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
-#define NFINGERS 1 // number of fingers connected
+//#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
+#define NFINGERS 4 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -43,8 +43,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_Bar_ports[NFINGERS] = {6};//Mux board ports for each IR sensor {0,2,4,6}
-int sensor_IR_ports[NFINGERS] = {6};//{4};// Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0,2,4,6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -78,11 +77,7 @@ void setup()
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-//  Serial.print("Attached i2c devices: ");
-//  Serial.println(num_devices_);
 
-  
-  
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
@@ -91,23 +86,19 @@ void setup()
     int errcode = Wire.endTransmission();
 
     initIRSensor(i2c_ids_[i]);
-
-    for (int j = 0; j < NFINGERS; j++) {
-      initPressure(i2c_ids_[i], sensor_Bar_ports[j], j); //new pressure function
-      prev_mbar[j] = readPressure(i2c_ids_[i], sensor_Bar_ports[j]);
-    }
+    initPressure(i2c_ids_[i]);
   }
 
   prev_time = millis();
   touched = false;
   // Serial.println("Starting main loop...");
-  delay(100);
+//  delay(100);
 
-  for (int i = 0; i < NFINGERS; i++) {
-    proximity_value[i] = readProximity();
-    average_value[i] = proximity_value[i];
-    fa1[i] = 0;
-  }
+//  for (int i = 0; i < NFINGERS; i++) {
+//    proximity_value[i] = readProximity();
+//    average_value[i] = proximity_value[i];
+//    fa1[i] = 0;
+//  }
 
   starttime = micros();
 
@@ -158,44 +149,39 @@ bool touch_started(float mbar, float delta_mbar) {
 }
 
 
-void initPressure(int muxAddr, int sensor, int index) {
-//  Serial.println("initPressure");
-  selectSensor(muxAddr, sensor);
-//  Serial.print("index:");Serial.println(index);
-  for (int i = 0; i < 6; i++){ //loop over Coefficient elements
-//Serial.println("for loop");
-//Serial.println(i);
-    
-    // Start I2C Transmission
-    Wire.beginTransmission(BARO_ADDRESS);
-    // Select data register
-    Wire.write(0xA2 + (2 * i));
-//    Serial.println("here");
-//    Serial.println((0xA2 + (2*i)));
-    // Stop I2C Transmission
-    Wire.endTransmission();
-
-    // Request 2 bytes of data
-    Wire.requestFrom(BARO_ADDRESS, 2);
-
-    // Read 2 bytes of data
-    // Coff msb, Coff lsb
-    if (Wire.available() == 2)
-    {
-      data[0] = Wire.read();
-      data[1] = Wire.read();
+void initPressure(int muxAddr) {
+    Wire.beginTransmission(muxAddr);
+    Wire.write(0);
+    int errcode = Wire.endTransmission();
+    Serial.println(errcode);
+    for (int i = 0; i < NFINGERS; i++){
+        selectSensor(muxAddr, sensor_ports[i]);
+        for (int j = 0; j < 6; j++){ //loop over Coefficient elements
+            // Start I2C Transmission
+            Wire.beginTransmission(BARO_ADDRESS);
+            // Select data register
+            Wire.write(0xA2 + (2 * j));
+            // Stop I2C Transmission
+            Wire.endTransmission();
+  
+            // Request 2 bytes of data
+            Wire.requestFrom(BARO_ADDRESS, 2);
+  
+            // Read 2 bytes of data
+            // Coff msb, Coff lsb
+            if (Wire.available() == 2)
+            {
+              data[0] = Wire.read();
+              data[1] = Wire.read();
+            }
+            Coff[j][i] = ((data[0] << 8) | data[1]);
+//            Serial.println(Coff[j][i]);
+//            delay(300);
+        }
     }
-
-//    // Convert the data
-//    Serial.print("sensor:_");Serial.println(sensor);
-//    Serial.print("index:_");Serial.println(index);
-//    Serial.print("data:_");Serial.println(((data[0] << 8) | data[1]));
-    Coff[i][index] = ((data[0] << 8) | data[1]);
-//          Serial.print(Coff[i][index]);
-//          Serial.print("\t");
-  }
-//      Serial.println();
-  delay(300);
+    Wire.beginTransmission(muxAddr);
+    Wire.write(0);
+    Wire.endTransmission();
 }
 
 //typedef struct finger_struct{
@@ -207,26 +193,27 @@ void initPressure(int muxAddr, int sensor, int index) {
 //FingerStruct fingers[NUM_FINGERS] = {{112, 4, 4}};
 
 
-float readPressure(int muxAddr, int sensor) {
+float readPressure(int muxAddr, int sensor, int j) {
   selectSensor(muxAddr, sensor);
   unsigned long D1 = getPressureReading();
   unsigned long D2 = getTempReading();
-
-//  signed long dT = D2 - (Coff[4][sensor] * 256);
-//  signed long TEMP = 20000 + ((unsigned long long)dT)*(Coff[5][sensor]/8388608);
-//  signed long long OFF = Coff[1][sensor]*131072 + (Coff[3][sensor]*dT)/64;
-//  signed long long SENS = Coff[0][sensor]*65536 + (Coff[2][sensor]*dT)/128;
+//  Serial.println(D2);
+//
+//  signed long dT = D2 - (Coff[4][j] * 256);
+//  signed long TEMP = 20000 + ((unsigned long long)dT)*(Coff[5][j]/8388608);
+//  signed long long OFF = Coff[1][j]*131072 + (Coff[3][j]*dT)/64;
+//  signed long long SENS = Coff[0][sensor]*65536 + (Coff[2][j]*dT)/128;
 //  float P = (((D1*SENS)/2097152) - OFF)/32768;
-
-  signed long dT = D2 - (Coff[4][sensor] << 8);
-  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5][sensor]) >> 23;
-  signed long long OFF = Coff[1][sensor] << 17;// + (Coff[3]*dT)>>6;
-  signed long long SENS = Coff[0][sensor] << 16;// + ((Coff[2]*dT)>>7;
+//
+  signed long dT = D2 - (Coff[4][j] << 8);
+  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5][j]) >> 23;
+  signed long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT)>>6;
+  signed long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT)>>7;
   float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
 
   float mbar = P/100.0;
-  Serial.print((mbar));
-  Serial.println();
+//  Serial.print(mbar);
+//  Serial.print(" ");
   return (mbar);
 }
 
@@ -234,8 +221,10 @@ void readPressureValues() {
 
   for (int i = 0; i < num_devices_; i++) {
     for (int j=0; j<NFINGERS; j++) {
-      
-     float mbar = readPressure(i2c_ids_[i], sensor_Bar_ports[j]);
+
+     float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
+     Serial.print(mbar);
+     Serial.print('\t');
 
     int mbar_int = (int) mbar; // converts float pressure value to integer pressure value
 
@@ -245,12 +234,10 @@ void readPressureValues() {
           //}
           force = convert_mbar_to_force(mbar - touch_baseline);
           Serial.print(force);
-          Serial.print('\t');
-        } 
+          Serial.println();
+        }
          else {
-
               touch_baseline = mbar;
-
         }
     }
   }
@@ -351,10 +338,10 @@ void initIRSensor(int id) {
 //  Serial.println(errcode);
 
   // initialize each IR sensor
-  for (int i = 0; i < NFINGERS; i += 2)
+  for (int i = 0; i < NFINGERS; i++)
   {
     // specify IR sensor
-    selectSensor(id, sensor_IR_ports[i]);
+    selectSensor(id, sensor_ports[i]);
     int deviceID = readFromCommandRegister(ID);
       if (deviceID != 0x186)
       {
@@ -378,9 +365,10 @@ void readIRValues() {
 
   for (int i = 0; i < num_devices_; i++) {
      for (int j=0; j<NFINGERS; j++) {
-    unsigned int prox_value = readIRValues_prox(i2c_ids_[i],sensor_IR_ports[j]);
+    unsigned int prox_value = readIRValues_prox(i2c_ids_[i],sensor_ports[j]);
     Serial.print(prox_value);
-    Serial.print(" ");
+    Serial.print('\t');
+    
 
       //------- Touch detection -----//
     proximity_value[j] = prox_value;
@@ -400,7 +388,7 @@ void readIRValues() {
         }
       }
     }
-  
+
      }
   }
 }
@@ -433,14 +421,12 @@ void loop() {
   unsigned long curtime;
 
   curtime = micros();
-  
+
   readIRValues(); //-> array of IR values (2 bytes per sensor)
+  Serial.println();
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
-  Serial.print(curtime - starttime);
-  Serial.print('\t');
+//  Serial.print(curtime - starttime);
+//  Serial.print('\t');
 
 }
-
-
-
