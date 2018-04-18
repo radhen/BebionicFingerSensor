@@ -22,7 +22,7 @@ randomSelection = False
 
 
 def preprocessData(X):
-    '''normalizing between 0 and 1 BAD IDEA'''
+    ''' normalizing between 0 and 1, BAD IDEA!! '''
     X = (X - min(X))/float(max(X)-min(X))
     X = X.reshape(-1,1)
     X = sortData(X)
@@ -35,7 +35,7 @@ def sortData(A):
 
 
 def load_data():
-    '''load data'''
+    '''load data. The data consists of 10 columns for each IR, Baro and Newton. Each column has three peaks at 1N, 5N and 50N. Check the excel file to look at the plots. '''
     df_newton = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='newton',header=None)
     df_baro = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='baro',header=None)
     df_ir = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='ir',header=None)
@@ -87,13 +87,14 @@ def plot_3d(y_pred, sigma, X, x, y):
 def gaussian_process(X,x,y):
     kernel = RBF(length_scale=0.01, length_scale_bounds=(10, 100))
 
-    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10)
+    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-10)
 
     # Fit to data using Maximum Likelihood Estimation of the parameters
     gp.fit(X, y)
 
     # Make the prediction on the meshed x-axis (ask for MSE as well)
     y_pred, sigma = gp.predict(x, return_std=True)
+    # print (np.sum(y, axis=0))
 
     # MSE = metrics.mean_squared_error(y_pred, y)
     # print ('Mean Square Error:', MSE)
@@ -153,25 +154,36 @@ def split_train_test(data_baro,data_ir,data_y):
 
 def split_train_test_SINGLE(data_baro,data_ir,data_y):
     '''one column test, one column train, from excel file'''
-    X_tstBaro = data_baro[:,2].reshape(-1,1) # baro readings test
-    X_tstBaro = preprocessData(X_tstBaro[:,0])
-    # plt.plot (Xtest)
+    X_tstBaro = data_baro[:,4].reshape(-1,1) # baro readings test
+    print (X_tstBaro)
+
+    # X_tstBaro = preprocessData(X_tstBaro[:,0])
+    # plt.plot (X_tstBaro)
+    X_tstBaro = sortData(X_tstBaro[:,0])
+    # plt.plot (X_tstBaro)
     # plt.show()
 
-    X_tstIR = data_ir[:,2].reshape(-1,1) # ir readings test
-    X_tstIR = preprocessData(X_tstIR[:,0])
-    X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
-    # X = X_tstBaro
 
-    X_trBaro = data_baro[:,3].reshape(-1,1) # baro readings train
+    X_tstIR = data_ir[:,4].reshape(-1,1) # ir readings test
+    # X_tstIR = preprocessData(X_tstIR[:,0])
+    # X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
+    X_tstIR = sortData(X_tstIR[:,0])
+    plt.plot(X_tstIR)
+    plt.show()
+    X = X_tstIR
+    # plt.plot(X_tstIR)
+    # plt.show()
+
+
+    X_trBaro = data_baro[:,1].reshape(-1,1) # baro readings train
     X_trBaro = preprocessData(X_trBaro[:,0])
 
-    X_trIR = data_ir[:,3].reshape(-1,1) # ir readings train
+    X_trIR = data_ir[:,1].reshape(-1,1) # ir readings train
     X_trIR = preprocessData(X_trIR[:,0])
-    x = np.concatenate((X_trBaro, X_trIR), axis=1)
-    # x = X_trBaro
+    # x = np.concatenate((X_trBaro, X_trIR), axis=1)
+    x = X_trIR
 
-    ytrain = data_y[:,3].reshape(-1,1)
+    ytrain = data_y[:,1].reshape(-1,1)
     ytrain = preprocessData(ytrain[:,0])
 
     y = ytrain
@@ -216,4 +228,4 @@ if __name__ == '__main__':
     y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
     # print ('r2 score', r2_score(y, y_pred))
     # plot_2d(y_pred, sigma, X, x, y)
-    plot_3d(y_pred, sigma, X, x, y)
+    # plot_3d(y_pred, sigma, X, x, y)
