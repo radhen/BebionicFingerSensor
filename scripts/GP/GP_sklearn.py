@@ -23,7 +23,7 @@ randomSelection = False
 
 def preprocessData(X):
     ''' normalizing between 0 and 1, BAD IDEA!! '''
-    X = (X - min(X))/float(max(X)-min(X))
+    # X = (X - min(X))/float(max(X)-min(X))
     X = X.reshape(-1,1)
     X = sortData(X)
     return (X)
@@ -35,7 +35,9 @@ def sortData(A):
 
 
 def load_data():
-    '''load data. The data consists of 10 columns for each IR, Baro and Newton. Each column has three peaks at 1N, 5N and 50N. Check the excel file to look at the plots. '''
+    '''load data. The data consists of 10 columns for each IR, Baro and Newton.
+    Each column has three peaks at 1N, 5N and 50N. Check the excel file to
+    look at the plots. '''
     df_newton = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='newton',header=None)
     df_baro = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='baro',header=None)
     df_ir = pd.read_excel('1^5^50N_gp_1.xlsx',sheetname='ir',header=None)
@@ -59,8 +61,8 @@ def plot_2d(y_pred, sigma, X, x, y):
                             (y_pred + 1.96 * sigma)[::-1]]),
              alpha=.5, color="#dddddd")
 
-    plt.xlabel('Force(N)')
-    plt.ylabel('IR')
+    plt.xlabel('raw values')
+    plt.ylabel('Force(N)')
     # plt.axis([-0.25, 1.25, -0.3, 1.2])
     plt.legend(loc='upper left')
     plt.show()
@@ -85,7 +87,7 @@ def plot_3d(y_pred, sigma, X, x, y):
 
 
 def gaussian_process(X,x,y):
-    kernel = RBF(length_scale=0.01, length_scale_bounds=(10, 100))
+    kernel = RBF(length_scale=0.1, length_scale_bounds=(10, 1e3))
 
     gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-10)
 
@@ -100,7 +102,7 @@ def gaussian_process(X,x,y):
     # print ('Mean Square Error:', MSE)
     RMSE = np.sqrt(((y_pred - y) ** 2).mean())
     print ('RMSE:', RMSE)
-    print ('RMSE^2:', RMSE**2)
+    # print ('RMSE^2:', RMSE**2)
 
     return (y_pred, sigma, RMSE, RMSE**2)
 
@@ -155,37 +157,29 @@ def split_train_test(data_baro,data_ir,data_y):
 def split_train_test_SINGLE(data_baro,data_ir,data_y):
     '''one column test, one column train, from excel file'''
     X_tstBaro = data_baro[:,4].reshape(-1,1) # baro readings test
-    print (X_tstBaro)
-
-    # X_tstBaro = preprocessData(X_tstBaro[:,0])
-    # plt.plot (X_tstBaro)
-    X_tstBaro = sortData(X_tstBaro[:,0])
-    # plt.plot (X_tstBaro)
-    # plt.show()
-
+    X_tstBaro = preprocessData(X_tstBaro[:,0])
 
     X_tstIR = data_ir[:,4].reshape(-1,1) # ir readings test
-    # X_tstIR = preprocessData(X_tstIR[:,0])
-    # X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
-    X_tstIR = sortData(X_tstIR[:,0])
-    plt.plot(X_tstIR)
-    plt.show()
-    X = X_tstIR
-    # plt.plot(X_tstIR)
-    # plt.show()
+    X_tstIR = preprocessData(X_tstIR[:,0])
 
+    # X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
+    X = X_tstBaro
 
     X_trBaro = data_baro[:,1].reshape(-1,1) # baro readings train
+    # fig = plt.figure()
+    # plt.plot(X_trBaro)
     X_trBaro = preprocessData(X_trBaro[:,0])
+    # fig = plt.figure()
+    # plt.plot(X_trBaro)
+    # plt.show()
 
     X_trIR = data_ir[:,1].reshape(-1,1) # ir readings train
     X_trIR = preprocessData(X_trIR[:,0])
     # x = np.concatenate((X_trBaro, X_trIR), axis=1)
-    x = X_trIR
+    x = X_trBaro
 
     ytrain = data_y[:,1].reshape(-1,1)
     ytrain = preprocessData(ytrain[:,0])
-
     y = ytrain
 
     return (X,x,y)
@@ -227,5 +221,5 @@ if __name__ == '__main__':
 
     y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
     # print ('r2 score', r2_score(y, y_pred))
-    # plot_2d(y_pred, sigma, X, x, y)
+    plot_2d(y_pred, sigma, X, x, y)
     # plot_3d(y_pred, sigma, X, x, y)
