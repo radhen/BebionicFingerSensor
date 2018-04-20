@@ -54,9 +54,9 @@ def plot_2d(y_pred, sigma, X, x, y):
     the MSE'''
     fig = plt.figure()
     plt.plot(x, y, 'bs', ms=1.5, label='Measurement')
-    plt.plot(X, y, markersize=1, label='Observations')
+    # plt.plot(X, y, markersize=1, label='Observations')
     plt.plot(X, y_pred, 'r--', label='Prediction', linewidth=1)
-    plt.fill(np.concatenate([x, x[::-1]]),
+    plt.fill(np.concatenate([X, X[::-1]]),
              np.concatenate([y_pred - 1.96 * sigma,
                             (y_pred + 1.96 * sigma)[::-1]]),
              alpha=.5, color="#dddddd")
@@ -87,22 +87,25 @@ def plot_3d(y_pred, sigma, X, x, y):
 
 
 def gaussian_process(X,x,y):
-    kernel = RBF(length_scale=0.1, length_scale_bounds=(10, 1e3))
 
-    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-10)
+    # kernel = RBF(length_scale=1e-2, length_scale_bounds=(1e2, 1e3))
+    # gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-3)
+
+    kernel = RationalQuadratic(length_scale=1e-3, alpha=0.01, length_scale_bounds=(1e-1, 1e3), alpha_bounds=(1e-1,1e5))
+    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, alpha=1e-2)
 
     # Fit to data using Maximum Likelihood Estimation of the parameters
-    gp.fit(X, y)
+    gp.fit(x, y)
 
     # Make the prediction on the meshed x-axis (ask for MSE as well)
-    y_pred, sigma = gp.predict(x, return_std=True)
+    y_pred, sigma = gp.predict(X, return_std=True)
     # print (np.sum(y, axis=0))
 
     # MSE = metrics.mean_squared_error(y_pred, y)
     # print ('Mean Square Error:', MSE)
     RMSE = np.sqrt(((y_pred - y) ** 2).mean())
     print ('RMSE:', RMSE)
-    # print ('RMSE^2:', RMSE**2)
+    print ('r2 score', r2_score(y, y_pred))
 
     return (y_pred, sigma, RMSE, RMSE**2)
 
@@ -161,27 +164,32 @@ def split_train_test_SINGLE(data_baro,data_ir,data_y):
 
     X_tstIR = data_ir[:,4].reshape(-1,1) # ir readings test
     X_tstIR = preprocessData(X_tstIR[:,0])
-
-    # X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
-    X = X_tstBaro
-
-    X_trBaro = data_baro[:,1].reshape(-1,1) # baro readings train
     # fig = plt.figure()
-    # plt.plot(X_trBaro)
+    # plt.plot(X_tstIR, 'bs', ms=1.5,)
+
+    # X = X_tstIR
+    X = np.concatenate((X_tstBaro, X_tstIR), axis=1)
+
+
+    X_trBaro = data_baro[:,2].reshape(-1,1) # baro readings train
     X_trBaro = preprocessData(X_trBaro[:,0])
-    # fig = plt.figure()
-    # plt.plot(X_trBaro)
-    # plt.show()
 
-    X_trIR = data_ir[:,1].reshape(-1,1) # ir readings train
+
+    X_trIR = data_ir[:,2].reshape(-1,1) # ir readings train
     X_trIR = preprocessData(X_trIR[:,0])
-    # x = np.concatenate((X_trBaro, X_trIR), axis=1)
-    x = X_trBaro
+    # fig = plt.figure()
+    # plt.plot(X_trIR, 'bs', ms=1.5,)
 
-    ytrain = data_y[:,1].reshape(-1,1)
+    # x = X_trIR
+    x = np.concatenate((X_trBaro, X_trIR), axis=1)
+
+
+    ytrain = data_y[:,2].reshape(-1,1)
     ytrain = preprocessData(ytrain[:,0])
     y = ytrain
-
+    # fig = plt.figure()
+    # plt.plot(X_trIR, ytrain, 'bs', ms=1.5,)
+    # plt.show()
     return (X,x,y)
 
 
@@ -221,5 +229,7 @@ if __name__ == '__main__':
 
     y_pred, sigma, rmse, r2 = gaussian_process(X,x,y)
     # print ('r2 score', r2_score(y, y_pred))
-    plot_2d(y_pred, sigma, X, x, y)
-    # plot_3d(y_pred, sigma, X, x, y)
+
+
+    # plot_2d(y_pred, sigma, X, x, y)
+    plot_3d(y_pred, sigma, X, x, y)
