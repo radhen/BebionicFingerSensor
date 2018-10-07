@@ -5,7 +5,7 @@
 #define MUX_ADDRESS (0b01110000 | J0<<1 | J1<<2)
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {113};//, MUX_ADDR|1};
+int i2c_ids_[] = {112};//, MUX_ADDR|1};
 int ir_current_ = 4; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
@@ -29,7 +29,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define ID  0x0C
 
 //#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
-#define NFINGERS 4 // number of fingers connected
+#define NFINGERS 1 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -43,7 +43,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0,2,4,6}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -60,7 +60,7 @@ bool touched;
 float touch_baseline;
 float force;
 
-unsigned int proximity_value[NFINGERS]; // current proximity reading
+unsigned int proximity_value[1][NFINGERS]; // current proximity reading
 unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
 signed int  fa1[NFINGERS];              // FA-I value;
 signed int fa1derivative[NFINGERS];     // Derivative of the FA-I value;
@@ -77,29 +77,38 @@ void setup()
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-
+  
+  proximity_value[num_devices_][NFINGERS] = {0};
+  
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
     Wire.beginTransmission(i2c_ids_[i]);
     Wire.write(0);
     int errcode = Wire.endTransmission();
-
+//    Serial.println(errcode);
     initIRSensor(i2c_ids_[i]);
-    initPressure(i2c_ids_[i]);
+    initPressure(i2c_ids_[i]); 
   }
 
   prev_time = millis();
   touched = false;
-  // Serial.println("Starting main loop...");
+//  Serial.println("Starting main loop...");
 //  delay(100);
 
-//  for (int i = 0; i < NFINGERS; i++) {
-//    proximity_value[i] = readProximity();
-//    average_value[i] = proximity_value[i];
-//    fa1[i] = 0;
-//  }
-
+//  Serial.println("Reading values to set baseline");
+  for (int k=0; k<10; k++) {
+    for (int i=0; i<num_devices_; i++) {
+      for (int j=0; j<NFINGERS; j++) {
+        proximity_value[i][j] = proximity_value[i][j] + readProximity(i,j);
+        Serial.println(proximity_value[i][j]);
+      }
+    }
+  }
+  
+//  Serial.println("DONE reading values to set baseline");
+//  Serial.print(proximity_value[0][0]);
+  
   starttime = micros();
 
 }
@@ -122,18 +131,12 @@ void initVCNL4040()
   writeToCommandRegister(PS_CONF3, conf3, ms);
 }
 
-unsigned int readProximity() {
-  int data = readFromCommandRegister(PS_DATA_L); //Get proximity values
-  return data;
-}
 
-
-unsigned int readIRValues_prox(int id, int sensor) {
+unsigned int readProximity(int id, int sensor) {
     selectSensor(id, sensor);
-    unsigned int proximity_value_ = readProximity();
+    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
     return (proximity_value_);
 }
-
 
 
 float convert_mbar_to_force(float above_baseline) {
@@ -363,31 +366,31 @@ void initIRSensor(int id) {
 
 void readIRValues() {
 
-  for (int i = 0; i < num_devices_; i++) {
+  for (int i=0; i<num_devices_; i++) {
      for (int j=0; j<NFINGERS; j++) {
-    unsigned int prox_value = readIRValues_prox(i2c_ids_[i],sensor_ports[j]);
+    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
     Serial.print(prox_value);
     Serial.print('\t');
     
 
-      //------- Touch detection -----//
-    proximity_value[j] = prox_value;
-    fa1deriv_last[j] = fa1derivative[j];
-    fa1derivative[j] = (signed int) average_value[j] - proximity_value[j] - fa1[j];
-    fa1[i] = (signed int) average_value[j] - proximity_value[j];
-    if (touch_analysis) {
-      //        Serial.print(",");
-      if ((fa1deriv_last[j] < -sensitivity && fa1derivative[j] > sensitivity) || (fa1deriv_last[j] > 50 && fa1derivative[j] < -50)) { // zero crossing detected
-        if (fa1[j] < -sensitivity) // minimum
-        {
-          touched = true;
-        }
-        else if (fa1[j] > sensitivity) // maximum
-        {
-          Serial.print("R");
-        }
-      }
-    }
+//      //------- Touch detection -----//
+//    proximity_value[j] = prox_value;
+//    fa1deriv_last[j] = fa1derivative[j];
+//    fa1derivative[j] = (signed int) average_value[j] - proximity_value[j] - fa1[j];
+//    fa1[i] = (signed int) average_value[j] - proximity_value[j];
+//    if (touch_analysis) {
+//      //        Serial.print(",");
+//      if ((fa1deriv_last[j] < -sensitivity && fa1derivative[j] > sensitivity) || (fa1deriv_last[j] > 50 && fa1derivative[j] < -50)) { // zero crossing detected
+//        if (fa1[j] < -sensitivity) // minimum
+//        {
+//          touched = true;
+//        }
+//        else if (fa1[j] > sensitivity) // maximum
+//        {
+//          Serial.print("R");
+//        }
+//      }
+//    }
 
      }
   }
@@ -422,9 +425,15 @@ void loop() {
 
   curtime = micros();
 
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
-  Serial.println();
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  // Print these values to set Y-axis in serial plotter
+//  Serial.print(0);  // To freeze the lower limit
+//  Serial.print(" ");
+//  Serial.print(40000);  // To freeze the upper limit
+//  Serial.print(" ");
+//  
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//  Serial.println();
+//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
