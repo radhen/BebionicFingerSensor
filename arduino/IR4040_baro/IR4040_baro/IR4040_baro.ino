@@ -72,6 +72,10 @@ signed int sensitivity = 45;            // Sensitivity of touch/release detectio
 int touch_analysis = 0;
 
 
+unsigned long long int EMA_a = 0.3;
+unsigned long long int EMA_S = 0;
+unsigned long long int prox_highpass = 0;
+
 
 //Reads a two byte value from a command register
 unsigned int readFromCommandRegister(byte commandCode)
@@ -399,7 +403,6 @@ void setup() {
   unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
   unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
   
-  
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
@@ -416,49 +419,51 @@ void setup() {
   Serial.println("Removeing DC offset...");
   delay(1000);
 
-  int num_samples_avg = 10;
-  
-  for (int i = 0; i < num_devices_; i++) {
-    for (int j = 0; j < NFINGERS; j++) {
-      for (int k = 0; k < num_samples_avg; k++) {
-        unsigned long long int prox = readProximity(i2c_ids_[i],sensor_ports[j]);
-        prox_value_arr[i][j] = prox_value_arr[i][j] + prox;
-//        Serial.println((long) prox_value_arr[i][j]);
-      }
-    }
-  }
+//  int num_samples_avg = 10;
+//  
+//  for (int i = 0; i < num_devices_; i++) {
+//    for (int j = 0; j < NFINGERS; j++) {
+//      for (int k = 0; k < num_samples_avg; k++) {
+//        unsigned long long int prox = readProximity(i2c_ids_[i],sensor_ports[j]);
+//        prox_value_arr[i][j] = prox_value_arr[i][j] + prox;
+////        Serial.println((long) prox_value_arr[i][j]);
+//      }
+//    }
+//  }
+//
+//
+//  for (int i = 0; i < num_devices_; i++) {
+//    for (int j = 0; j < NFINGERS; j++) {
+//      for (int k = 0; k < num_samples_avg; k++) {
+//        unsigned long long int prss = readPressure(i2c_ids_[i], sensor_ports[j], j);
+//        prss_value_arr[i][j] = prss_value_arr[i][j] + prss; 
+////        Serial.println((long) prss_value_arr[i][j]);          
+//      }
+//    }
+//  }
+//  
+//  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
+//  unsigned long long int avg_prox = prox_value_arr[0][0] / 10.0;
+//  Serial.println((long) avg_prox);
+//  
+//  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
+//  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0; 
+//  Serial.println((long) avg_prss);
+//  
+////  Serial.println("DONE reading values to set baseline");
+////  Serial.print(proximity_value[0][0]);
+//  
+//  starttime = micros();
+//
+//  while(1){
+//    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]); 
+//    Serial.print((long) (prox - avg_prox));
+//    Serial.print('\t');
+//    unsigned long long int prss = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//    Serial.println((long) (prss - avg_prss));
+//    }
 
-
-  for (int i = 0; i < num_devices_; i++) {
-    for (int j = 0; j < NFINGERS; j++) {
-      for (int k = 0; k < num_samples_avg; k++) {
-        unsigned long long int prss = readPressure(i2c_ids_[i], sensor_ports[j], j);
-        prss_value_arr[i][j] = prss_value_arr[i][j] + prss; 
-//        Serial.println((long) prss_value_arr[i][j]);          
-      }
-    }
-  }
-  
-  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
-  unsigned long long int avg_prox = prox_value_arr[0][0] / 10.0;
-  Serial.println((long) avg_prox);
-  
-  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
-  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0; 
-  Serial.println((long) avg_prss);
-  
-//  Serial.println("DONE reading values to set baseline");
-//  Serial.print(proximity_value[0][0]);
-  
-  starttime = micros();
-
-  while(1){
-    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]); 
-    Serial.print((long) (prox - avg_prox));
-    Serial.print('\t');
-    unsigned long long int prss = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-    Serial.println((long) (prss - avg_prss));
-    }
+  EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
 
 }
 
@@ -469,10 +474,10 @@ void loop() {
   curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
-//  Serial.print(0);  // To freeze the lower limit
-//  Serial.print(" ");
-//  Serial.print(40000);  // To freeze the upper limit
-//  Serial.print(" ");
+  Serial.print(0);  // To freeze the lower limit
+  Serial.print(" ");
+  Serial.print(10);  // To freeze the upper limit
+  Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
 //  Serial.println();
@@ -480,5 +485,10 @@ void loop() {
 
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
+
+  unsigned long long int prox = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
+  prox_highpass = prox - EMA_S;                   //calculate the high-pass signal
+  Serial.println((long) prox_highpass);
 
 }
