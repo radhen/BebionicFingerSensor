@@ -60,10 +60,10 @@ bool touched;
 float touch_baseline;
 float force;
 
-unsigned int prox_value_arr[1][NFINGERS]; // current proximity reading
+//unsigned long long int prox_value_arr[1][NFINGERS]; // current proximity reading
 unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
 
-unsigned int prss_value_arr[1][NFINGERS]; // current pressure reading
+//unsigned long long int prss_value_arr[1][NFINGERS]; // current pressure reading
 
 signed int  fa1[NFINGERS];              // FA-I value;
 signed int fa1derivative[NFINGERS];     // Derivative of the FA-I value;
@@ -73,29 +73,19 @@ int touch_analysis = 0;
 
 
 
-//Configure the various parts of the sensor
-void initVCNL4040()
+//Reads a two byte value from a command register
+unsigned int readFromCommandRegister(byte commandCode)
 {
-  //Clear PS_SD to turn on proximity sensing
-  //byte conf1 = 0b00000000; //Clear PS_SD bit to begin reading
-  byte conf1 = 0b00001110; //Integrate 8T, Clear PS_SD bit to begin reading
-  byte conf2 = 0b00001000; //Set PS to 16-bit
-  //byte conf2 = 0b00000000; //Clear PS to 12-bit
-  writeToCommandRegister(PS_CONF1, conf1, conf2); //Command register, low byte, high byte
+  Wire.beginTransmission(VCNL4040_ADDR);
+  Wire.write(commandCode);
+  Wire.endTransmission(false); //Send a restart command. Do not release bus.
 
-  //Set the options for PS_CONF3 and PS_MS bytes
-  byte conf3 = 0x00;
-  //byte ms = 0b00000010; //Set IR LED current to 100mA
-  //byte ms = 0b00000110; //Set IR LED current to 180mA
-  byte ms = 0b00000111; //Set IR LED current to 200mA
-  writeToCommandRegister(PS_CONF3, conf3, ms);
-}
+  Wire.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
 
+  unsigned int data = Wire.read();
+  data |= Wire.read() << 8;
 
-unsigned int readProximity(int id, int sensor) {
-    selectSensor(id, sensor);
-    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
-    return (proximity_value_);
+  return (data);
 }
 
 
@@ -103,12 +93,29 @@ float convert_mbar_to_force(float above_baseline) {
   return (above_baseline / 0.19);
 }
 
+
 bool touch_ended(float mbar, float delta_mbar) {
   return (delta_mbar < DELTA_MBAR_THRESH);
 }
 
+
 bool touch_started(float mbar, float delta_mbar) {
   return (delta_mbar > DELTA_MBAR_THRESH);
+}
+
+
+void selectSensor(int muxID, int i) {
+  Wire.beginTransmission(muxID);
+  Wire.write(1 << i);
+  Wire.endTransmission();
+}
+
+
+void writeByte(byte addr, byte val) {
+  Wire.beginTransmission(VCNL4040_ADDR);
+  Wire.write(addr);
+  Wire.write(val);
+  Wire.endTransmission(); //Release bus
 }
 
 
@@ -156,59 +163,6 @@ void initPressure(int muxAddr) {
 //FingerStruct fingers[NUM_FINGERS] = {{112, 4, 4}};
 
 
-float readPressure(int muxAddr, int sensor, int j) {
-  selectSensor(muxAddr, sensor);
-  unsigned long D1 = getPressureReading();
-  unsigned long D2 = getTempReading();
-//  Serial.println(D2);
-//
-//  signed long dT = D2 - (Coff[4][j] * 256);
-//  signed long TEMP = 20000 + ((unsigned long long)dT)*(Coff[5][j]/8388608);
-//  signed long long OFF = Coff[1][j]*131072 + (Coff[3][j]*dT)/64;
-//  signed long long SENS = Coff[0][sensor]*65536 + (Coff[2][j]*dT)/128;
-//  float P = (((D1*SENS)/2097152) - OFF)/32768;
-//
-  signed long dT = D2 - (Coff[4][j] << 8);
-  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5][j]) >> 23;
-  signed long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT)>>6;
-  signed long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT)>>7;
-  float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
-
-  float mbar = P/100.0;
-//  Serial.print(mbar);
-//  Serial.print(" ");
-  unsigned int y;
-  y = (unsigned int) mbar;
-  return (y);
-}
-
-void readPressureValues() {
-
-  for (int i = 0; i < num_devices_; i++) {
-    for (int j = 0; j < NFINGERS; j++) {
-
-     float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
-     Serial.print(mbar);
-     Serial.print('\t');
-
-    int mbar_int = (int) mbar; // converts float pressure value to integer pressure value
-
-        if (touched) {
-          //if (touch_ended(mbar, delta_mbar)) {
-          touched = false;
-          //}
-          force = convert_mbar_to_force(mbar - touch_baseline);
-          Serial.print(force);
-          Serial.println();
-        }
-         else {
-              touch_baseline = mbar;
-        }
-    }
-  }
-}
-
-
 unsigned long getTempReading() {
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -240,6 +194,7 @@ unsigned long getTempReading() {
   // Convert the data
   return ((unsigned long)data[0]) << 16 | ((unsigned long)data[1]) << 8 | ((unsigned long)data[2]);
 }
+
 
 unsigned long  getPressureReading() {
   // Start I2C Transmission
@@ -280,18 +235,85 @@ unsigned long  getPressureReading() {
   return ((unsigned long)data[0]) << 16 | ((unsigned long)data[1]) << 8 | ((unsigned long)data[2]);
 }
 
-void selectSensor(int muxID, int i) {
-  Wire.beginTransmission(muxID);
-  Wire.write(1 << i);
-  Wire.endTransmission();
+
+float readPressure(int muxAddr, int sensor, int j) {
+  selectSensor(muxAddr, sensor);
+  unsigned long D1 = getPressureReading();
+  unsigned long D2 = getTempReading();
+//  Serial.println(D2);
+//
+//  signed long dT = D2 - (Coff[4][j] * 256);
+//  signed long TEMP = 20000 + ((unsigned long long)dT)*(Coff[5][j]/8388608);
+//  signed long long OFF = Coff[1][j]*131072 + (Coff[3][j]*dT)/64;
+//  signed long long SENS = Coff[0][sensor]*65536 + (Coff[2][j]*dT)/128;
+//  float P = (((D1*SENS)/2097152) - OFF)/32768;
+//
+  signed long dT = D2 - (Coff[4][j] << 8);
+  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5][j]) >> 23;
+  signed long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT)>>6;
+  signed long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT)>>7;
+  float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
+
+  float mbar = P/100.0;
+//  Serial.print(mbar);
+//  Serial.print(" ");
+  unsigned int y;
+  y = (unsigned int) mbar;
+  return (y);
 }
 
-void writeByte(byte addr, byte val)
+
+void readPressureValues() {
+
+  for (int i = 0; i < num_devices_; i++) {
+    for (int j = 0; j < NFINGERS; j++) {
+
+     float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
+     Serial.print(mbar);
+     Serial.print('\t');
+
+    int mbar_int = (int) mbar; // converts float pressure value to integer pressure value
+
+        if (touched) {
+          //if (touch_ended(mbar, delta_mbar)) {
+          touched = false;
+          //}
+          force = convert_mbar_to_force(mbar - touch_baseline);
+          Serial.print(force);
+          Serial.println();
+        }
+         else {
+              touch_baseline = mbar;
+        }
+    }
+  }
+}
+
+
+void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
 {
   Wire.beginTransmission(VCNL4040_ADDR);
-  Wire.write(addr);
-  Wire.write(val);
+  Wire.write(commandCode);
+  Wire.write(lowVal); //Low byte of command
+  Wire.write(highVal); //High byte of command
   Wire.endTransmission(); //Release bus
+}
+
+
+void initVCNL4040() {
+  //Clear PS_SD to turn on proximity sensing
+  //byte conf1 = 0b00000000; //Clear PS_SD bit to begin reading
+  byte conf1 = 0b00001110; //Integrate 8T, Clear PS_SD bit to begin reading
+  byte conf2 = 0b00001000; //Set PS to 16-bit
+  //byte conf2 = 0b00000000; //Clear PS to 12-bit
+  writeToCommandRegister(PS_CONF1, conf1, conf2); //Command register, low byte, high byte
+
+  //Set the options for PS_CONF3 and PS_MS bytes
+  byte conf3 = 0x00;
+  //byte ms = 0b00000010; //Set IR LED current to 100mA
+  //byte ms = 0b00000110; //Set IR LED current to 180mA
+  byte ms = 0b00000111; //Set IR LED current to 200mA
+  writeToCommandRegister(PS_CONF3, conf3, ms);
 }
 
 
@@ -325,11 +347,17 @@ void initIRSensor(int id) {
 }
 
 
+unsigned int readProximity(int id, int sensor) {
+    selectSensor(id, sensor);
+    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
+    return (proximity_value_);
+}
+
 
 void readIRValues() {
 
-  for (int i=0; i<num_devices_; i++) {
-     for (int j=0; j<NFINGERS; j++) {
+  for (int i = 0; i < num_devices_; i++) {
+     for (int j = 0; j < NFINGERS; j++) {
     unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
     Serial.print(prox_value);
     Serial.print('\t');
@@ -358,32 +386,8 @@ void readIRValues() {
   }
 }
 
-void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
-{
-  Wire.beginTransmission(VCNL4040_ADDR);
-  Wire.write(commandCode);
-  Wire.write(lowVal); //Low byte of command
-  Wire.write(highVal); //High byte of command
-  Wire.endTransmission(); //Release bus
-}
 
-//Reads a two byte value from a command register
-unsigned int readFromCommandRegister(byte commandCode)
-{
-  Wire.beginTransmission(VCNL4040_ADDR);
-  Wire.write(commandCode);
-  Wire.endTransmission(false); //Send a restart command. Do not release bus.
-
-  Wire.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
-
-  unsigned int data = Wire.read();
-  data |= Wire.read() << 8;
-
-  return (data);
-}
-
-void setup()
-{
+void setup() {
   Serial.begin(57600);
   Wire.begin();
 
@@ -392,8 +396,9 @@ void setup()
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
   
-  prox_value_arr[num_devices_][NFINGERS] = {0};
-  prss_value_arr[num_devices_][NFINGERS] = {0};
+  unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
+  unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
+  
   
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
@@ -408,44 +413,52 @@ void setup()
 
   prev_time = millis();
   touched = false;
-  Serial.println("Starting main loop...");
-  delay(100);
+  Serial.println("Removeing DC offset...");
+  delay(1000);
 
-  Serial.println("Reading values to set baseline");
-
-  int num_samples_avg = 1000;
+  int num_samples_avg = 10;
   
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
-//      Serial.print("Avgeraing mux: ");
-//      Serial.print(i);
-//      Serial.print(" and finger: ");
-//      Serial.println(j);
       for (int k = 0; k < num_samples_avg; k++) {
-//        prox_value_arr[i][j] = prox_value_arr[i][j] + readProximity(i2c_ids_[i],sensor_ports[j]);
-//        Serial.println( prox_value_arr[i][j]);
-        prss_value_arr[i][j] = prss_value_arr[i][j] + readPressure(i2c_ids_[i], sensor_ports[j], j); 
-        Serial.println( prss_value_arr[i][j]);
-//          Serial.println(readPressure(i2c_ids_[i], sensor_ports[j], j));
+        unsigned long long int prox = readProximity(i2c_ids_[i],sensor_ports[j]);
+        prox_value_arr[i][j] = prox_value_arr[i][j] + prox;
+//        Serial.println((long) prox_value_arr[i][j]);
       }
     }
   }
-//
-//  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
-//  Serial.println(prox_value_arr[0][0] / 1000.0);
-//  
-//  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
-//  Serial.println(prss_value_arr[0][0] / 1000.0);
+
+
+  for (int i = 0; i < num_devices_; i++) {
+    for (int j = 0; j < NFINGERS; j++) {
+      for (int k = 0; k < num_samples_avg; k++) {
+        unsigned long long int prss = readPressure(i2c_ids_[i], sensor_ports[j], j);
+        prss_value_arr[i][j] = prss_value_arr[i][j] + prss; 
+//        Serial.println((long) prss_value_arr[i][j]);          
+      }
+    }
+  }
+  
+  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
+  unsigned long long int avg_prox = prox_value_arr[0][0] / 10.0;
+  Serial.println((long) avg_prox);
+  
+  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
+  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0; 
+  Serial.println((long) avg_prss);
   
 //  Serial.println("DONE reading values to set baseline");
 //  Serial.print(proximity_value[0][0]);
   
   starttime = micros();
 
-//  while(1){
-//    Serial.println(readProximity(i2c_ids_[0],sensor_ports[0]) - (prox_value_arr[0][0] / 1000.0));
-//    Serial.println(readPressure(i2c_ids_[0], sensor_ports[0], 0) - (prss_value_arr[0][0] / 1000.0));
-//    }
+  while(1){
+    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]); 
+    Serial.print((long) (prox - avg_prox));
+    Serial.print('\t');
+    unsigned long long int prss = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+    Serial.println((long) (prss - avg_prss));
+    }
 
 }
 
@@ -455,7 +468,7 @@ void loop() {
 
   curtime = micros();
 
-  // Print these min- and max- values to set Y-axis in serial plotter
+  // Print min- and max- values to set Y-axis in serial plotter
 //  Serial.print(0);  // To freeze the lower limit
 //  Serial.print(" ");
 //  Serial.print(40000);  // To freeze the upper limit
