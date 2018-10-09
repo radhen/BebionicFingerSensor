@@ -72,9 +72,16 @@ signed int sensitivity = 45;            // Sensitivity of touch/release detectio
 int touch_analysis = 0;
 
 
-unsigned long long int EMA_a = 0.3;
+unsigned long long int EMA_a = 0.1;
 unsigned long long int EMA_S = 0;
 unsigned long long int prox_highpass = 0;
+
+
+const int numReadings = 10;  
+unsigned long long int readings[numReadings];      // the readings from the analog input
+int readIndex = 0;                                 // the index of the current reading
+unsigned long long int total = 0;                  // the running total
+unsigned long long int average = 0;                // the average
 
 
 //Reads a two byte value from a command register
@@ -416,8 +423,10 @@ void setup() {
 
   prev_time = millis();
   touched = false;
-  Serial.println("Removeing DC offset...");
+  Serial.println("Removing DC offset...");
   delay(1000);
+
+
 
 //  int num_samples_avg = 10;
 //  
@@ -463,7 +472,13 @@ void setup() {
 //    Serial.println((long) (prss - avg_prss));
 //    }
 
-  EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+
+
+//  EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
 
 }
 
@@ -474,9 +489,9 @@ void loop() {
   curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
-  Serial.print(0);  // To freeze the lower limit
+  Serial.print(2100);  // To freeze the lower limit
   Serial.print(" ");
-  Serial.print(10);  // To freeze the upper limit
+  Serial.print(2400);  // To freeze the upper limit
   Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
@@ -486,9 +501,33 @@ void loop() {
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
 
-  unsigned long long int prox = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
-  prox_highpass = prox - EMA_S;                   //calculate the high-pass signal
-  Serial.println((long) prox_highpass);
+  // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
+//  unsigned long long int prox = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
+//  prox_highpass = prox - EMA_S;                   //calculate the high-pass signal
+//  Serial.println((long) prox_highpass);
+
+
+  // https://www.arduino.cc/en/Tutorial/Smoothing
+    // subtract the last reading:
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  average = total / numReadings;
+  // send it to the computer as ASCII digits
+  Serial.println((long) average);
+  delay(1);        // delay in between reads for stability
 
 }
