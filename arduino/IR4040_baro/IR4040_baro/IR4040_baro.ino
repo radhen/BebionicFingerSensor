@@ -427,7 +427,7 @@ void setup() {
   delay(1000);
 
 
-
+    // CALCUATE AVG. FROM FIRST 10 SAMPLES AND SUBTRACT IT FROM CURRENT SENSOR VALUE (STATIC AVG. SUB)
 //  int num_samples_avg = 10;
 //  
 //  for (int i = 0; i < num_devices_; i++) {
@@ -501,6 +501,9 @@ void loop() {
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
 
+
+
+  // HIGH-PASS FILTER
   // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
 //  unsigned long long int prox = readPressure(i2c_ids_[0], sensor_ports[0], 0);
 //  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
@@ -508,6 +511,8 @@ void loop() {
 //  Serial.println((long) prox_highpass);
 
 
+
+  // RUNNING AVG.
   // https://www.arduino.cc/en/Tutorial/Smoothing
     // subtract the last reading:
   total = total - readings[readIndex];
