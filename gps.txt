@@ -3,3 +3,7 @@ This file contains reference links about Gaussian Processes
 
 
 1. https://github.com/gdroguski/GaussianProcesses
+
+2. https://github.com/thangbui/streaming_sparse_gp/blob/master/code/run_reg_toy.py
+
+3/ https://github.com/HildoBijl/SONIG
