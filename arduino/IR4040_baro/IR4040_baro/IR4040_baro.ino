@@ -72,12 +72,7 @@ signed int sensitivity = 45;            // Sensitivity of touch/release detectio
 int touch_analysis = 0;
 
 
-unsigned long long int EMA_a = 0.1;
-unsigned long long int EMA_S = 0;
-unsigned long long int prox_highpass = 0;
-
-
-const int numReadings = 10;  
+const int numReadings = 50;  
 unsigned long long int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;                                 // the index of the current reading
 unsigned long long int total = 0;                  // the running total
@@ -157,7 +152,7 @@ void initPressure(int muxAddr) {
             }
             Coff[j][i] = ((data[0] << 8) | data[1]);
 //            Serial.println(Coff[j][i]);
-//            delay(300);
+            delay(300);
         }
     }
     Wire.beginTransmission(muxAddr);
@@ -181,7 +176,7 @@ unsigned long getTempReading() {
   Wire.write(0x50);
   // Stop I2C Transmission
   Wire.endTransmission();
-  delay(PRESS_MEAS_DELAY_MS);
+  delay(20);
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -221,7 +216,7 @@ unsigned long  getPressureReading() {
   Wire.write(0x40);
   // Stop I2C Transmission
   Wire.endTransmission();
-  delay(PRESS_MEAS_DELAY_MS);
+  delay(20);
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -251,26 +246,40 @@ float readPressure(int muxAddr, int sensor, int j) {
   selectSensor(muxAddr, sensor);
   unsigned long D1 = getPressureReading();
   unsigned long D2 = getTempReading();
+  
+//  Serial.print("D1: ");
+//  Serial.println(D1);
+//  Serial.print("D2: ");
 //  Serial.println(D2);
-//
-//  signed long dT = D2 - (Coff[4][j] * 256);
-//  signed long TEMP = 20000 + ((unsigned long long)dT)*(Coff[5][j]/8388608);
-//  signed long long OFF = Coff[1][j]*131072 + (Coff[3][j]*dT)/64;
-//  signed long long SENS = Coff[0][sensor]*65536 + (Coff[2][j]*dT)/128;
-//  float P = (((D1*SENS)/2097152) - OFF)/32768;
-//
-  signed long dT = D2 - (Coff[4][j] << 8);
-  signed long TEMP = 20000 + (((unsigned long long)dT) * Coff[5][j]) >> 23;
-  signed long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT)>>6;
-  signed long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT)>>7;
-  float P = ((D1 * (SENS >> 21) - OFF)) >> 15;
 
-  float mbar = P/100.0;
+//    unsigned long dT = D2 - ((Coff[4] * pow(2,8));
+//    unsigned long temp = 2000 + (dT * (Coff[5] / pow(2, 23)));
+//    unsigned long long off = Coff[1] * pow(2,17) + (Coff[3] * dT) / pow(2, 6);
+//    unsigned long long sens = Coff[0] * pow(2, 16) + (Coff[2] * dT) / pow(2,7);
+//    D1 = (((D1 * sens) / pow(2,21)) - off);
+//    D1 /= pow(2,15);
+
+  unsigned long dT = D2 - (Coff[4][j] << 8);
+  unsigned long TEMP = 20000 + (dT << (Coff[5][j] >> 23));
+  unsigned long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT) >> 6;
+  unsigned long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT) >> 7;
+  D1 = (((D1 * SENS) >> 21) - OFF) >> 15;
+
+//  Serial.print("dT: ");
+//  Serial.println(dT);
+//  Serial.print("TEMP: ");
+//  Serial.println(TEMP);
+//  Serial.print("OFF: ");
+//  Serial.println((unsigned long) OFF);
+//  Serial.print("SENS: ");
+//  Serial.println((unsigned long) SENS);
+
+
+  float mbar = D1/100.0;
 //  Serial.print(mbar);
 //  Serial.print(" ");
-  unsigned int y;
-  y = (unsigned int) mbar;
-  return (y);
+//  unsigned int y = (unsigned int) mbar;
+  return (mbar);
 }
 
 
@@ -423,58 +432,9 @@ void setup() {
 
   prev_time = millis();
   touched = false;
-  Serial.println("Removing DC offset...");
+//  Serial.println("Removing DC offset...");
   delay(1000);
 
-
-    // CALCUATE AVG. FROM FIRST 10 SAMPLES AND SUBTRACT IT FROM CURRENT SENSOR VALUE (STATIC AVG. SUB)
-//  int num_samples_avg = 10;
-//  
-//  for (int i = 0; i < num_devices_; i++) {
-//    for (int j = 0; j < NFINGERS; j++) {
-//      for (int k = 0; k < num_samples_avg; k++) {
-//        unsigned long long int prox = readProximity(i2c_ids_[i],sensor_ports[j]);
-//        prox_value_arr[i][j] = prox_value_arr[i][j] + prox;
-////        Serial.println((long) prox_value_arr[i][j]);
-//      }
-//    }
-//  }
-//
-//
-//  for (int i = 0; i < num_devices_; i++) {
-//    for (int j = 0; j < NFINGERS; j++) {
-//      for (int k = 0; k < num_samples_avg; k++) {
-//        unsigned long long int prss = readPressure(i2c_ids_[i], sensor_ports[j], j);
-//        prss_value_arr[i][j] = prss_value_arr[i][j] + prss; 
-////        Serial.println((long) prss_value_arr[i][j]);          
-//      }
-//    }
-//  }
-//  
-//  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
-//  unsigned long long int avg_prox = prox_value_arr[0][0] / 10.0;
-//  Serial.println((long) avg_prox);
-//  
-//  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
-//  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0; 
-//  Serial.println((long) avg_prss);
-//  
-////  Serial.println("DONE reading values to set baseline");
-////  Serial.print(proximity_value[0][0]);
-//  
-//  starttime = micros();
-//
-//  while(1){
-//    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]); 
-//    Serial.print((long) (prox - avg_prox));
-//    Serial.print('\t');
-//    unsigned long long int prss = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//    Serial.println((long) (prss - avg_prss));
-//    }
-
-
-
-//  EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
 
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings[thisReading] = 0;
@@ -489,50 +449,40 @@ void loop() {
   curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
-  Serial.print(2100);  // To freeze the lower limit
-  Serial.print(" ");
-  Serial.print(2400);  // To freeze the upper limit
-  Serial.print(" ");
+//  Serial.print(2100);  // To freeze the lower limit
+//  Serial.print(" ");
+//  Serial.print(2400);  // To freeze the upper limit
+//  Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
-//  Serial.println();
-//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  Serial.println();
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
 
 
-
-  // HIGH-PASS FILTER
-  // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
-//  unsigned long long int prox = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
-//  prox_highpass = prox - EMA_S;                   //calculate the high-pass signal
-//  Serial.println((long) prox_highpass);
-
-
-
   // RUNNING AVG.
   // https://www.arduino.cc/en/Tutorial/Smoothing
     // subtract the last reading:
-  total = total - readings[readIndex];
-  // read from the sensor:
-  readings[readIndex] = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-  // add the reading to the total:
-  total = total + readings[readIndex];
-  // advance to the next position in the array:
-  readIndex = readIndex + 1;
-
-  // if we're at the end of the array...
-  if (readIndex >= numReadings) {
-    // ...wrap around to the beginning:
-    readIndex = 0;
-  }
-
-  // calculate the average:
-  average = total / numReadings;
-  // send it to the computer as ASCII digits
-  Serial.println((long) average);
-  delay(1);        // delay in between reads for stability
+//  total = total - readings[readIndex];
+//  // read from the sensor:
+//  readings[readIndex] = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//  // add the reading to the total:
+//  total = total + readings[readIndex];
+//  // advance to the next position in the array:
+//  readIndex = readIndex + 1;
+//
+//  // if we're at the end of the array...
+//  if (readIndex >= numReadings) {
+//    // ...wrap around to the beginning:
+//    readIndex = 0;
+//  }
+//
+//  // calculate the average:
+//  average = total / numReadings;
+//  // send it to the computer as ASCII digits
+//  Serial.println((long) average);
+//  delay(1);        // delay in between reads for stability
 
 }
