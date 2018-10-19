@@ -18,7 +18,7 @@ FILENAME = sys.argv[1]
 # Should the data be written to the console also?
 ECHO = True
 
-SERIAL_PORT = "/dev/cu.usbserial-A603AX4O"
+SERIAL_PORT = "/dev/ttyACM1"
 BAUDRATE = 57600
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
@@ -44,9 +44,9 @@ readSerial = True
 # dummy = ser.readline()
 
 dur = 0.0
-cmmnd = input('press s to start.\n')
-ser.write(b"cmmnd")
-print ('char s written on serial..')
+# cmmnd = input('press s to start.\n')
+# ser.write(b"cmmnd")
+# print ('char s written on serial..')
 # Flush anything that is in the buffer, and read in a dummy line
 ser.flushInput()
 
@@ -54,7 +54,7 @@ with open(FILENAME,'w',buffering=1) as out_file:
     while ser.read():
         data = ser.readline()
         # data_raw = data.split()
-        data = str(data,'utf-8') # convert bytes to string
+        data = str(data).encode("utf-8") # convert bytes to string
         print(data)
         out_file.write(data)
         # out_file.flush()

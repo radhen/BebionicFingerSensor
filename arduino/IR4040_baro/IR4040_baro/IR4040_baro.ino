@@ -29,7 +29,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define ID  0x0C
 
 //#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
-#define NFINGERS 1 // number of fingers connected
+#define NFINGERS 3 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -43,7 +43,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0, 2, 4}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -289,8 +289,9 @@ void readPressureValues() {
     for (int j = 0; j < NFINGERS; j++) {
 
      float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
+     Serial.print(' ');
      Serial.print(mbar);
-     Serial.print('\t');
+     Serial.print(' ');
 
     int mbar_int = (int) mbar; // converts float pressure value to integer pressure value
 
