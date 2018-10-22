@@ -29,7 +29,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define ID  0x0C
 
 //#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
-#define NFINGERS 3 // number of fingers connected
+#define NFINGERS 2 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -43,7 +43,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0, 2, 4}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0, 2}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -72,11 +72,11 @@ signed int sensitivity = 45;            // Sensitivity of touch/release detectio
 int touch_analysis = 0;
 
 
-const int numReadings = 50;  
-unsigned long long int readings[numReadings];      // the readings from the analog input
-int readIndex = 0;                                 // the index of the current reading
-unsigned long long int total = 0;                  // the running total
-unsigned long long int average = 0;                // the average
+const int numReadings = 10;  
+unsigned long long int readings[NFINGERS][numReadings];      // the readings from the analog input
+int readIndex[NFINGERS] = {0};                                 // the index of the current reading
+unsigned long long int total[NFINGERS] = {0};                  // the running total
+unsigned long long int average[NFINGERS] = {0};                // the average
 
 
 //Reads a two byte value from a command register
@@ -436,9 +436,10 @@ void setup() {
 //  Serial.println("Removing DC offset...");
   delay(1000);
 
-
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings[thisReading] = 0;
+  for (int j = 0; j < NFINGERS; j++) {
+    for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+      readings[j][thisReading] = 0;
+    }
   }
 
 }
@@ -450,14 +451,14 @@ void loop() {
   curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
-//  Serial.print(2100);  // To freeze the lower limit
-//  Serial.print(" ");
-//  Serial.print(2400);  // To freeze the upper limit
-//  Serial.print(" ");
+  Serial.print(0);  // To freeze the lower limit
+  Serial.print(" ");
+  Serial.print(1);  // To freeze the upper limit
+  Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
-  Serial.println();
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//  Serial.println();
+//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
 //  Serial.print(curtime - starttime);
 //  Serial.print('\t');
@@ -465,25 +466,33 @@ void loop() {
 
   // RUNNING AVG.
   // https://www.arduino.cc/en/Tutorial/Smoothing
-    // subtract the last reading:
-//  total = total - readings[readIndex];
-//  // read from the sensor:
-//  readings[readIndex] = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//  // add the reading to the total:
-//  total = total + readings[readIndex];
-//  // advance to the next position in the array:
-//  readIndex = readIndex + 1;
-//
-//  // if we're at the end of the array...
-//  if (readIndex >= numReadings) {
-//    // ...wrap around to the beginning:
-//    readIndex = 0;
-//  }
-//
-//  // calculate the average:
-//  average = total / numReadings;
-//  // send it to the computer as ASCII digits
-//  Serial.println((long) average);
-//  delay(1);        // delay in between reads for stability
+  // subtract the last reading:
+  for (int j = 0; j < NFINGERS; j++) {
+    total[j] = total[j] - readings[j][readIndex[j]];
+    // read from the sensor:
+    readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+    // add the reading to the total:
+    total[j] = total[j] + readings[j][readIndex[j]];
+    // advance to the next position in the array:
+    readIndex[j] = readIndex[j] + 1;
+  
+    // if we're at the end of the array...
+    if (readIndex[j] >= numReadings) {
+      // ...wrap around to the beginning:
+      readIndex[j] = 0;
+    }
+  
+    // calculate the average:
+    average[j] = total[j] / numReadings;
+    // send it to the computer as ASCII digits
+    Serial.print((long) average[j]/ 7000.0);
+    Serial.print(' ');
+
+    int mean_over = 10; 
+    for(int k=0; k<mean_over; k++){
+      
+      }
+  }
+  Serial.println();
 
 }

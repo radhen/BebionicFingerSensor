@@ -18,7 +18,7 @@ FILENAME = sys.argv[1]
 # Should the data be written to the console also?
 ECHO = True
 
-SERIAL_PORT = "/dev/ttyACM1"
+SERIAL_PORT = "/dev/ttyACM0"
 BAUDRATE = 57600
 PARITY = serial.PARITY_NONE
 STOPBITS = serial.STOPBITS_ONE
