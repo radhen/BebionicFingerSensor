@@ -451,9 +451,9 @@ void loop() {
   curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
-  Serial.print(0);  // To freeze the lower limit
-  Serial.print(" ");
-  Serial.print(1);  // To freeze the upper limit
+//  Serial.print(0);  // To freeze the lower limit
+//  Serial.print(" ");
+//  Serial.print(1);  // To freeze the upper limit
   Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
@@ -487,12 +487,6 @@ void loop() {
     // send it to the computer as ASCII digits
     Serial.print((long) average[j]/ 7000.0);
     Serial.print(' ');
-
-    int mean_over = 10; 
-    for(int k=0; k<mean_over; k++){
-      
-      }
   }
   Serial.println();
-
 }
