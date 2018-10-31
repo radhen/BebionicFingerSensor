@@ -72,7 +72,7 @@ signed int sensitivity = 45;            // Sensitivity of touch/release detectio
 int touch_analysis = 0;
 
 
-const int numReadings = 10;  
+const int numReadings = 5;  
 unsigned long long int readings[NFINGERS][numReadings];      // the readings from the analog input
 int readIndex[NFINGERS] = {0};                                 // the index of the current reading
 unsigned long long int total[NFINGERS] = {0};                  // the running total
@@ -460,10 +460,7 @@ void loop() {
 //  Serial.println();
 //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
-//  Serial.print(curtime - starttime);
-//  Serial.print('\t');
-
-
+  double arr[2]; 
   // RUNNING AVG.
   // https://www.arduino.cc/en/Tutorial/Smoothing
   // subtract the last reading:
@@ -484,9 +481,14 @@ void loop() {
   
     // calculate the average:
     average[j] = total[j] / numReadings;
-    // send it to the computer as ASCII digits
-    Serial.print((long) average[j]/ 7000.0);
-    Serial.print(' ');
+    // send it to the computer as ASCII digits   
+    arr[j]=(long) average[j]/ 7000.0;
   }
+  starttime = micros();
+  Serial.print(starttime - curtime);
+  Serial.print('\t');
+  Serial.print(arr[0]);
+  Serial.print(' ');
+  Serial.print(arr[1]);
   Serial.println();
 }
