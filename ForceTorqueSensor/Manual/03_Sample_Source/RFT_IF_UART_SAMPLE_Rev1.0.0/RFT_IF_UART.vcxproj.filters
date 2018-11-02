@@ -1,0 +1,267 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="소스 파일">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="헤더 파일">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="SDKs">
+      <UniqueIdentifier>{c03ad3eb-e008-4f28-a684-489cacec0109}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDKs\CONSOLE">
+      <UniqueIdentifier>{b2cf1ec1-25ad-47a7-8714-3e838f9857f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RFT">
+      <UniqueIdentifier>{34107f62-8a4b-4adc-9f94-33e0c703a86a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDKs\ChartCtrl">
+      <UniqueIdentifier>{dc32d80c-603b-4188-8cae-e60b06b87a46}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartBarSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartCandlestickSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartCrossHairCursor.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartCtrl.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartCursor.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartDateTimeAxis.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartDragLineCursor.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartFont.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartGanttSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartGradient.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartGrid.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartLabel.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartLegend.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartLineSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartLogarithmicAxis.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartMouseListener.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartPointsArray.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartPointsSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartScrollBar.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartSerieBase.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartSeriesMouseListener.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartStandardAxis.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartString.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartSurfaceSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartTitle.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartXYSerie.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\PointsOrdering.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartAxis.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartAxisLabel.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="ChartCtrl\ChartBalloonLabel.h">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="RFT_IF_UART.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="RFT_IF_UARTDlg.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RFT_IF_PACKET_Rev1.0.h">
+      <Filter>RFT</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RT_Console_Rev0.1.h">
+      <Filter>SDKs\CONSOLE</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RFT_IF_UART_SAMPLE_Rev1.0.h">
+      <Filter>RFT</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartBarSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartCandlestickSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartCrossHairCursor.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartCtrl.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartCursor.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartDateTimeAxis.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartDragLineCursor.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartFont.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartGanttSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartGradient.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartGrid.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartLegend.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartLineSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartLogarithmicAxis.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartPointsSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartScrollBar.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartStandardAxis.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartSurfaceSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartTitle.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartXYSerie.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartAxis.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="ChartCtrl\ChartAxisLabel.cpp">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="RFT_IF_UART.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="RFT_IF_UARTDlg.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\RFT_IF_PACKET_Rev1.0.cpp">
+      <Filter>RFT</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\RT_Console_Rev0.1.cpp">
+      <Filter>SDKs\CONSOLE</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\RFT_IF_UART_SAMPLE_Rev1.0.cpp">
+      <Filter>RFT</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ChartCtrl\ChartLabel.inl">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </None>
+    <None Include="ChartCtrl\ChartPointsArray.inl">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </None>
+    <None Include="ChartCtrl\ChartSerieBase.inl">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </None>
+    <None Include="ChartCtrl\ChartBalloonLabel.inl">
+      <Filter>SDKs\ChartCtrl</Filter>
+    </None>
+    <None Include="res\RFT_IF_UART.rc2">
+      <Filter>리소스 파일</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\RFT_IF_UART.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="RFT_IF_UART.rc">
+      <Filter>리소스 파일</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
