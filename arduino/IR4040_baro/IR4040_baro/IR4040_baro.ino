@@ -29,7 +29,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 #define ID  0x0C
 
 //#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
-#define NFINGERS 2 // number of fingers connected
+#define NFINGERS 1 // number of fingers connected
 
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
@@ -43,7 +43,7 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0, 2}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
 
 int num_devices_;
@@ -52,8 +52,8 @@ byte serialByte;
 unsigned long Coff[6][NFINGERS];
 unsigned long Ti = 0, offi = 0, sensi = 0;
 unsigned int data[3];
-unsigned long prev_time;
 
+unsigned long prev_time;
 unsigned long starttime;
 
 bool touched;
@@ -150,7 +150,7 @@ void initPressure(int muxAddr) {
               data[0] = Wire.read();
               data[1] = Wire.read();
             }
-            Coff[j][i] = ((data[0] << 8) | data[1]);
+            Coff[j][i] = ((data[0] * 256) + data[1]);
 //            Serial.println(Coff[j][i]);
             delay(300);
         }
@@ -176,7 +176,7 @@ unsigned long getTempReading() {
   Wire.write(0x50);
   // Stop I2C Transmission
   Wire.endTransmission();
-  delay(20);
+  delay(10);
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -198,11 +198,11 @@ unsigned long getTempReading() {
   }
 
   // Convert the data
-  return ((unsigned long)data[0]) << 16 | ((unsigned long)data[1]) << 8 | ((unsigned long)data[2]);
+  return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
 }
 
 
-unsigned long  getPressureReading() {
+unsigned long getPressureReading() {
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
   // Send reset command
@@ -216,7 +216,7 @@ unsigned long  getPressureReading() {
   Wire.write(0x40);
   // Stop I2C Transmission
   Wire.endTransmission();
-  delay(20);
+  delay(10);
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -238,9 +238,8 @@ unsigned long  getPressureReading() {
   }
 
   // Convert the data
-  return ((unsigned long)data[0]) << 16 | ((unsigned long)data[1]) << 8 | ((unsigned long)data[2]);
+  return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
 }
-
 
 float readPressure(int muxAddr, int sensor, int j) {
   selectSensor(muxAddr, sensor);
@@ -252,33 +251,57 @@ float readPressure(int muxAddr, int sensor, int j) {
 //  Serial.print("D2: ");
 //  Serial.println(D2);
 
-//    unsigned long dT = D2 - ((Coff[4] * pow(2,8));
-//    unsigned long temp = 2000 + (dT * (Coff[5] / pow(2, 23)));
-//    unsigned long long off = Coff[1] * pow(2,17) + (Coff[3] * dT) / pow(2, 6);
-//    unsigned long long sens = Coff[0] * pow(2, 16) + (Coff[2] * dT) / pow(2,7);
-//    D1 = (((D1 * sens) / pow(2,21)) - off);
-//    D1 /= pow(2,15);
+//  unsigned long dT = D2 - (Coff[4][j] * 256);
+//  D2 = 2000 + (dT * (Coff[5][j] / 8388608));
+//  unsigned long long OFF = Coff[1][j] * 131072 + (Coff[3][j]*dT) / 64;
+//  unsigned long long SENS = Coff[0][j] * 65536 + (Coff[2][j]*dT) / 128;
 
   unsigned long dT = D2 - (Coff[4][j] << 8);
-  unsigned long TEMP = 20000 + (dT << (Coff[5][j] >> 23));
-  unsigned long long OFF = Coff[1][j] << 17; // + (Coff[3][j]*dT) >> 6;
-  unsigned long long SENS = Coff[0][j] << 16; // + (Coff[2][j]*dT) >> 7;
-  D1 = (((D1 * SENS) >> 21) - OFF) >> 15;
+  unsigned long TEMP = 2000 + (dT << (Coff[5][j] >> 23));
+  unsigned long long OFF = Coff[1][j] << 17;// + (Coff[3][j]*dT) >> 6;
+  unsigned long long SENS = Coff[0][j] << 16;// + (Coff[2][j]*dT) >> 7;
+  
+  
 
 //  Serial.print("dT: ");
 //  Serial.println(dT);
-//  Serial.print("TEMP: ");
-//  Serial.println(TEMP);
+//  Serial.print("D2: ");
+//  Serial.println(D2);
 //  Serial.print("OFF: ");
 //  Serial.println((unsigned long) OFF);
 //  Serial.print("SENS: ");
 //  Serial.println((unsigned long) SENS);
 
 
+//  // 2nd order temperature and pressure compensation
+//  if(D2 < 2000)
+//  {
+//    Ti = (dT * dT) / (pow(2,31));
+//    offi = 5 * ((pow((D2 - 2000), 2))) / 2;
+//    sensi =  offi / 2;
+//    if(D2 < - 1500)
+//    {
+//       offi = offi + 7 * ((pow((D2 + 1500), 2)));
+//       sensi = sensi + 11 * ((pow((D2 + 1500), 2)));
+//    }
+//  }
+//  else if(D2 >= 2000)
+//  {
+//     Ti = 0;
+//     offi = 0;
+//     sensi = 0;
+//  }
+//
+//  // Adjust temp, off, sens based on 2nd order compensation
+//  D2 -= Ti;
+//  OFF -= offi;
+//  SENS -= sensi;
+
+//  D1 = (((D1 * SENS) / 2097152) - OFF);
+//  D1 /= 32768;
+
+  D1 = (((D1 * SENS) >> 21) - OFF) >> 15;
   float mbar = D1/100.0;
-//  Serial.print(mbar);
-//  Serial.print(" ");
-//  unsigned int y = (unsigned int) mbar;
   return (mbar);
 }
 
@@ -409,7 +432,7 @@ void readIRValues() {
 
 
 void setup() {
-  Serial.begin(57600);
+  Serial.begin(2000000);
   Wire.begin();
 
   delay(1000);
@@ -454,13 +477,13 @@ void loop() {
 //  Serial.print(0);  // To freeze the lower limit
 //  Serial.print(" ");
 //  Serial.print(1);  // To freeze the upper limit
-  Serial.print(" ");
+//  Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
 //  Serial.println();
 //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
-  double arr[2]; 
+  double arr[3]; 
   // RUNNING AVG.
   // https://www.arduino.cc/en/Tutorial/Smoothing
   // subtract the last reading:
@@ -482,13 +505,14 @@ void loop() {
     // calculate the average:
     average[j] = total[j] / numReadings;
     // send it to the computer as ASCII digits   
-    arr[j]=(long) average[j]/ 7000.0;
+    arr[j]= average[j]/ 7000.0;
+//    Serial.print(arr[j]); 
   }
-  starttime = micros();
-  Serial.print(starttime - curtime);
-  Serial.print('\t');
   Serial.print(arr[0]);
   Serial.print(' ');
-  Serial.print(arr[1]);
+  readIRValues();
+//  Serial.print('\t');
+//  starttime = micros();
+//  Serial.print(starttime - curtime);
   Serial.println();
 }
