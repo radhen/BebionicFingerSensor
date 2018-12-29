@@ -1,11 +1,9 @@
 # BebionicFingerSensor
-FingerSensor calibration data files for Bebionic hand
+Contains python/MATLAB/C script and data files for the paper 
+"Multi-Modal Fingertip Sensor with Proximity, Contact, and Force Localization Capabilities"
+submitted at
+AIME journal (link coming soon...)
 
-radhen patel <Radhen.Patel@colorado.edu>
-
-Mon, Dec 24, 8:28 AM (5 days ago)
-
-to Cooper.Simpson
 In the top level of the GitHub repository radhen/Bebionics_FungerSensor
 
 There is a /scripts folder. It has a /GP (gaussianprocesses) and /ML (machine learning) folder.
