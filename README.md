@@ -16,3 +16,10 @@ I am using alignpeaks.m MATALAB files to preprocess the data for the above model
 
 Useful link for multiple output gaussianprocesses regression
 https://stackoverflow.com/questions/50185399/multiple-output-gaussian-process-regression-in-scikit-learn
+
+Useful link for neural network for multiple output regression
+Google link: https://www.google.com/search?client=ubuntu&channel=fs&ei=h_4mXLmsMZTB7gK98IfwAw&q=multiple+output+regression+nueral+network+example&oq=multiple+output+regression+nueral+network+example&gs_l=psy-ab.3...1146847.1151085..1151762...1.0..0.135.1934.1j16......0....1..gws-wiz.......0i71j35i304i39j0i13i5i30j0i8i13i30j33i10.G1d2oa_WSow
+
+1. https://stats.stackexchange.com/questions/261227/neural-network-for-multiple-output-regression
+2. https://datascience.stackexchange.com/questions/16890/neural-network-for-multiple-output-regression
+3. https://arxiv.org/pdf/1805.02716.pdf
