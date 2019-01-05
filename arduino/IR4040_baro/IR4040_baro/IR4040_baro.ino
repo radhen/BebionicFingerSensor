@@ -6,7 +6,7 @@
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {112};//, MUX_ADDR|1};
-int ir_current_ = 4; // range = [0, 20]. current = value * 10 mA
+int ir_current_ = 20; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
 int averaging_function_ = 7;  // range [0, 7] measurements per run are 2**value, with range [1, 2**7 = 128]
@@ -30,13 +30,9 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 
 //#define NUM_SENSORS 2 // Total number of sensors(ir + baro) connected
 #define NFINGERS 1 // number of fingers connected
-
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
-
 #define DELTA_MBAR_THRESH 1.0
-
 #define I2C_FASTMODE 1
-
 // Touch/release detection
 #define EA 0.3  // exponential average weight parameter / cut-off frequency for high-pass filter
 
@@ -61,22 +57,22 @@ float touch_baseline;
 float force;
 
 //unsigned long long int prox_value_arr[1][NFINGERS]; // current proximity reading
-unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
-
 //unsigned long long int prss_value_arr[1][NFINGERS]; // current pressure reading
 
+unsigned int proximity_value[NFINGERS]; // current proximity reading
+unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
 signed int  fa1[NFINGERS];              // FA-I value;
 signed int fa1derivative[NFINGERS];     // Derivative of the FA-I value;
 signed int fa1deriv_last[NFINGERS];     // Last value of the derivative (for zero-crossing detection)
-signed int sensitivity = 45;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
+signed int sensitivity = 20;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
 int touch_analysis = 0;
 
 
-const int numReadings = 5;  
-unsigned long long int readings[NFINGERS][numReadings];      // the readings from the analog input
-int readIndex[NFINGERS] = {0};                                 // the index of the current reading
-unsigned long long int total[NFINGERS] = {0};                  // the running total
-unsigned long long int average[NFINGERS] = {0};                // the average
+const int numReadings = 5;                               // num. of readings to avg. over for running avg. purpose 
+unsigned long long int readings[NFINGERS][numReadings];  // the readings from the analog input
+int readIndex[NFINGERS] = {0};                           // the index of the current reading
+unsigned long long int total[NFINGERS] = {0};            // the running total
+unsigned long long int average[NFINGERS] = {0};          // the average
 
 
 //Reads a two byte value from a command register
@@ -258,15 +254,15 @@ float readPressure(int muxAddr, int sensor, int j) {
 
   unsigned long dT = D2 - (Coff[4][j] << 8);
   unsigned long TEMP = 2000 + (dT << (Coff[5][j] >> 23));
-  unsigned long long OFF = Coff[1][j] << 17;// + (Coff[3][j]*dT) >> 6;
-  unsigned long long SENS = Coff[0][j] << 16;// + (Coff[2][j]*dT) >> 7;
+  unsigned long long OFF = Coff[1][j] << 17;// + ((Coff[3][j]*dT) >> 6);
+  unsigned long long SENS = Coff[0][j] << 16;// + ((Coff[2][j]*dT) >> 7);
   
   
 
 //  Serial.print("dT: ");
 //  Serial.println(dT);
-//  Serial.print("D2: ");
-//  Serial.println(D2);
+//  Serial.print("TEMP: ");
+//  Serial.println(TEMP);
 //  Serial.print("OFF: ");
 //  Serial.println((unsigned long) OFF);
 //  Serial.print("SENS: ");
@@ -407,24 +403,33 @@ void readIRValues() {
     Serial.print('\t');
     
 
-//      //------- Touch detection -----//
-//    proximity_value[j] = prox_value;
-//    fa1deriv_last[j] = fa1derivative[j];
-//    fa1derivative[j] = (signed int) average_value[j] - proximity_value[j] - fa1[j];
-//    fa1[i] = (signed int) average_value[j] - proximity_value[j];
-//    if (touch_analysis) {
-//      //        Serial.print(",");
-//      if ((fa1deriv_last[j] < -sensitivity && fa1derivative[j] > sensitivity) || (fa1deriv_last[j] > 50 && fa1derivative[j] < -50)) { // zero crossing detected
-//        if (fa1[j] < -sensitivity) // minimum
-//        {
-//          touched = true;
-//        }
-//        else if (fa1[j] > sensitivity) // maximum
-//        {
-//          Serial.print("R");
-//        }
-//      }
-//    }
+      //------- Touch detection -----//
+    proximity_value[j] = prox_value;
+    fa1deriv_last[j] = fa1derivative[j];
+    fa1derivative[j] = (signed int) average_value[j] - proximity_value[j] - fa1[j];
+    fa1[i] = (signed int) average_value[j] - proximity_value[j];
+    
+//    Serial.print(fa1[i]);
+//    Serial.print('\t');
+//    Serial.print(fa1deriv_last[j]);
+//    Serial.print('\t');
+//    Serial.print(fa1derivative[j]);
+    
+    if (touch_analysis) {
+      //        Serial.print(",");
+      if ((fa1deriv_last[j] < -sensitivity && fa1derivative[j] > sensitivity) || (fa1deriv_last[j] > sensitivity && fa1derivative[j] < -sensitivity)) { // zero crossing detected
+        if (fa1[j] < -sensitivity) // minimum
+        {
+          Serial.print("1");
+          touched = true;
+        }
+        else if (fa1[j] > sensitivity) // maximum
+        {
+//          Serial.print("0");
+        }
+      }
+      Serial.print("0");
+    }
 
      }
   }
@@ -432,7 +437,7 @@ void readIRValues() {
 
 
 void setup() {
-  Serial.begin(2000000);
+  Serial.begin(9600);
   Wire.begin();
 
   delay(1000);
@@ -455,10 +460,18 @@ void setup() {
   }
 
   prev_time = millis();
-  touched = false;
-//  Serial.println("Removing DC offset...");
-  delay(1000);
 
+  // setup code for touch_analysis
+  touched = false;
+  for (int i = 0; i < num_devices_; i++) {
+    for (int j = 0; j < NFINGERS; j++) {
+    proximity_value[i] = readProximity(i2c_ids_[i],sensor_ports[j]);
+    average_value[i] = proximity_value[i];
+    fa1[i] = 0;
+    }
+  }
+
+  // setup code for moving avg over baro values
   for (int j = 0; j < NFINGERS; j++) {
     for (int thisReading = 0; thisReading < numReadings; thisReading++) {
       readings[j][thisReading] = 0;
@@ -483,36 +496,29 @@ void loop() {
 //  Serial.println();
 //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
-  double arr[3]; 
-  // RUNNING AVG.
+  float arr[NFINGERS]; 
+  // RUNNING AVG FOR BARO
   // https://www.arduino.cc/en/Tutorial/Smoothing
   // subtract the last reading:
   for (int j = 0; j < NFINGERS; j++) {
     total[j] = total[j] - readings[j][readIndex[j]];
-    // read from the sensor:
     readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-    // add the reading to the total:
     total[j] = total[j] + readings[j][readIndex[j]];
-    // advance to the next position in the array:
     readIndex[j] = readIndex[j] + 1;
-  
     // if we're at the end of the array...
     if (readIndex[j] >= numReadings) {
-      // ...wrap around to the beginning:
-      readIndex[j] = 0;
+      readIndex[j] = 0; // ...wrap around to the beginning:
     }
-  
-    // calculate the average:
-    average[j] = total[j] / numReadings;
-    // send it to the computer as ASCII digits   
-    arr[j]= average[j]/ 7000.0;
-//    Serial.print(arr[j]); 
+    average[j] = total[j] / numReadings; // calculate the average:
+    arr[j]= average[j]/ 7.0; // normalize the pressure value
   }
-  Serial.print(arr[0]);
-  Serial.print(' ');
+  
+//  Serial.print(arr[0]);
+//  Serial.print(' ');
   readIRValues();
 //  Serial.print('\t');
 //  starttime = micros();
 //  Serial.print(starttime - curtime);
   Serial.println();
+
 }
