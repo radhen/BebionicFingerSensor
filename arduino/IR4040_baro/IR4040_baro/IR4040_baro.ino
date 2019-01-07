@@ -50,7 +50,6 @@ unsigned long Ti = 0, offi = 0, sensi = 0;
 unsigned int data[3];
 
 unsigned long prev_time;
-unsigned long starttime;
 
 bool touched;
 float touch_baseline;
@@ -73,6 +72,16 @@ unsigned long long int readings[NFINGERS][numReadings];  // the readings from th
 int readIndex[NFINGERS] = {0};                           // the index of the current reading
 unsigned long long int total[NFINGERS] = {0};            // the running total
 unsigned long long int average[NFINGERS] = {0};          // the average
+
+float min_baro[NFINGERS];
+
+// HIGH-PASS FILTER
+// https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
+// global variables
+float EMA_a = 0.8;
+float EMA_S = 0;
+float prev_EMA_S;
+float prox_highpass = 0;
 
 
 //Reads a two byte value from a command register
@@ -257,8 +266,6 @@ float readPressure(int muxAddr, int sensor, int j) {
   unsigned long long OFF = Coff[1][j] << 17;// + ((Coff[3][j]*dT) >> 6);
   unsigned long long SENS = Coff[0][j] << 16;// + ((Coff[2][j]*dT) >> 7);
   
-  
-
 //  Serial.print("dT: ");
 //  Serial.println(dT);
 //  Serial.print("TEMP: ");
@@ -478,13 +485,38 @@ void setup() {
     }
   }
 
+  // zeroing sensor values
+  float baro[NFINGERS][120];
+  int count = 1; 
+  while (count < 120){ 
+      for (int j = 0; j < NFINGERS; j++) {
+          baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+//          Serial.println(bar/o[0][count]);
+          count += 1; 
+          
+      }
+  }
+ 
+  for (int j = 0; j < NFINGERS; j++) { 
+    int min_value = baro[j][6] ; 
+    for (int i = 7; i<120; i++){ 
+      if (baro[j][i] < min_value) {
+          min_value = baro[j][i];
+      }
+    }
+    min_baro[j] = min_value;
+//    Serial.print("m/in baro value is");
+//    Serial.println/(min_baro[j]);
+  }
+
+  prev_EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  
+  
 }
 
 
 void loop() {
-  unsigned long curtime;
-
-  curtime = micros();
+  unsigned long curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
 //  Serial.print(0);  // To freeze the lower limit
@@ -496,29 +528,48 @@ void loop() {
 //  Serial.println();
 //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
-  float arr[NFINGERS]; 
-  // RUNNING AVG FOR BARO
-  // https://www.arduino.cc/en/Tutorial/Smoothing
-  // subtract the last reading:
-  for (int j = 0; j < NFINGERS; j++) {
-    total[j] = total[j] - readings[j][readIndex[j]];
-    readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-    total[j] = total[j] + readings[j][readIndex[j]];
-    readIndex[j] = readIndex[j] + 1;
-    // if we're at the end of the array...
-    if (readIndex[j] >= numReadings) {
-      readIndex[j] = 0; // ...wrap around to the beginning:
-    }
-    average[j] = total[j] / numReadings; // calculate the average:
-    arr[j]= average[j]/ 7.0; // normalize the pressure value
-  }
+//  double arr[NFINGERS];
+//  // RUNNING AVG FOR BARO
+//  // https://www.arduino.cc/en/Tutorial/Smoothing
+//  // subtract the last reading:
+//  for (int j = 0; j < NFINGERS; j++) {
+//    total[j] = total[j] - readings[j][readIndex[j]];
+//    readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+//    
+////    readings[j][readIndex[j]] = abs(readings[j][readIndex[j]] - min_baro[j]);
+//
+////    if (readings[j][readIndex[j]] >= min_baro[j]){
+////      readings[j][readIndex[j]] = readings[j][readIndex[j]] - min_baro[j];
+////      }
+////    else{
+////      readings[j][readIndex[j]] = min_baro[j] - readings[j][readIndex[j]];
+////      min_baro[j] = readings[j][readIndex[j]];
+////      }
+//      
+//    total[j] = total[j] + readings[j][readIndex[j]];
+//    readIndex[j] = readIndex[j] + 1;
+//    // if we're at the end of the array...
+//    if (readIndex[j] >= numReadings) {
+//      readIndex[j] = 0; // ...wrap around to the beginning:
+//    }
+//    average[j] = total[j] / numReadings; // calculate the average:
+//    arr[j]= average[j]/ 7.0; // normalize the pressure value
+//  }
+
+    float bar = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//    bar = abs(bar - min_b/aro[0]);
+    EMA_S = (EMA_a*bar) + ((1-EMA_a)*prev_EMA_S);
+    prev_EMA_S = EMA_S;   
+//    EMA_S = constra/in(EMA_S, 0, 7000);         
+    Serial.println(EMA_S);
+
   
-//  Serial.print(arr[0]);
+//  Serial.pri/nt(arr[0]);
 //  Serial.print(' ');
-  readIRValues();
+//  readIRValue/s();
 //  Serial.print('\t');
-//  starttime = micros();
+//  unsigned long starttime = micros();
 //  Serial.print(starttime - curtime);
-  Serial.println();
+//    Serial.println(bar);
 
 }
