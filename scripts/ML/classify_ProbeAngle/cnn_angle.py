@@ -14,7 +14,7 @@ from keras.layers.embeddings import Embedding
 from keras.preprocessing import sequence
 from keras.layers import MaxPooling1D, MaxPooling2D
 from keras.preprocessing.text import Tokenizer
-from keras.layers import Merge
+# from keras.layers import Merge
 from keras.layers.normalization import BatchNormalization
 
 from keras.layers.core import Dense, Dropout, Activation, Flatten
