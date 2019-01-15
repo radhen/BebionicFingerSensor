@@ -36,8 +36,6 @@ int proximity_freq_ = 1; // range = [0 , 3]. 390.625kHz, 781.250kHz, 1.5625MHz, 
 // Touch/release detection
 #define EA 0.3  // exponential average weight parameter / cut-off frequency for high-pass filter
 
-
-
 /***** GLOBAL VARIABLES *****/
 int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_mbar[NFINGERS];
@@ -66,7 +64,8 @@ signed int fa1deriv_last[NFINGERS];     // Last value of the derivative (for zer
 signed int sensitivity = 20;            // Sensitivity of touch/release detection, values closer to zero increase sensitivity
 int touch_analysis = 0;
 
-
+/**** VAR. for running avg. ****/
+double arr[NFINGERS];
 const int numReadings = 5;                               // num. of readings to avg. over for running avg. purpose 
 unsigned long long int readings[NFINGERS][numReadings];  // the readings from the analog input
 int readIndex[NFINGERS] = {0};                           // the index of the current reading
@@ -74,14 +73,26 @@ unsigned long long int total[NFINGERS] = {0};            // the running total
 unsigned long long int average[NFINGERS] = {0};          // the average
 
 float min_baro[NFINGERS];
+float max_baro[NFINGERS];
 
-// HIGH-PASS FILTER
+/**** VAR. for expo avg. ****/
 // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
 // global variables
-float EMA_a = 0.8;
-float EMA_S = 0;
-float prev_EMA_S;
+float EMA_a = 0.7;
+float EMA_S_baro;
+float prev_baro;
+float EMA_S_ir;
+float prev_ir;
 float prox_highpass = 0;
+
+#include <Filters.h>
+ 
+// create a one pole (RC) lowpass filter
+FilterOnePole highpassFilter(HIGHPASS, 3.0);  
+FilterOnePole lowpassFilter(LOWPASS, 2.0); 
+RunningStatistics inputStats;  
+
+
 
 
 //Reads a two byte value from a command register
@@ -410,7 +421,8 @@ void readIRValues() {
     Serial.print('\t');
     
 
-      //------- Touch detection -----//
+    //------- Touch detection -----/
+    // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
     proximity_value[j] = prox_value;
     fa1deriv_last[j] = fa1derivative[j];
     fa1derivative[j] = (signed int) average_value[j] - proximity_value[j] - fa1[j];
@@ -486,49 +498,62 @@ void setup() {
   }
 
   // zeroing sensor values
-  float baro[NFINGERS][120];
+  float baro[NFINGERS][300];
   int count = 1; 
-  while (count < 120){ 
+  while (count < 300){ 
       for (int j = 0; j < NFINGERS; j++) {
           baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-//          Serial.println(bar/o[0][count]);
-          count += 1; 
-          
+//          Serial.println(baro[0][count]);
+          count += 1;       
       }
   }
- 
+    
   for (int j = 0; j < NFINGERS; j++) { 
-    int min_value = baro[j][6] ; 
-    for (int i = 7; i<120; i++){ 
+    float min_value = baro[j][10];
+    float max_value = baro[j][10]; 
+    for (int i =11; i<120; i++){ 
       if (baro[j][i] < min_value) {
           min_value = baro[j][i];
       }
+      if (baro[j][i] > max_value) {
+          max_value = baro[j][i];
+      }
     }
     min_baro[j] = min_value;
-//    Serial.print("m/in baro value is");
-//    Serial.println/(min_baro[j]);
+    max_baro[j] = max_value;
   }
 
-  prev_EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  Serial.print("min baro value is");
+  Serial.println(min_baro[0]);
+  Serial.print("max baro value is");
+  Serial.println(max_baro[0]);
+
+  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+
+  inputStats.setWindowSecs(0.5);
   
   
 }
 
 
 void loop() {
+  
   unsigned long curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
 //  Serial.print(0);  // To freeze the lower limit
 //  Serial.print(" ");
-//  Serial.print(1);  // To freeze the upper limit
+//  Serial.print(65536);  // To freeze the upper limit
 //  Serial.print(" ");
   
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
 //  Serial.println();
 //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//  Serial.print(' ');
+//  Serial.print(min_baro[0]);
 
-//  double arr[NFINGERS];
+
 //  // RUNNING AVG FOR BARO
 //  // https://www.arduino.cc/en/Tutorial/Smoothing
 //  // subtract the last reading:
@@ -556,12 +581,33 @@ void loop() {
 //    arr[j]= average[j]/ 7.0; // normalize the pressure value
 //  }
 
-    float bar = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//    bar = abs(bar - min_b/aro[0]);
-    EMA_S = (EMA_a*bar) + ((1-EMA_a)*prev_EMA_S);
-    prev_EMA_S = EMA_S;   
+      // EXPONENTIAL AVG. FOR BARO
+//    float bar = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//    bar = abs(bar - min_baro[0]);
+//    EMA_S_baro = (EMA_a*bar) + ((1-EMA_a)*prev_baro);
+//    prev_baro = EMA_S_baro;   
 //    EMA_S = constra/in(EMA_S, 0, 7000);         
-    Serial.println(EMA_S);
+//    Serial.println(EMA_S_baro);
+
+      // EXPONENTIAL AVG. FOR IR
+//    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+//    EMA_S_ir = (EMA_a*ir) + ((1-EMA_a)*prev_ir);
+//    prev_ir = EMA_S_ir;   
+//    Serial.println(EMA_S_ir);
+
+
+    /**** High pass filter IR ****/
+//    float lowpass_ir = lowpassFilter.input(readProximity(i2c_ids_[0],sensor_ports[0]));
+//    float highpass_ir = highpassFilter.input(lowpass_ir);
+//    Serial.println(lowpass_ir);
+
+//    inputStats.input(readPressure(i2c_ids_[0], sensor_ports[0], 0));
+//    Serial.print(' ');
+//    Serial.println(inputStats.mean());
+
+      float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
+      float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
+      Serial.println(baro_rescale);
 
   
 //  Serial.pri/nt(arr[0]);
