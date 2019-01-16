@@ -14,8 +14,8 @@
 #define MUX_ADDR  (0b01110000 | J0<<1 | J1<<2)
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {113};//, MUX_ADDR|1}; 
-int ir_current_ = 8; // range = [0, 20]. current = value * 10 mA
+int i2c_ids_[] = {119};//, MUX_ADDR|1}; 
+int ir_current_ = 20; // range = [0, 20]. current = value * 10 mA
 int ambient_light_measurement_rate_ = 7; // range = [0, 7]. 1, 2, 3, 4, 5, 6, 8, 10 samples per second
 int ambient_light_auto_offset_ = 1; // on or off
 int averaging_function_ = 7;  // range [0, 7] measurements per run are 2**value, with range [1, 2**7 = 128]

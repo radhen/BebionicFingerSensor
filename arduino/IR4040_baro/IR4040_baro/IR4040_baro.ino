@@ -523,10 +523,10 @@ void setup() {
     max_baro[j] = max_value;
   }
 
-  Serial.print("min baro value is");
-  Serial.println(min_baro[0]);
-  Serial.print("max baro value is");
-  Serial.println(max_baro[0]);
+//  Serial.print("min baro value is");
+//  Serial.println(min_baro[0]);
+//  Serial.print("max baro value is");
+//  Serial.println(max_baro[0]);
 
   prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
   prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
@@ -547,9 +547,9 @@ void loop() {
 //  Serial.print(65536);  // To freeze the upper limit
 //  Serial.print(" ");
   
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
 //  Serial.println();
-//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 //  Serial.print(' ');
 //  Serial.print(min_baro[0]);
 
@@ -605,9 +605,9 @@ void loop() {
 //    Serial.print(' ');
 //    Serial.println(inputStats.mean());
 
-      float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
-      float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
-      Serial.println(baro_rescale);
+//      float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
+//      float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
+//      Serial.println(baro_rescale);
 
   
 //  Serial.pri/nt(arr[0]);
@@ -616,6 +616,6 @@ void loop() {
 //  Serial.print('\t');
 //  unsigned long starttime = micros();
 //  Serial.print(starttime - curtime);
-//    Serial.println(bar);
+    Serial.println();
 
 }
