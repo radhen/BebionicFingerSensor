@@ -89,7 +89,7 @@ float prox_highpass = 0;
  
 // create a one pole (RC) lowpass filter
 FilterOnePole highpassFilter(HIGHPASS, 3.0);  
-FilterOnePole lowpassFilter(LOWPASS, 2.0); 
+FilterOnePole lowpassFilter(LOWPASS, 0.05); 
 RunningStatistics inputStats;  
 
 
@@ -491,37 +491,37 @@ void setup() {
   }
 
   // setup code for moving avg over baro values
-  for (int j = 0; j < NFINGERS; j++) {
-    for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-      readings[j][thisReading] = 0;
-    }
-  }
+//  for (int j = 0; j < NFINGERS; j++) {
+//    for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+//      readings[j][thisReading] = 0;
+//    }
+//  }
 
   // zeroing sensor values
-  float baro[NFINGERS][300];
-  int count = 1; 
-  while (count < 300){ 
-      for (int j = 0; j < NFINGERS; j++) {
-          baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-//          Serial.println(baro[0][count]);
-          count += 1;       
-      }
-  }
+//  float baro[NFINGERS][300];
+//  int count = 1; 
+//  while (count < 300){ 
+//      for (int j = 0; j < NFINGERS; j++) {
+//          baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+////          Serial.println(baro[0][count]);
+//          count += 1;       
+//      }
+//  }
     
-  for (int j = 0; j < NFINGERS; j++) { 
-    float min_value = baro[j][10];
-    float max_value = baro[j][10]; 
-    for (int i =11; i<120; i++){ 
-      if (baro[j][i] < min_value) {
-          min_value = baro[j][i];
-      }
-      if (baro[j][i] > max_value) {
-          max_value = baro[j][i];
-      }
-    }
-    min_baro[j] = min_value;
-    max_baro[j] = max_value;
-  }
+//  for (int j = 0; j < NFINGERS; j++) { 
+//    float min_value = baro[j][10];
+//    float max_value = baro[j][10]; 
+//    for (int i =11; i<120; i++){ 
+//      if (baro[j][i] < min_value) {
+//          min_value = baro[j][i];
+//      }
+//      if (baro[j][i] > max_value) {
+//          max_value = baro[j][i];
+//      }
+//    }
+//    min_baro[j] = min_value;
+//    max_baro[j] = max_value;
+//  }
 
 //  Serial.print("min baro value is");
 //  Serial.println(min_baro[0]);
@@ -531,14 +531,13 @@ void setup() {
   prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
   prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
 
-  inputStats.setWindowSecs(0.5);
+  inputStats.setWindowSecs(1);
   
   
 }
 
 
 void loop() {
-  
   unsigned long curtime = micros();
 
   // Print min- and max- values to set Y-axis in serial plotter
@@ -546,12 +545,9 @@ void loop() {
 //  Serial.print(" ");
 //  Serial.print(65536);  // To freeze the upper limit
 //  Serial.print(" ");
-  
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
-//  Serial.println();
+
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//  Serial.print(' ');
-//  Serial.print(min_baro[0]);
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
 
 
 //  // RUNNING AVG FOR BARO
@@ -601,13 +597,10 @@ void loop() {
 //    float highpass_ir = highpassFilter.input(lowpass_ir);
 //    Serial.println(lowpass_ir);
 
-//    inputStats.input(readPressure(i2c_ids_[0], sensor_ports[0], 0));
-//    Serial.print(' ');
-//    Serial.println(inputStats.mean());
 
-//      float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
-//      float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
-//      Serial.println(baro_rescale);
+//    float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
+//    float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
+//    Serial.println(baro_rescale);
 
   
 //  Serial.pri/nt(arr[0]);
@@ -616,6 +609,27 @@ void loop() {
 //  Serial.print('\t');
 //  unsigned long starttime = micros();
 //  Serial.print(starttime - curtime);
-    Serial.println();
+//    Serial.println();
+
+    /****** Standarizing, zero mean one std. *********/
+    // https://www.element61.be/en/resource/standardization-case-real-time-predictions
+//    float p = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//    inputStats.input(p);
+//    float st_p = (p - inputStats.mean())/inputStats.sigma();
+//    float lowpass_p = lowpassFilter.input(st_p);
+//    Serial.println(lowpass_p);
+
+//    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+//    float st_ir = 0;
+//    inputStats.input(ir);
+//    float sd = inputStats.sigma();
+//    if (sd == 0.0){
+//      st_ir = 0.0;}
+//    else{
+//      st_ir = (ir - inputStats.mean())/sd;}
+//    float lowpass_ir = lowpassFilter.input(st_ir);
+//    Serial.println(st_ir);
+
+      Serial.println();
 
 }
