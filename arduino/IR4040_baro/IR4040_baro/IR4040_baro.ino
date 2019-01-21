@@ -546,8 +546,8 @@ void loop() {
 //  Serial.print(65536);  // To freeze the upper limit
 //  Serial.print(" ");
 
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
 
 
 //  // RUNNING AVG FOR BARO
@@ -630,6 +630,13 @@ void loop() {
 //    float lowpass_ir = lowpassFilter.input(st_ir);
 //    Serial.println(st_ir);
 
-      Serial.println();
+      /****** Normalization between 0 and 1. Min max from taken from training data *********/
+      float p = (readPressure(i2c_ids_[0], sensor_ports[0], 0) - 1800.0) / float(6200 - 1800.0);
+      float ir = (readProximity(i2c_ids_[0],sensor_ports[0]) - 30000.0) / float(38000 - 30000.0);
+      
+      
+      Serial.print(p);
+      Serial.print(' ');
+      Serial.println(ir);
 
 }
