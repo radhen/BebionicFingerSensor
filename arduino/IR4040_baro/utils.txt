@@ -5,7 +5,7 @@
 
 // CALCUATE AVG. FROM FIRST 10 SAMPLES AND SUBTRACT IT FROM CURRENT SENSOR VALUE (STATIC AVG. SUB)
 //  int num_samples_avg = 10;
-//  
+//
 //  for (int i = 0; i < num_devices_; i++) {
 //    for (int j = 0; j < NFINGERS; j++) {
 //      for (int k = 0; k < num_samples_avg; k++) {
@@ -21,27 +21,27 @@
 //    for (int j = 0; j < NFINGERS; j++) {
 //      for (int k = 0; k < num_samples_avg; k++) {
 //        unsigned long long int prss = readPressure(i2c_ids_[i], sensor_ports[j], j);
-//        prss_value_arr[i][j] = prss_value_arr[i][j] + prss; 
-////        Serial.println((long) prss_value_arr[i][j]);          
+//        prss_value_arr[i][j] = prss_value_arr[i][j] + prss;
+////        Serial.println((long) prss_value_arr[i][j]);
 //      }
 //    }
 //  }
-//  
+//
 //  Serial.print("Averaged Proximity value of sensor at mux 0 port 0: ");
 //  unsigned long long int avg_prox = prox_value_arr[0][0] / 10.0;
 //  Serial.println((long) avg_prox);
-//  
+//
 //  Serial.print("Averaged Pressure value of sensor at mux 0 port 0: ");
-//  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0; 
+//  unsigned long long int avg_prss = prss_value_arr[0][0] / 10.0;
 //  Serial.println((long) avg_prss);
-//  
+//
 ////  Serial.println("DONE reading values to set baseline");
 ////  Serial.print(proximity_value[0][0]);
-//  
+//
 //  starttime = micros();
 //
 //  while(1){
-//    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]); 
+//    unsigned long long int prox = readProximity(i2c_ids_[0],sensor_ports[0]);
 //    Serial.print((long) (prox - avg_prox));
 //    Serial.print('\t');
 //    unsigned long long int prss = readPressure(i2c_ids_[0], sensor_ports[0], 0);
@@ -68,3 +68,34 @@ EMA_S = readPressure(i2c_ids_[0], sensor_ports[0], 0);
 //  EMA_S = (EMA_a*prox) + ((1-EMA_a)*EMA_S);  //run the EMA
 //  prox_highpass = prox - EMA_S;                   //calculate the high-pass signal
 //  Serial.println((long) prox_highpass);
+
+
+
+/****** Standarizing, zero mean one std. *********/
+
+// create a one pole (RC) lowpass filter
+FilterOnePole highpassFilter(HIGHPASS, 3.0);
+FilterOnePole lowpassFilter(LOWPASS, 0.05);
+RunningStatistics inputStats;
+
+// In setup
+//  inputStats.setWindowSecs(1);
+
+// In loop
+// https://www.element61.be/en/resource/standardization-case-real-time-predictions
+//    float p = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//    inputStats.input(p);
+//    float st_p = (p - inputStats.mean())/inputStats.sigma();
+//    float lowpass_p = lowpassFilter.input(st_p);
+//    Serial.println(lowpass_p);
+
+//    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+//    float st_ir = 0;
+//    inputStats.input(ir);
+//    float sd = inputStats.sigma();
+//    if (sd == 0.0){
+//      st_ir = 0.0;}
+//    else{
+//      st_ir = (ir - inputStats.mean())/sd;}
+//    float lowpass_ir = lowpassFilter.input(st_ir);
+//    Serial.println(st_ir);

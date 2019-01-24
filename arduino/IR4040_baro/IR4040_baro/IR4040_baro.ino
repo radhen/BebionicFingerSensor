@@ -2,10 +2,10 @@
 #include <Filters.h>
 #include <BaroSensor.h>
 
+#define I2C_FASTMODE 1
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {112};//, MUX_ADDR|1};
-
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
@@ -37,7 +37,10 @@ unsigned int ambient_value_;
 byte serialByte;
 uint16_t Coff[6][NFINGERS];
 int32_t Ti = 0, offi = 0, sensi = 0;
-unsigned int data[3];
+int32_t data[3];
+volatile int32_t mbar;
+int timer1_counter;
+
 
 
 //unsigned long long int prox_value_arr[1][NFINGERS]; // current proximity reading
@@ -141,19 +144,11 @@ void initPressure(int muxAddr) {
     Wire.endTransmission();
 }
 
-//typedef struct finger_struct{
-//  int muxAddr;
-//  int irPort;
-//  int sensorPort;
-//}FingerStruct;
-//
-//FingerStruct fingers[NUM_FINGERS] = {{112, 4, 4}};
 
-
-int32_t getTempReading() {
+void getTempReading() {
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
-  // Refresh temperature with the OSR = 8192
+  // Refresh temperature with the OSR = 256
   Wire.write(0x50);
   // Stop I2C Transmission
   Wire.endTransmission();
@@ -179,12 +174,12 @@ int32_t getTempReading() {
     data[2] = Wire.read();
   }
 
-  // Convert the data
-  return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
+//  data_result = ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
 }
 
 
-int32_t getPressureReading() {
+int32_t getPressureReading(int muxAddr, int sensor) {
+  selectSensor(muxAddr, sensor);
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
   // Send reset command
@@ -194,11 +189,11 @@ int32_t getPressureReading() {
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
-  // Refresh pressure with the OSR = 8192
+  // Refresh pressure with the OSR = 256
   Wire.write(0x40);
   // Stop I2C Transmission
   Wire.endTransmission();
-  delay(10);
+  delayMicroseconds(800);
 
   // Start I2C Transmission
   Wire.beginTransmission(BARO_ADDRESS);
@@ -219,90 +214,18 @@ int32_t getPressureReading() {
     data[2] = Wire.read();
   }
 
-  // Convert the data
-  return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
-}
-  
-float readPressure(int muxAddr, int sensor, int j) {
-  selectSensor(muxAddr, sensor);
-  int32_t ptemp = getPressureReading();
-//  int32_t temp = getTempReading();
-  
-//  Serial.print("D1: ");
-//  Serial.println(D1);
-//  Serial.print("D2: ");
-//  Serial.println(D2);
-
-  int64_t dT = ptemp - (Coff[4][j] * (1L<<8));
-  int32_t temp = 2000 + (dT * Coff[5][j]) / (1L<<23);
-  
-  int64_t off = Coff[1][j] * (1LL<<17) + (Coff[3][j]*dT) / (1LL<<6);
-  int64_t sens = Coff[0][j] * (1LL<<16) + (Coff[2][j]*dT) / (1LL<<7);
-
-//  Serial.print("dT: ");
-//  Serial.println(dT);
-//  Serial.print("D2: ");
-//  Serial.println(D2);
-//  Serial.print("OFF: ");
-//  Serial.println((unsigned long) OFF);
-//  Serial.print("SENS: ");
-//  Serial.println((unsigned long) SENS);
-
-
-  // 2nd order temperature and pressure compensation
-  /* Second order temperature compensation for pressure */
-    if(temp < 2000) {
-      /* Low temperature */
-      int32_t tx = temp-2000;
-      tx *= tx;
-      int32_t off2 = 61 * tx / (1<<4);
-      int32_t sens2 = 29 * tx / (1<<4);
-      if(temp < -1500) {
-        /* Very low temperature */
-        tx = temp+1500;
-        tx *= tx;
-        off2 += 17 * tx;
-        sens2 += 9 * tx;
-      }
-      off -= off2;
-      sens -= sens2;
-}
-
-  // Adjust temp, off, sens based on 2nd order compensation
-  temp -= Ti;
-  off -= offi;
-  sens -= sensi;
-
-//  Serial.print("D1: ");
-//  Serial.println((D1));
-//  unsigned long a = D1;
-//  unsigned long b = sens;
-
-//  unsigned long long c = (ptemp * sens);
-//  unsigned long d = (c / 2097152);
-//  ptemp = (d - off);
-//  ptemp /= 32768.0;
-
-//  ptemp = (((ptemp * sens) / 2097152) - off);
-  int32_t p = ((int64_t)ptemp * sens/(1LL<<21) - off) / (1LL << 15);
-  float mbar = (float)p/100;
-
-  return (mbar);
+   return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
 }
 
 
 void readPressureValues() {
-
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
-     float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
-     Serial.print(' ');
-     Serial.print(mbar);
-     Serial.println(' ');
-    }
+     mbar = getPressureReading(i2c_ids_[i], sensor_ports[j]);
   }
 }
-
+}
+  
 
 void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
 {
@@ -357,7 +280,6 @@ void initIRSensor(int id) {
   Wire.beginTransmission(id);
   Wire.write(0);
   Wire.endTransmission();
-
 }
 
 
@@ -384,9 +306,10 @@ void readIRValues() {
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
-
+  TWBR = 10;
+  pinMode(13,OUTPUT);
   delay(1000);
 
   // get number of i2c devices specified by user
@@ -445,19 +368,16 @@ void setup() {
 //  Serial.print("max baro value is");
 //  Serial.println(max_baro[0]);
 
-  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+//  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+//  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
 
-  inputStats.setWindowSecs(1);
-  
-  
+//  inputStats.setWindowSecs(1);
 }
 
 
 void loop() {
-  unsigned long curtime = micros();
-
-
+  digitalWrite(13,!digitalRead(13));
+//  unsigned long curtime = micros();
   // Print min- and max- values to set Y-axis in serial plotter
 //  Serial.print(0);  // To freeze the lower limit
 //  Serial.print(" ");
@@ -522,8 +442,8 @@ void loop() {
 //    float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
 //    Serial.println(baro_rescale);
 
-  
-//    unsigned long starttime = micros();
+//  
+//     unsigned long starttime = micros();
 //    Serial.print(starttime - curtime);
 //    Serial.println();
     
@@ -554,7 +474,5 @@ void loop() {
 //      Serial.print(p);
 //      Serial.print(' ');
 //      Serial.println(ir);
-
-//        Serial.println();
-
+  Serial.println(mbar);
 }
