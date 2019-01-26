@@ -25,12 +25,12 @@ int i2c_ids_[] = {112};//, MUX_ADDR|1};
 
 #define NFINGERS 1 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
-#define DELTA_MBAR_THRESH 1.0
+#define DELTA_pressure_value__THRESH 1.0
 #define I2C_FASTMODE 1
 
 /***** GLOBAL VARIABLES *****/
 int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
-float prev_mbar[NFINGERS];
+float prev_pressure_value_[NFINGERS];
 
 int num_devices_;
 unsigned int ambient_value_;
@@ -38,10 +38,11 @@ byte serialByte;
 uint16_t Coff[6][NFINGERS];
 int32_t Ti = 0, offi = 0, sensi = 0;
 int32_t data[3];
-volatile int32_t mbar;
+
 int timer1_counter;
 
-
+volatile int32_t pressure_value_;
+volatile uint16_t proximity_value_;
 
 //unsigned long long int prox_value_arr[1][NFINGERS]; // current proximity reading
 //unsigned long long int prss_value_arr[1][NFINGERS]; // current pressure reading
@@ -221,7 +222,7 @@ int32_t getPressureReading(int muxAddr, int sensor) {
 void readPressureValues() {
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
-     mbar = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+     pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
   }
 }
 }
@@ -283,20 +284,23 @@ void initIRSensor(int id) {
 }
 
 
-unsigned int readProximity(int id, int sensor) {
-    selectSensor(id, sensor);
-    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
-    return (proximity_value_);
-}
+//unsigned int readProximity(int id, int sensor) {
+//    selectSensor(id, sensor);
+//    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
+//    return (proximity_value_);
+//}
 
 
 void readIRValues() {
 
   for (int i = 0; i < num_devices_; i++) {
      for (int j = 0; j < NFINGERS; j++) {
-    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
-    Serial.print(prox_value);
-    Serial.print('\t');
+      selectSensor(i2c_ids_[i],sensor_ports[j]);
+      proximity_value_ = readFromCommandRegister(PS_DATA_L); 
+      
+//    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
+//    Serial.print(prox_value);
+//    Serial.print('\t');
     
     //------- Touch detection -----/
     // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
@@ -306,7 +310,7 @@ void readIRValues() {
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Wire.begin();
   TWBR = 10;
   pinMode(13,OUTPUT);
@@ -371,9 +375,14 @@ void setup() {
 //  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
 //  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
 
-//  inputStats.setWindowSecs(1);
+
 }
 
+void sendToPC(float* data)
+{
+  byte* byteData = (byte*)(data);
+  Serial.write(byteData, 4);
+}
 
 void loop() {
   digitalWrite(13,!digitalRead(13));
@@ -384,9 +393,22 @@ void loop() {
 //  Serial.print(65536);  // To freeze the upper limit
 //  Serial.print(" ");
 
+//  unsigned long long result = 0;
+    float result = 0;
 
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  result = pressure_value_;
+  
+//  result = result << 32;
+//  result = result| proximity_value_; 
+
+//  sendToPC(&result);
+
+   Serial.print(pressure_value_);
+   Serial.print('\t');
+   Serial.println(proximity_value_);
+
 
 
 //  // RUNNING AVG FOR BARO
@@ -446,26 +468,6 @@ void loop() {
 //     unsigned long starttime = micros();
 //    Serial.print(starttime - curtime);
 //    Serial.println();
-    
-
-    /****** Standarizing, zero mean one std. *********/
-    // https://www.element61.be/en/resource/standardization-case-real-time-predictions
-//    float p = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//    inputStats.input(p);
-//    float st_p = (p - inputStats.mean())/inputStats.sigma();
-//    float lowpass_p = lowpassFilter.input(st_p);
-//    Serial.println(lowpass_p);
-
-//    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
-//    float st_ir = 0;
-//    inputStats.input(ir);
-//    float sd = inputStats.sigma();
-//    if (sd == 0.0){
-//      st_ir = 0.0;}
-//    else{
-//      st_ir = (ir - inputStats.mean())/sd;}
-//    float lowpass_ir = lowpassFilter.input(st_ir);
-//    Serial.println(st_ir);
 
 
       /****** Normalization between 0 and 1. Min max from taken from training data *********/
@@ -474,5 +476,5 @@ void loop() {
 //      Serial.print(p);
 //      Serial.print(' ');
 //      Serial.println(ir);
-  Serial.println(mbar);
+
 }
