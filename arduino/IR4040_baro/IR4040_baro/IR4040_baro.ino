@@ -169,7 +169,7 @@ void getTempReading() {
   // temp_msb1, temp_msb, temp_lsb
   if (Wire.available() == 3)
   {
-    data[0] = Wire.read();file:///home/radhen/Documents/bebionic_fingersensor/arduino/pressure.ino
+    data[0] = Wire.read();
 
     data[1] = Wire.read();
     data[2] = Wire.read();
@@ -319,8 +319,8 @@ void setup() {
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
   
-  unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
-  unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
+//  unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
+//  unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
   
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
@@ -394,11 +394,11 @@ void loop() {
 //  Serial.print(" ");
 
 //  unsigned long long result = 0;
-    float result = 0;
+//  float result = 0;
 
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-  result = pressure_value_;
+//  result = pressure_value_;
   
 //  result = result << 32;
 //  result = result| proximity_value_; 
