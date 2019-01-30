@@ -29,7 +29,7 @@ int i2c_ids_[] = {112};//, MUX_ADDR|1};
 #define I2C_FASTMODE 1
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {2}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_pressure_value_[NFINGERS];
 
 int num_devices_;
