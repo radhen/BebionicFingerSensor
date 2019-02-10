@@ -58,9 +58,9 @@ void scan_i2c(void){
       ++devCt;  
     }
   }
-  Serial.write(devCt);
+  Serial.print(devCt);
   for(ct=0;ct<devCt;ct++){
-    Serial.write(addList[ct]);
+    Serial.print(addList[ct]);
   } 
 }
 
@@ -138,7 +138,7 @@ void obey(){
       Wire.requestFrom(i2cBuf[0]>>1,outCount-1);
       while(Wire.available()){
        inByte=Wire.read();
-       Serial.write(inByte); 
+       Serial.print(inByte); 
       }
     }
     else{
