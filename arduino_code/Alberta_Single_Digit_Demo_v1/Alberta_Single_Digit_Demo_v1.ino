@@ -230,9 +230,9 @@ void readPressureValues() {
      float mbar = readPressure(i2c_ids_[i], sensor_ports[j], j);
      int mbar_int = (int) mbar; // converts float pressure value to integer pressure value
 //    Serial.println("Pres: "); Serial.println(mbar_int);
-    Serial.print(mbar);
+    Serial.print(mbar_int);
     Serial.print('\t');
-    Serial.print(mbar, HEX);
+    Serial.print(mbar_int, HEX);
     Serial.println();
     
     byte * b = (byte *) &mbar; //convert float to 4 byte array (https://forum.arduino.cc/index.php?topic=112597.0)
