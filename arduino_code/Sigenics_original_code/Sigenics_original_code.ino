@@ -60,6 +60,8 @@ void setup(void) {
 
   //  outCount = 4;
 }
+
+
 void toggleLED(void) {
   toggle = !toggle;
   if (toggle) {
@@ -69,6 +71,7 @@ void toggleLED(void) {
     digitalWrite(13, LOW);
   }
 }
+
 
 void scan_i2c(void) {
   byte ct, res, devCt;
@@ -88,6 +91,7 @@ void scan_i2c(void) {
     Serial.print(addList[ct]);
   }
 }
+
 
 bool lookForData()
 {
@@ -155,7 +159,6 @@ bool lookForData()
 }
 
 
-
 void obey() {
   byte inByte;
   if (i2cBuf[0] & 0x1) {
@@ -174,6 +177,7 @@ void obey() {
     Wire.endTransmission();
   }
 }
+
 
 void move_finger() {
 
@@ -196,6 +200,7 @@ void move_finger() {
   Serial.println("Applying breaks!");
 
 }
+
 
 void loop() {
 

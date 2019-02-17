@@ -8,6 +8,7 @@ import time
 PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
 NUM_P_BOARDS = 2
+DELAY = 1
 
 '''
 HEX commands are send to the controller board. 
@@ -49,10 +50,10 @@ def get_addresses(ser):
             ser.write(b"\x2C")
             time.sleep(1)
             # get_all_bytes_from_connection(ser)
-            dataIn = ser.read_until(size=NUM_P_BOARDS+1)
-            if len(dataIn)==NUM_P_BOARDS+1:
-                print dataIn
-                return dataIn
+            # dataIn = ser.read_until(size=NUM_P_BOARDS+1)
+            # if len(dataIn)==NUM_P_BOARDS+1:
+            #     print dataIn
+            return 0
         except serial.serialException as e:
             print ('There is no new data from serial port')
 
@@ -63,7 +64,7 @@ def fully_open(ser, addr):
     OPEN += bytes(chr(2 * int(addr)))
     OPEN += b'\x0c\xc0\x30\x7e'
     ser.write(OPEN)
-    time.sleep(2)
+    time.sleep(DELAY)
 
 
 def fully_close(ser, addr):
@@ -72,7 +73,7 @@ def fully_close(ser, addr):
     CLOSE += bytes(chr(2 * int(addr)))
     CLOSE += b'\x0c\x80\x30\x7e'
     ser.write(CLOSE)
-    time.sleep(2)
+    time.sleep(DELAY)
 
 
 def apply_breaks(ser, addr):
@@ -84,13 +85,15 @@ def apply_breaks(ser, addr):
     BREAK += bytes(chr(2 * int(addr[1])))
     BREAK += b'\x0c\x03\x00\x7e'
     ser.write(BREAK)
-    time.sleep(2)
+    print "Applying breaks!"
+    time.sleep(DELAY)
 
 
 ser = make_serial_connection(PORT, BAUDRATE)
 addrs = get_addresses(ser)
 # print "Board address(es): "+str(addrs[1:])
-addList = [addrs[i+1] for i in range(len(addrs[1:]))]
+# addList = [addrs[i+1] for i in range(len(addrs[1:]))]
+addList = ['3', '4']
 
 
 ##################################################
@@ -128,7 +131,7 @@ def set_position_count(ser, addr, value):
     # ser.write(b"\x7E\x06\x08\x0B\xB8\x7E") # originally tested with this single cmmnd
     ser.write(pc)
     print "Position Count = {}".format(value)
-    time.sleep(2)
+    time.sleep(DELAY)
 
 
 def set_target_position(ser, addr, value):
@@ -149,7 +152,7 @@ def set_target_position(ser, addr, value):
     # ser.write(b"\x7E\x06\x84\x00\x64\x7E") # originally tested with this single cmmnd
     ser.write(tp)
     print "Target position = {}".format(value)
-    time.sleep(2)
+    time.sleep(DELAY)
 
 
 def float_to_hex(f):
@@ -161,12 +164,12 @@ def set_pid_gains(ser, addr):
     kp = b'\x7e'
     kp += bytes(chr(2 * int(addr)))
     kp += b'\x81'
-    kp += b'\x40A00000'
+    kp += b'\x40a00000'
     kp += b'\x7e'
     ser.write(kp)
     # ser.write(b"\x7E\x06\x81\x40A00000\x7E") # Set Kp
     print "Kp = 5.0"
-    time.sleep(2)
+    time.sleep(DELAY)
 
     ki = b'\x7e'
     ki += bytes(chr(2 * int(addr)))
@@ -176,7 +179,7 @@ def set_pid_gains(ser, addr):
     ser.write(ki)
     # ser.write(b"\x7E\x06\x82\x3c23d70a\x7E") # Set Ki
     print "Ki = 0.01"
-    time.sleep(2)
+    time.sleep(DELAY)
 
     kd = b'\x7e'
     kd += bytes(chr(2 * int(addr)))
@@ -185,8 +188,8 @@ def set_pid_gains(ser, addr):
     kd += b'\x7e'
     ser.write(kd)
     # ser.write(b"\x7E\x06\x83\x3e4ccccd\x7E") # Set Kd=0
-    print "Kd = 0.5"
-    time.sleep(2)
+    print "Kd = 0.01"
+    time.sleep(DELAY)
 
 
 def enable_pid(ser, addr):
@@ -202,12 +205,20 @@ def enable_pid(ser, addr):
     time.sleep(2)
 
 
-set_position_count(ser, addList[0], 2000)
-set_target_position(ser, addList[0], 6000)
+def read_pboards(ser):
+    ser.write("\x7E\x08\x01\x02\x7E") # SetReadTarget
+    time.sleep(1)
+    ser.write("\x7E\x09\x00\x00\x7E") # Sent read command to specific Pboard add.
+    time.sleep(1)
+    get_all_bytes_from_connection(ser)
+
+
+set_position_count(ser, addList[0], 4000)
+set_target_position(ser, addList[0], 100)
 set_pid_gains(ser, addList[0])
 
-set_position_count(ser, addList[1], 2000)
-set_target_position(ser, addList[1], 6000)
+set_position_count(ser, addList[1], 4000)
+set_target_position(ser, addList[1], 100)
 set_pid_gains(ser, addList[1])
 
 

@@ -1,8 +1,5 @@
 #include <Wire.h>
 #include <Filters.h>
-#include <BaroSensor.h>
-
-#define I2C_FASTMODE 1
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {112};//, MUX_ADDR|1};
