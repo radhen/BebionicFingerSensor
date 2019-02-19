@@ -23,7 +23,7 @@
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {113}; //muxAddresses
-int sensor_ports[NUM_FINGERS] = {2,4}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NUM_FINGERS] = {2, 4}; // Mux board ports for each Barometer sensor {0,2,4,6}
 
 int num_devices_;
 unsigned int ambient_value_;
@@ -36,7 +36,6 @@ volatile int32_t pressure_value_;
 volatile uint16_t proximity_value_;
 
 
-
 ///////////////////////////////////////////////////////////
 //////////////// SIGENICS INIT CODE BELOW ///////////////////////
 //////////////////////////////////////////////////////////
@@ -46,7 +45,7 @@ volatile uint16_t proximity_value_;
 
 //FSM
 #define NUM_P_BOARDS 2
-int pBoardAddresses[NUM_P_BOARDS] = {3, 4};
+byte pBoardAddresses[NUM_P_BOARDS] = {3, 4};
 
 #define fNONE 0
 #define fSTART 1
@@ -69,6 +68,14 @@ byte state = fNONE;
 bool newCommand = false, toggle = false, debugFlag = true;
 byte inByte;
 
+volatile uint16_t encoder_value_;
+
+typedef struct data_packet_struct {
+  int irVals[NUM_FINGERS];
+  float pressVals[NUM_FINGERS];
+  int encoders[NUM_P_BOARDS];
+} DataPacket;
+DataPacket packet;
 
 
 ///////////////////////////////////////////////////////////
@@ -110,7 +117,7 @@ void initPressure(int muxAddr) {
   Wire.beginTransmission(muxAddr);
   Wire.write(0);
   int errcode = Wire.endTransmission();
-  Serial.println(errcode);
+  //  Serial.println(errcode);
   for (int i = 0; i < NUM_FINGERS; i++) {
     selectSensor(muxAddr, sensor_ports[i]);
     for (int j = 0; j < 6; j++) { //loop over Coefficient elements
@@ -183,10 +190,13 @@ int32_t getPressureReading(int muxAddr, int sensor) {
 
 
 void readPressureValues() {
+  int count = 0;
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NUM_FINGERS; j++) {
       pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
       Serial.print(pressure_value_); Serial.print('\t');
+      packet.pressVals[count] = pressure_value_;
+      count += 1;
     }
   }
 }
@@ -249,13 +259,14 @@ void initIRSensor(int id) {
 
 
 void readIRValues() {
-
+  int count = 0;
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NUM_FINGERS; j++) {
       selectSensor(i2c_ids_[i], sensor_ports[j]);
       proximity_value_ = readFromCommandRegister(PS_DATA_L);
       Serial.print(proximity_value_); Serial.print('\t');
-
+      packet.irVals[count] = proximity_value_;
+      count += 1;
       //------- Touch detection -----/
       // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
     }
@@ -296,7 +307,7 @@ void scan_i2c(void) {
   for (ct = 0; ct < devCt; ct++) {
     Serial.print(addList[ct]);
   }
-  Serial.print('\t');
+  //  Serial.print('\t');
 }
 
 
@@ -348,11 +359,8 @@ bool lookForData()
           }
           state = fSTART;
           break;
-
         default:
-
           break;
-
       }
     }
     //uncomment the line below to echo back to debug
@@ -382,6 +390,7 @@ void obey() {
     Wire.beginTransmission(i2cBuf[0] >> 1);
     Wire.write(&i2cBuf[1], outCount - 1);
     Wire.endTransmission();
+    //    delay(100);
   }
 }
 
@@ -392,16 +401,17 @@ unsigned int readEncoderValue(int pennyAddress) {
   int lsByte = Wire.read();
   int pAddr = Wire.read();
   unsigned int value = lsByte | (msByte << 8);  //switched msByte and lsByte
-  Serial.print(value); Serial.print('\t');
   return value;
 }
 
 void readMotorEncodersValues() {
-  unsigned int values[NUM_P_BOARDS];
+  int count = 0;
   for (int i = 0; i < NUM_P_BOARDS; i++) { // loop over penny boards
-    values[i] = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
+    encoder_value_ = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
+    Serial.print(encoder_value_); Serial.print('\t');
+    packet.encoders[count] = encoder_value_;
+    count += 1;
   }
-  Serial.println();
 }
 
 
@@ -426,6 +436,14 @@ void setup() {
     initIRSensor(i2c_ids_[i]);
     initPressure(i2c_ids_[i]);
   }
+
+  for (int i = 0; i < NUM_FINGERS; i++) {
+    packet.irVals[i] = 0;
+    packet.pressVals[i] = 0;
+  }
+  for (int i = 0; i < NUM_P_BOARDS; i++) {
+    packet.encoders[i] = 0;
+  }
 }
 
 
@@ -436,16 +454,34 @@ void setup() {
 
 void loop() {
 
-    digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-    readIRValues(); //-> array of IR values (2 bytes per sensor)
+  lookForData();
+  if (newCommand == true) {
+    obey();
+    newCommand = false;
+  }
 
-    readMotorEncodersValues();
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readMotorEncodersValues();
 
-    lookForData();
-    if (newCommand == true) {
-      obey();
-      newCommand = false;
-    }
+  //    byte* packetBytes = (byte*)&packet;
+  //    Serial.write(packetBytes, sizeof(DataPacket));
+
+  //    Serial.print(*packet.pressVals);
+  //  Serial.println();
+
+  //    // set variable array to struct length
+  //    uint8_t payload[sizeof(DataPacket)];
+  //    //copy struct to variable array
+  //    memcpy(payload,&packet,sizeof(DataPacket));
+  //    //send each item of struct, now contained in payload array
+  //    for(int i=0;i < sizeof(payload);i++)
+  //    {
+  //      Serial.print(payload[i]); Serial.print('\t');
+  //    }
+
+  Serial.print('\n');
+
 }

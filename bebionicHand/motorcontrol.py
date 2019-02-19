@@ -5,10 +5,10 @@ import time
 
 
 
-PORT = '/dev/ttyACM0'
+PORT = '/dev/ttyACM1'
 BAUDRATE = 115200
 NUM_P_BOARDS = 2
-DELAY = 1
+DELAY = 0.1
 
 '''
 HEX commands are send to the controller board. 
@@ -24,7 +24,7 @@ bytes. Ref. PBoard manual for more details on this.
 
 def make_serial_connection(port, baudrate):
     try:
-        ser = serial.Serial(port, baudrate, timeout=1)  # This must match the port selected in the Arduino IDE
+        ser = serial.Serial(port, baudrate, timeout=0.1)  # This must match the port selected in the Arduino IDE
         print "Connected to port:", ser.name
         return ser
     except Exception as ex:
@@ -44,16 +44,21 @@ def get_all_bytes_from_connection( connection ):
 
 
 def get_addresses(ser):
+
+    # for _ in range(10):
+    #     ser.write(b"\x2C")
+
     while 1:
         try:
             # send 0x2C hex to serial to read board addresses
             ser.write(b"\x2C")
-            time.sleep(1)
+            time.sleep(0.1)
             # get_all_bytes_from_connection(ser)
-            # dataIn = ser.read_until(size=NUM_P_BOARDS+1)
-            # if len(dataIn)==NUM_P_BOARDS+1:
-            #     print dataIn
-            return 0
+            dataIn = ser.read_until(size=NUM_P_BOARDS+1)
+            # print dataIn
+            if len(dataIn)==NUM_P_BOARDS+1:
+                print dataIn
+                return dataIn
         except serial.serialException as e:
             print ('There is no new data from serial port')
 
@@ -94,14 +99,16 @@ addrs = get_addresses(ser)
 # print "Board address(es): "+str(addrs[1:])
 # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
 addList = ['3', '4']
+# print addList
 
 
 ##################################################
 #### Emergency breaks to all: if serial clogs ####
 ##################################################
 # while 1:
-#     print "Applying breaks to all"
-#     for i in range(len(addList)): apply_breaks(ser,addList[i])
+    # print "Applying breaks to all"
+    # for i in range(len(addList)): apply_breaks(ser,addList[i])
+    # apply_breaks(ser, addList)
 
 
 #########################################
@@ -194,15 +201,15 @@ def set_pid_gains(ser, addr):
 
 def enable_pid(ser, addr):
     pid_on = b'\x7e'
-    pid_on += bytes(chr(2 * int(addr[0])))
+    pid_on += bytes(chr(2 * int(addr)))
     pid_on += b'\x80\x80\x7e'
-    pid_on += b'\x7e'
-    pid_on += bytes(chr(2 * int(addr[1])))
-    pid_on += b'\x80\x80\x7e'
+    # pid_on += b'\x7e'
+    # pid_on += bytes(chr(2 * int(addr[1])))
+    # pid_on += b'\x80\x80\x7e'
     ser.write(pid_on)
     # ser.write(b"\x7E\x06\x80\x80\x7E") # Set Enable PID
     print "Enable PID"
-    time.sleep(2)
+    time.sleep(1)
 
 
 def read_pboards(ser):
@@ -213,18 +220,18 @@ def read_pboards(ser):
     get_all_bytes_from_connection(ser)
 
 
-set_position_count(ser, addList[0], 4000)
-set_target_position(ser, addList[0], 100)
+set_position_count(ser, addList[0], 6000)
+set_target_position(ser, addList[0], 2000)
 set_pid_gains(ser, addList[0])
 
-set_position_count(ser, addList[1], 4000)
-set_target_position(ser, addList[1], 100)
+set_position_count(ser, addList[1], 6000)
+set_target_position(ser, addList[1], 2000)
 set_pid_gains(ser, addList[1])
 
 
-enable_pid(ser, addList)
-apply_breaks(ser, addList)
-
+enable_pid(ser, addList[0])
+enable_pid(ser, addList[1])
+# apply_breaks(ser, addList)
 
 
 print ("ANYTHING HAPPENED?")
