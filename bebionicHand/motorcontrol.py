@@ -7,8 +7,8 @@ import time
 
 PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
-NUM_P_BOARDS = 2
-DELAY = 0.02 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
+NUM_P_BOARDS = 1
+DELAY = 2 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
 '''
 HEX commands are send to the controller board. 
@@ -92,10 +92,10 @@ def apply_breaks(ser, addr):
 
 
 ser = make_serial_connection(PORT, BAUDRATE)
-# addrs = get_addresses(ser)
-# print "Board address(es): "+str(addrs[1:])
-# addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-addList = ['4']
+addrs = get_addresses(ser)
+print "Board address(es): "+str(addrs[1:])
+addList = [addrs[i+1] for i in range(len(addrs[1:]))]
+# addList = ['4']
 # print addList
 
 
@@ -111,9 +111,9 @@ addList = ['4']
 #########################################
 ##### Debug: open and close finger ######
 #########################################
-# fully_open(ser, addList[0])
-# fully_close(ser, addList[0])
-# apply_breaks(ser, addList[0])
+fully_open(ser, addList[0])
+fully_close(ser, addList[0])
+apply_breaks(ser, addList[0])
 
 
 
@@ -217,9 +217,9 @@ def read_pboards(ser):
     get_all_bytes_from_connection(ser)
 
 
-set_position_count(ser, addList[0], 15000)
-set_target_position(ser, addList[0], 10000)
-set_pid_gains(ser, addList[0])
+# set_position_count(ser, addList[0], 15000)
+# set_target_position(ser, addList[0], 10000)
+# set_pid_gains(ser, addList[0])
 
 # set_position_count(ser, addList[1], 15000)
 # set_target_position(ser, addList[1], 10000)
@@ -227,7 +227,7 @@ set_pid_gains(ser, addList[0])
 
 
 # enable_pid(ser, addList[0])
-enable_pid(ser, addList[1])
+# enable_pid(ser, addList[1])
 
 # apply_breaks(ser, addList[0])
 # apply_breaks(ser, addList[1])
