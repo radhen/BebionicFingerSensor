@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "../neural_network.h"
-#include "../neural_network.c"
+#include "nn.h"
+#include "neural_network.c"
 
 
 
@@ -29,7 +29,8 @@ for (int i=0; i<1; i++){
 //struct Conv1D L2;
 //set_conv1D(&L2, 47, 8, 4, 8);
 //fwd_conv1D(&L2, 4, 8, 8, W_1, b_1, L1.h);
-//
+//clear
+
 //struct Flatten2D1D FL;
 //flatten2D1D(&FL, 44, 8, L2.h);
 
@@ -50,7 +51,7 @@ set_dense(&D4, D3.output_size, 4, 'r');
 fwd_dense(&D4, D4.input_size, D4.output_size, W_3, b_3, D3.h);
 
 struct Dense D5;
-set_dense(&D5, D4.output_size, 1, 'r');
+set_dense(&D5, D4.output_size, 1, 'L');
 fwd_dense(&D5, D5.input_size, D5.output_size, W_4, b_4, D4.h);
 
 printf("Prediction:");
@@ -60,8 +61,6 @@ for (int i=0; i<D5.output_size; i++){
 printf("\n");
 
 printf("num_layers= %d\n", num_layers);
-
-// should be [[ 0.01106095  0.02823588 -1.213638   ]] from python implementation
 
 return 0;
 }

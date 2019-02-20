@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import sys
 import h5py
 import numpy as np
@@ -7,13 +7,9 @@ from keras.models import load_model
 from keras.models import model_from_json
 #np.set_printoptions(threshold=np.nan)
 
-f= h5py.File('weights.best.hdf5', 'r')
-# model= load_model('weights.best.hdf5')
-json_file = open('model.json', 'r')
-loaded_model_json = json_file.read()
-json_file.close()
-model = model_from_json(loaded_model_json)
-textFile= open("wr_lyer_{}.txt".format(sys.argv[1]), "w")
+f= h5py.File('nn_motion3_reg_weights.best.hdf5', 'r')
+model= load_model('nn_motion3_reg_weights.best.hdf5')
+textFile= open("w_b_{}.txt".format(sys.argv[1]), "w")
 
 
 layer= int(sys.argv[1])

@@ -5,10 +5,10 @@ import time
 
 
 
-PORT = '/dev/ttyACM1'
+PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
 NUM_P_BOARDS = 2
-DELAY = 0.1
+DELAY = 0.02 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
 '''
 HEX commands are send to the controller board. 
@@ -84,10 +84,7 @@ def fully_close(ser, addr):
 def apply_breaks(ser, addr):
     # sends pwm = 0 to cut down motor current to zero
     BREAK = b'\x7e'
-    BREAK += bytes(chr(2 * int(addr[0])))
-    BREAK += b'\x0c\x03\x00\x7e'
-    BREAK += b'\x7e'
-    BREAK += bytes(chr(2 * int(addr[1])))
+    BREAK += bytes(chr(2 * int(addr)))
     BREAK += b'\x0c\x03\x00\x7e'
     ser.write(BREAK)
     print "Applying breaks!"
@@ -95,10 +92,10 @@ def apply_breaks(ser, addr):
 
 
 ser = make_serial_connection(PORT, BAUDRATE)
-addrs = get_addresses(ser)
+# addrs = get_addresses(ser)
 # print "Board address(es): "+str(addrs[1:])
 # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-addList = ['3', '4']
+addList = ['4']
 # print addList
 
 
@@ -209,7 +206,7 @@ def enable_pid(ser, addr):
     ser.write(pid_on)
     # ser.write(b"\x7E\x06\x80\x80\x7E") # Set Enable PID
     print "Enable PID"
-    time.sleep(1)
+    time.sleep(DELAY)
 
 
 def read_pboards(ser):
@@ -220,18 +217,20 @@ def read_pboards(ser):
     get_all_bytes_from_connection(ser)
 
 
-set_position_count(ser, addList[0], 6000)
-set_target_position(ser, addList[0], 2000)
+set_position_count(ser, addList[0], 15000)
+set_target_position(ser, addList[0], 10000)
 set_pid_gains(ser, addList[0])
 
-set_position_count(ser, addList[1], 6000)
-set_target_position(ser, addList[1], 2000)
-set_pid_gains(ser, addList[1])
+# set_position_count(ser, addList[1], 15000)
+# set_target_position(ser, addList[1], 10000)
+# set_pid_gains(ser, addList[1])
 
 
-enable_pid(ser, addList[0])
+# enable_pid(ser, addList[0])
 enable_pid(ser, addList[1])
-# apply_breaks(ser, addList)
+
+# apply_breaks(ser, addList[0])
+# apply_breaks(ser, addList[1])
 
 
 print ("ANYTHING HAPPENED?")
