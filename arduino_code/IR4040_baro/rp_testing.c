@@ -4,7 +4,7 @@
 
 
 
-float nnpred(void){
+float nnpredictions(void){
 
 // This will feed forward the neural newtork.
 // First, we need to declare the structures
@@ -60,20 +60,16 @@ struct Dense D5;
 set_dense(&D5, D4.output_size, 1, 'L');
 fwd_dense(&D5, D5.input_size, D5.output_size, W_4, b_4, D4.h);
 
-float *predictions;
-
-printf("%d\n",D5.output_size);
+float predictions[D5.output_size];
 
 printf("Prediction:");
 for (int i=0; i<D5.output_size; i++){
 //    printf("%.6f  ", D5.h[i]);
     predictions[i] = D5.h[i];
-//    printf(typeof(D5.h));
 }
 
 return predictions;
 //printf("\n");
 
 //printf("num_layers= %d\n", num_layers);
-//return 0;
 }
