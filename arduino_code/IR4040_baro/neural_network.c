@@ -1,5 +1,4 @@
-#include "nn.h"
-#include "nn_params.h"
+#include "neural_network.h"
 #include <stdlib.h>
 
 
@@ -125,5 +124,3 @@ void fwd_dense(struct Dense * LL, int a, int bb, const float W[a][bb], const flo
 //    FLAT.output_size= FLAT.in_shape_0*FLAT.in_shape_1;
 //    *FLATFLAT= FLAT;
 //}
-
-

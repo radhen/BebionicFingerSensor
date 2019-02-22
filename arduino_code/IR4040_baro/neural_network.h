@@ -4,7 +4,7 @@
 #define WINDOW_SIZE     1
 #define NUM_ADC         2
 
-volatile int num_layers= 0;
+static volatile int num_layers= 0;
 
 struct Dense {
     int input_size;
@@ -12,5 +12,5 @@ struct Dense {
     char activation;
     float *h;
 };
-
+ 
 #endif

@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <Filters.h>
+#include "rp_testing.h"
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {113};//, MUX_ADDR|1};
@@ -50,7 +51,7 @@ unsigned int average_value[NFINGERS];   // low-pass filtered proximity reading
 
 /**** VAR. for running avg. ****/
 double arr[NFINGERS];
-const int numReadings = 5;                               // num. of readings to avg. over for running avg. purpose 
+const int numReadings = 5;                               // num. of readings to avg. over for running avg. purpose
 unsigned long long int readings[NFINGERS][numReadings];  // the readings from the analog input
 int readIndex[NFINGERS] = {0};                           // the index of the current reading
 unsigned long long int total[NFINGERS] = {0};            // the running total
@@ -68,11 +69,11 @@ float prev_baro;
 float EMA_S_ir;
 float prev_ir;
 float prox_highpass = 0;
- 
+
 // create a one pole (RC) lowpass filter
-FilterOnePole highpassFilter(HIGHPASS, 3.0);  
-FilterOnePole lowpassFilter(LOWPASS, 0.05); 
-RunningStatistics inputStats;  
+FilterOnePole highpassFilter(HIGHPASS, 3.0);
+FilterOnePole lowpassFilter(LOWPASS, 0.05);
+RunningStatistics inputStats;
 
 
 
@@ -108,38 +109,38 @@ void writeByte(byte addr, byte val) {
 
 
 void initPressure(int muxAddr) {
-    Wire.beginTransmission(muxAddr);
-    Wire.write(0);
-    int errcode = Wire.endTransmission();
-    Serial.println(errcode);
-    for (int i = 0; i < NFINGERS; i++){
-        selectSensor(muxAddr, sensor_ports[i]);
-        for (int j = 0; j < 6; j++){ //loop over Coefficient elements
-            // Start I2C Transmission
-            Wire.beginTransmission(BARO_ADDRESS);
-            // Select data register
-            Wire.write(0xA2 + (2 * j));
-            // Stop I2C Transmission
-            Wire.endTransmission();
-  
-            // Request 2 bytes of data
-            Wire.requestFrom(BARO_ADDRESS, 2);
-  
-            // Read 2 bytes of data
-            // Coff msb, Coff lsb
-            if (Wire.available() == 2)
-            {
-              data[0] = Wire.read();
-              data[1] = Wire.read();
-            }
-            Coff[j][i] = ((data[0] * 256) + data[1]);
-//            Serial.println(Coff[j][i]);
-            delay(300);
-        }
+  Wire.beginTransmission(muxAddr);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
+  Serial.println(errcode);
+  for (int i = 0; i < NFINGERS; i++) {
+    selectSensor(muxAddr, sensor_ports[i]);
+    for (int j = 0; j < 6; j++) { //loop over Coefficient elements
+      // Start I2C Transmission
+      Wire.beginTransmission(BARO_ADDRESS);
+      // Select data register
+      Wire.write(0xA2 + (2 * j));
+      // Stop I2C Transmission
+      Wire.endTransmission();
+
+      // Request 2 bytes of data
+      Wire.requestFrom(BARO_ADDRESS, 2);
+
+      // Read 2 bytes of data
+      // Coff msb, Coff lsb
+      if (Wire.available() == 2)
+      {
+        data[0] = Wire.read();
+        data[1] = Wire.read();
+      }
+      Coff[j][i] = ((data[0] * 256) + data[1]);
+      //            Serial.println(Coff[j][i]);
+      delay(300);
     }
-    Wire.beginTransmission(muxAddr);
-    Wire.write(0);
-    Wire.endTransmission();
+  }
+  Wire.beginTransmission(muxAddr);
+  Wire.write(0);
+  Wire.endTransmission();
 }
 
 
@@ -172,7 +173,7 @@ void getTempReading() {
     data[2] = Wire.read();
   }
 
-//  data_result = ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
+  //  data_result = ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
 }
 
 
@@ -212,18 +213,18 @@ int32_t getPressureReading(int muxAddr, int sensor) {
     data[2] = Wire.read();
   }
 
-   return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
+  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
 }
 
 
 void readPressureValues() {
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
-     pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+      pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+    }
   }
 }
-}
-  
+
 
 void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
 {
@@ -255,9 +256,9 @@ void initVCNL4040() {
 void initIRSensor(int id) {
   Wire.beginTransmission(id);
   Wire.write(0);
-//  Serial.println("WIRE IN");
+  //  Serial.println("WIRE IN");
   int errcode = Wire.endTransmission();
-//  Serial.println(errcode);
+  //  Serial.println(errcode);
 
   // initialize each IR sensor
   for (int i = 0; i < NFINGERS; i++)
@@ -265,15 +266,15 @@ void initIRSensor(int id) {
     // specify IR sensor
     selectSensor(id, sensor_ports[i]);
     int deviceID = readFromCommandRegister(ID);
-      if (deviceID != 0x186)
-      {
-        Serial.println("Device not found. Check wiring.");
-        Serial.print("Expected: 0x186. Heard: 0x");
-        Serial.println(deviceID, HEX);
-        while (1); //Freeze!
-      }
-//      Serial.println("VCNL4040 detected!");
-      initVCNL4040(); //Configure sensor
+    if (deviceID != 0x186)
+    {
+      Serial.println("Device not found. Check wiring.");
+      Serial.print("Expected: 0x186. Heard: 0x");
+      Serial.println(deviceID, HEX);
+      while (1); //Freeze!
+    }
+    //      Serial.println("VCNL4040 detected!");
+    initVCNL4040(); //Configure sensor
   }
   Wire.beginTransmission(id);
   Wire.write(0);
@@ -283,7 +284,7 @@ void initIRSensor(int id) {
 
 //unsigned int readProximity(int id, int sensor) {
 //    selectSensor(id, sensor);
-//    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L); 
+//    unsigned int proximity_value_ = readFromCommandRegister(PS_DATA_L);
 //    return (proximity_value_);
 //}
 
@@ -291,17 +292,17 @@ void initIRSensor(int id) {
 void readIRValues() {
 
   for (int i = 0; i < num_devices_; i++) {
-     for (int j = 0; j < NFINGERS; j++) {
-      selectSensor(i2c_ids_[i],sensor_ports[j]);
-      proximity_value_ = readFromCommandRegister(PS_DATA_L); 
-      
-//    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
-//    Serial.print(prox_value);
-//    Serial.print('\t');
-    
-    //------- Touch detection -----/
-    // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
-     }
+    for (int j = 0; j < NFINGERS; j++) {
+      selectSensor(i2c_ids_[i], sensor_ports[j]);
+      proximity_value_ = readFromCommandRegister(PS_DATA_L);
+
+      //    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
+      //    Serial.print(prox_value);
+      //    Serial.print('\t');
+
+      //------- Touch detection -----/
+      // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
+    }
   }
 }
 
@@ -310,67 +311,67 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
   TWBR = 10;
-  pinMode(13,OUTPUT);
+  pinMode(13, OUTPUT);
   delay(1000);
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-  
-//  unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
-//  unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
-  
+
+  //  unsigned long long int prox_value_arr[num_devices_][NFINGERS] = {0};
+  //  unsigned long long int prss_value_arr[num_devices_][NFINGERS] = {0};
+
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
     Wire.beginTransmission(i2c_ids_[i]);
     Wire.write(0);
     int errcode = Wire.endTransmission();
-//    Serial.println(errcode);
+    //    Serial.println(errcode);
     initIRSensor(i2c_ids_[i]);
-    initPressure(i2c_ids_[i]); 
+    initPressure(i2c_ids_[i]);
   }
 
 
   // setup code for moving avg over baro values
-//  for (int j = 0; j < NFINGERS; j++) {
-//    for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-//      readings[j][thisReading] = 0;
-//    }
-//  }
+  //  for (int j = 0; j < NFINGERS; j++) {
+  //    for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+  //      readings[j][thisReading] = 0;
+  //    }
+  //  }
 
   // zeroing sensor values
-//  float baro[NFINGERS][300];
-//  int count = 1; 
-//  while (count < 300){ 
-//      for (int j = 0; j < NFINGERS; j++) {
-//          baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-////          Serial.println(baro[0][count]);
-//          count += 1;       
-//      }
-//  }
-    
-//  for (int j = 0; j < NFINGERS; j++) { 
-//    float min_value = baro[j][10];
-//    float max_value = baro[j][10]; 
-//    for (int i =11; i<120; i++){ 
-//      if (baro[j][i] < min_value) {
-//          min_value = baro[j][i];
-//      }
-//      if (baro[j][i] > max_value) {
-//          max_value = baro[j][i];
-//      }
-//    }
-//    min_baro[j] = min_value;
-//    max_baro[j] = max_value;
-//  }
+  //  float baro[NFINGERS][300];
+  //  int count = 1;
+  //  while (count < 300){
+  //      for (int j = 0; j < NFINGERS; j++) {
+  //          baro[j][count] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+  ////          Serial.println(baro[0][count]);
+  //          count += 1;
+  //      }
+  //  }
 
-//  Serial.print("min baro value is");
-//  Serial.println(min_baro[0]);
-//  Serial.print("max baro value is");
-//  Serial.println(max_baro[0]);
+  //  for (int j = 0; j < NFINGERS; j++) {
+  //    float min_value = baro[j][10];
+  //    float max_value = baro[j][10];
+  //    for (int i =11; i<120; i++){
+  //      if (baro[j][i] < min_value) {
+  //          min_value = baro[j][i];
+  //      }
+  //      if (baro[j][i] > max_value) {
+  //          max_value = baro[j][i];
+  //      }
+  //    }
+  //    min_baro[j] = min_value;
+  //    max_baro[j] = max_value;
+  //  }
 
-//  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+  //  Serial.print("min baro value is");
+  //  Serial.println(min_baro[0]);
+  //  Serial.print("max baro value is");
+  //  Serial.println(max_baro[0]);
+
+  //  prev_baro = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  //  prev_ir = readProximity(i2c_ids_[0],sensor_ports[0]);
 
 
 }
@@ -382,96 +383,105 @@ void sendToPC(float* data)
 }
 
 void loop() {
-  digitalWrite(13,!digitalRead(13));
-//  unsigned long curtime = micros();
+  digitalWrite(13, !digitalRead(13));
+  //    unsigned long curtime = micros();
   // Print min- and max- values to set Y-axis in serial plotter
-//  Serial.print(0);  // To freeze the lower limit
-//  Serial.print(" ");
-//  Serial.print(65536);  // To freeze the upper limit
-//  Serial.print(" ");
+  //  Serial.print(0);  // To freeze the lower limit
+  //  Serial.print(" ");
+  //  Serial.print(65536);  // To freeze the upper limit
+  //  Serial.print(" ");
 
-//  unsigned long long result = 0;
-//  float result = 0;
+  //  unsigned long long result = 0;
+  //  float result = 0;
 
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-//  result = pressure_value_;
+  //  result = pressure_value_;
+
+  //  result = result << 32;
+  //  result = result| proximity_value_;
+
+  //  sendToPC(&result);
   
-//  result = result << 32;
-//  result = result| proximity_value_; 
+    Serial.print(pressure_value_);
+    Serial.print('\t');
+    Serial.print(proximity_value_);
+    Serial.print('\t');
 
-//  sendToPC(&result);
+  float *raw_data;
+  float output1;
+  // volatile float predictions[1];
+  raw_data = (float*)malloc(2 * sizeof(float));
+  raw_data[0] = pressure_value_;
+  raw_data[1] = proximity_value_;
+  output1 = nnpred(raw_data);
+  Serial.println(output1);
+  free(raw_data); // I fixed it :) It was a memory leak.
 
-   Serial.print(pressure_value_);
-   Serial.print('\t');
-   Serial.println(proximity_value_);
-
-
-
-//  // RUNNING AVG FOR BARO
-//  // https://www.arduino.cc/en/Tutorial/Smoothing
-//  // subtract the last reading:
-//  for (int j = 0; j < NFINGERS; j++) {
-//    total[j] = total[j] - readings[j][readIndex[j]];
-//    readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
-//    
-////    readings[j][readIndex[j]] = abs(readings[j][readIndex[j]] - min_baro[j]);
-//
-////    if (readings[j][readIndex[j]] >= min_baro[j]){
-////      readings[j][readIndex[j]] = readings[j][readIndex[j]] - min_baro[j];
-////      }
-////    else{
-////      readings[j][readIndex[j]] = min_baro[j] - readings[j][readIndex[j]];
-////      min_baro[j] = readings[j][readIndex[j]];
-////      }
-//      
-//    total[j] = total[j] + readings[j][readIndex[j]];
-//    readIndex[j] = readIndex[j] + 1;
-//    // if we're at the end of the array...
-//    if (readIndex[j] >= numReadings) {
-//      readIndex[j] = 0; // ...wrap around to the beginning:
-//    }
-//    average[j] = total[j] / numReadings; // calculate the average:
-//    arr[j]= average[j]/ 7.0; // normalize the pressure value
-//  }
-
-
-      // EXPONENTIAL AVG. FOR BARO
-//    float bar = readPressure(i2c_ids_[0], sensor_ports[0], 0);
-//    bar = abs(bar - min_baro[0]);
-//    EMA_S_baro = (EMA_a*bar) + ((1-EMA_a)*prev_baro);
-//    prev_baro = EMA_S_baro;   
-//    EMA_S = constra/in(EMA_S, 0, 7000);         
-//    Serial.println(EMA_S_baro);
+  //  // RUNNING AVG FOR BARO
+  //  // https://www.arduino.cc/en/Tutorial/Smoothing
+  //  // subtract the last reading:
+  //  for (int j = 0; j < NFINGERS; j++) {
+  //    total[j] = total[j] - readings[j][readIndex[j]];
+  //    readings[j][readIndex[j]] = readPressure(i2c_ids_[0], sensor_ports[j], j);
+  //
+  ////    readings[j][readIndex[j]] = abs(readings[j][readIndex[j]] - min_baro[j]);
+  //
+  ////    if (readings[j][readIndex[j]] >= min_baro[j]){
+  ////      readings[j][readIndex[j]] = readings[j][readIndex[j]] - min_baro[j];
+  ////      }
+  ////    else{
+  ////      readings[j][readIndex[j]] = min_baro[j] - readings[j][readIndex[j]];
+  ////      min_baro[j] = readings[j][readIndex[j]];
+  ////      }
+  //
+  //    total[j] = total[j] + readings[j][readIndex[j]];
+  //    readIndex[j] = readIndex[j] + 1;
+  //    // if we're at the end of the array...
+  //    if (readIndex[j] >= numReadings) {
+  //      readIndex[j] = 0; // ...wrap around to the beginning:
+  //    }
+  //    average[j] = total[j] / numReadings; // calculate the average:
+  //    arr[j]= average[j]/ 7.0; // normalize the pressure value
+  //  }
 
 
-      // EXPONENTIAL AVG. FOR IR
-//    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
-//    EMA_S_ir = (EMA_a*ir) + ((1-EMA_a)*prev_ir);
-//    prev_ir = EMA_S_ir;   
-//    Serial.println(EMA_S_ir);
+  // EXPONENTIAL AVG. FOR BARO
+  //    float bar = readPressure(i2c_ids_[0], sensor_ports[0], 0);
+  //    bar = abs(bar - min_baro[0]);
+  //    EMA_S_baro = (EMA_a*bar) + ((1-EMA_a)*prev_baro);
+  //    prev_baro = EMA_S_baro;
+  //    EMA_S = constra/in(EMA_S, 0, 7000);
+  //    Serial.println(EMA_S_baro);
 
 
-    /**** High pass filter IR ****/
-//    float lowpass_ir = lowpassFilter.input(readProximity(i2c_ids_[0],sensor_ports[0]));
-//    float highpass_ir = highpassFilter.input(lowpass_ir);
-//    Serial.println(lowpass_ir);
-
-//    float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
-//    float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
-//    Serial.println(baro_rescale);
-
-//  
-//     unsigned long starttime = micros();
-//    Serial.print(starttime - curtime);
-//    Serial.println();
+  // EXPONENTIAL AVG. FOR IR
+  //    float ir = readProximity(i2c_ids_[0],sensor_ports[0]);
+  //    EMA_S_ir = (EMA_a*ir) + ((1-EMA_a)*prev_ir);
+  //    prev_ir = EMA_S_ir;
+  //    Serial.println(EMA_S_ir);
 
 
-      /****** Normalization between 0 and 1. Min max from taken from training data *********/
-//      float p = (readPressure(i2c_ids_[0], sensor_ports[0], 0) - 1800.0) / float(6200 - 1800.0);
-//      float ir = (readProximity(i2c_ids_[0],sensor_ports[0]) - 30000.0) / float(38000 - 30000.0);
-//      Serial.print(p);
-//      Serial.print(' ');
-//      Serial.println(ir);
+  /**** High pass filter IR ****/
+  //    float lowpass_ir = lowpassFilter.input(readProximity(i2c_ids_[0],sensor_ports[0]));
+  //    float highpass_ir = highpassFilter.input(lowpass_ir);
+  //    Serial.println(lowpass_ir);
+
+  //    float baro_constraint = constrain(readPressure(i2c_ids_[0], sensor_ports[0], 0), min_baro[0]*1.05, max_baro[0]);
+  //    float baro_rescale = map(baro_constraint, min_baro[0]*1.05, max_baro[0], 0, 255);
+  //    Serial.println(baro_rescale);
+
+  //
+  //     unsigned long starttime = micros();
+  //    Serial.print(starttime - curtime);
+  //    Serial.println();
+
+
+  /****** Normalization between 0 and 1. Min max from taken from training data *********/
+  //      float p = (readPressure(i2c_ids_[0], sensor_ports[0], 0) - 1800.0) / float(6200 - 1800.0);
+  //      float ir = (readProximity(i2c_ids_[0],sensor_ports[0]) - 30000.0) / float(38000 - 30000.0);
+  //      Serial.print(p);
+  //      Serial.print(' ');
+  //      Serial.println(ir);
 
 }
