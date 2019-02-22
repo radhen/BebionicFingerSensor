@@ -11,15 +11,20 @@ int main(){
 // for each layer.
 
 
-float ** window= (float**)malloc(1*sizeof(float*));
-for (int i=0; i<1; i++){
-    window[i]= (float*)malloc(2*sizeof(float));
-}
+//float ** window= (float**)malloc(1*sizeof(float*));
+//for (int i=0; i<1; i++){
+//    window[i]= (float*)malloc(2*sizeof(float));
+//}
+//
+//for (int i=0; i<1; i++){
+//    for (int j=0; j<2; j++){
+//        window[i][j]= 1.0;
+//    }
+//}
 
-for (int i=0; i<1; i++){
-    for (int j=0; j<2; j++){
-        window[i][j]= 1.0;
-    }
+float window[2];
+for (int i=0; i<2; i++){
+ window[i] = 0;
 }
 
 //struct Conv1D L1;
@@ -36,7 +41,7 @@ for (int i=0; i<1; i++){
 
 struct Dense D1;
 set_dense(&D1, WINDOW_SIZE, NUM_ADC, 'r');
-fwd_dense(&D1, D1.input_size, D1.output_size, W_0, b_0, FL.h);
+fwd_dense(&D1, D1.input_size, D1.output_size, W_0, b_0, window);
 
 struct Dense D2;
 set_dense(&D2, D1.output_size, 6, 'r');

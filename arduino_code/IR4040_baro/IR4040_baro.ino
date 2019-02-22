@@ -2,7 +2,7 @@
 #include <Filters.h>
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {112};//, MUX_ADDR|1};
+int i2c_ids_[] = {113};//, MUX_ADDR|1};
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
