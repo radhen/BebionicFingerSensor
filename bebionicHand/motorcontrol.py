@@ -23,7 +23,7 @@ BAUDRATE = 115200
 NUM_P_BOARDS = 1
 DELAY = 0.02 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
-TARG_FORCE = 7120000 #Analog baro value. TODO: replace with NN predicted force (N)
+TARG_FORCE = 16.00
 
 def make_serial_connection(port, baudrate):
     try:
@@ -219,7 +219,7 @@ def sub_callback(msg, args):
     # print (msg.data[0])
     # pass
 
-    e_curr = TARG_FORCE - msg.data[0]
+    e_curr = TARG_FORCE - msg.data[3]
 
     push(sum_e_arr, [e_curr])
     args[0] = sum(sum_e_arr)
@@ -229,25 +229,25 @@ def sub_callback(msg, args):
 
     u_t = args[2]*e_curr + args[3]*args[0] + args[4]*diff_e
 
-    # rescale from 1000-500000 to 0-255 (PWM)
-    pwm = int(((u_t - 750)/(200000-750)) * 150)
-    pwm = np.clip(pwm,0,250)
-    print e_curr, args[0], int(u_t), pwm
+    # rescale from 0-3 to 0-255 (PWM)
+    pwm = int(((u_t)/(3)) * 250)
+    # pwm = np.clip(pwm,0,250)
+    print e_curr, args[0], u_t, pwm
 
     y_predict = [e_curr, u_t, pwm]
-    msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('nn_predictions', 3, 1)], 1), y_predict)
+    msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('pid_output', 2, 1)], 1), y_predict)
     args[5].publish(msg)
 
 
-    if -750 < e_curr < 750:
-        apply_breaks(ser, addList[0])
-    else:
-        if pwm > 0:
-            fully_close(ser, addList[0], pwm)
-            print "closing"
-        else:
-            fully_open(ser, addList[0], abs(pwm))
-            print "opening"
+    # if -0.1 < e_curr < 0.1:
+    #     apply_breaks(ser, addList[0])
+    # else:
+    #     if pwm > 0:
+    #         fully_close(ser, addList[0], pwm)
+    #         print "closing"
+    #     else:
+    #         fully_open(ser, addList[0], abs(pwm))
+    #         print "opening"
 
 
     # print e_curr, args[0], args[1]
@@ -289,11 +289,11 @@ if __name__ == "__main__":
 
     sum_e = 0
     e_last = 0
-    kp = 3.0
-    ki = 0.01
+    kp = 2.5
+    ki = 0.05
     kd = 0.1
     count = 0
-    sum_e_arr = np.zeros(50)
+    sum_e_arr = np.zeros(25)
     pcf_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, sub_callback, [sum_e, e_last, kp, ki, kd, pid, count, sum_e_arr])
     rospy.spin()
 

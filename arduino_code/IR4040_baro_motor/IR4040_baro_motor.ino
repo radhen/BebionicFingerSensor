@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////
 
 #include <Wire.h>
+#include "rp_testing.h"
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
@@ -274,6 +275,18 @@ void readIRValues() {
 }
 
 
+void readNNpredictions(){
+  float *raw_data;
+  float output1;
+  // volatile float predictions[1];
+  raw_data = (float*)malloc(2 * sizeof(float));
+  raw_data[0] = pressure_value_;
+  raw_data[1] = proximity_value_;
+  output1 = nnpred(raw_data);
+  Serial.print(output1); Serial.print('\t');
+  free(raw_data);
+  }
+
 
 ///////////////////////////////////////////////////////////
 ////////////// SIGENICS FUNCTIONS BELOW ///////////////////
@@ -491,6 +504,7 @@ void loop() {
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readMotorEncodersValues();
+  readNNpredictions();
 
   //    byte* packetBytes = (byte*)&packet;
   //    Serial.write(packetBytes, sizeof(DataPacket));
