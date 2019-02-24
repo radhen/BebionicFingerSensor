@@ -18,9 +18,9 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 '''
 
 
-PORT = '/dev/ttyACM1'
+PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
-NUM_P_BOARDS = 1
+NUM_P_BOARDS = 5
 DELAY = 0.02 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
 TARG_FORCE = 16.00
@@ -60,6 +60,13 @@ def get_addresses(ser):
                 return dataIn
         except serial.serialException as e:
             print ('There is no new data from serial port')
+
+
+def set_address(ser):
+    # he finger. Make sure to apply breaks after calling this function
+    sa = b'\x7e\x02\xAD\x01\x05\x7e'
+    ser.write(sa)
+    time.sleep(1)
 
 
 def fully_open(ser, addr, pwm_value):
@@ -258,48 +265,53 @@ def sub_callback(msg, args):
 if __name__ == "__main__":
 
     ser = make_serial_connection(PORT, BAUDRATE)
+    ser.flushInput()
+    ser.flushOutput()
     # addrs = get_addresses(ser)
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-    addList = ['3']
-    # print addList
+    addList = ['1', '2', '3', '4', '5']
+    print addList
+
+    # set_address(ser)
 
     ############ Testing poistion control thru PID control ###############
 
-    # set_position_count(ser, addList[0], 15000)
-    # set_target_position(ser, addList[0], 10000)
-    # set_pid_gains(ser, addList[0])
+    for i in [1,3,4]: set_position_count(ser, str(i), 00000)
+    for i in [1,3,4]: set_target_position(ser, str(i), 20000)
+    for i in [1,3,4]: set_pid_gains(ser, str(i))
 
     # set_position_count(ser, addList[1], 15000)
     # set_target_position(ser, addList[1], 10000)
     # set_pid_gains(ser, addList[1])
 
 
-    # enable_pid(ser, addList[0])
+    for i in [1,3,4]: enable_pid(ser, str(i))
     # enable_pid(ser, addList[1])
+    time.sleep(2)
 
-    # apply_breaks(ser, addList[0])
+    for i in [1,3,4]: apply_breaks(ser, str(i))
     # apply_breaks(ser, addList[1])
 
     #########################################################################
 
-    rospy.init_node('real_time_testing')
+    # rospy.init_node('real_time_testing')
+    #
+    # pid = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
+    #
+    # sum_e = 0
+    # e_last = 0
+    # kp = 2.5
+    # ki = 0.05
+    # kd = 0.1
+    # count = 0
+    # sum_e_arr = np.zeros(25)
+    # pcf_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, sub_callback, [sum_e, e_last, kp, ki, kd, pid, count, sum_e_arr])
+    # rospy.spin()
 
-    pid = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
-
-    sum_e = 0
-    e_last = 0
-    kp = 2.5
-    ki = 0.05
-    kd = 0.1
-    count = 0
-    sum_e_arr = np.zeros(25)
-    pcf_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, sub_callback, [sum_e, e_last, kp, ki, kd, pid, count, sum_e_arr])
-    rospy.spin()
-
-    # fully_close(ser, addList[0], 5)
+    # fully_close(ser, addList[4], 32)
     # time.sleep(1)
-    # fully_open(ser, addList[0], 5)
+    # fully_open(ser, addList[4], 32)
     # time.sleep(1)
     # apply_breaks(ser, addList[0])
 

@@ -18,13 +18,13 @@
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 1 // number of fingers connected
+#define NUM_FINGERS 4 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {113}; //muxAddresses
-int sensor_ports[NUM_FINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int i2c_ids_[] = {112}; //muxAddresses
+int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 
 int num_devices_;
 unsigned int ambient_value_;
@@ -45,8 +45,8 @@ volatile uint16_t proximity_value_;
 // command buffer 500 bytes
 
 //FSM
-#define NUM_P_BOARDS 1
-byte pBoardAddresses[NUM_P_BOARDS] = {3};
+#define NUM_P_BOARDS 5
+byte pBoardAddresses[NUM_P_BOARDS] = {1, 2, 3, 4, 5};
 
 #define fNONE 0
 #define fSTART 1
@@ -504,7 +504,7 @@ void loop() {
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readMotorEncodersValues();
-  readNNpredictions();
+//  readNNpredictions();
 
   //    byte* packetBytes = (byte*)&packet;
   //    Serial.write(packetBytes, sizeof(DataPacket));
