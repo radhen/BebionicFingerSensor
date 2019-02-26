@@ -7,6 +7,7 @@ import rospy
 from std_msgs.msg import Float32MultiArray, MultiArrayLayout, MultiArrayDimension
 from simple_pid import PID
 from binascii import unhexlify
+from get_data import GetData
 
 
 '''
@@ -21,7 +22,7 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
 NUM_P_BOARDS = 5
-DELAY = 0.02 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
+DELAY = 0.03 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
 TARG_FORCE = 16.00
 
@@ -263,35 +264,51 @@ def sub_callback(msg, args):
 
 
 if __name__ == "__main__":
-
+    rospy.init_node('real_time_testing')
     ser = make_serial_connection(PORT, BAUDRATE)
     ser.flushInput()
     ser.flushOutput()
     # addrs = get_addresses(ser)
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-    addList = ['1', '2', '3', '4', '5']
+    addList = ['1','2','3','4']
     print addList
 
     # set_address(ser)
 
+    for i in addList: fully_open(ser, str(i), 32)
+    time.sleep(1)
+    for i in addList: apply_breaks(ser, str(i))
+
     ############ Testing poistion control thru PID control ###############
 
-    for i in [1,3,4]: set_position_count(ser, str(i), 00000)
-    for i in [1,3,4]: set_target_position(ser, str(i), 20000)
-    for i in [1,3,4]: set_pid_gains(ser, str(i))
+    # for i in addList: set_position_count(ser, str(i), 14000)
+    # for i in addList: set_target_position(ser, str(i), 10000)
+    # for i in addList: set_pid_gains(ser, str(i))
 
-    # set_position_count(ser, addList[1], 15000)
-    # set_target_position(ser, addList[1], 10000)
-    # set_pid_gains(ser, addList[1])
-
-
-    for i in [1,3,4]: enable_pid(ser, str(i))
-    # enable_pid(ser, addList[1])
-    time.sleep(2)
-
-    for i in [1,3,4]: apply_breaks(ser, str(i))
-    # apply_breaks(ser, addList[1])
+    # set_position_count(ser, str(1), 20000)
+    # set_target_position(ser, str(1), 12000)
+    #
+    # set_position_count(ser, str(2), 20000)
+    # set_target_position(ser, str(2), 14000)
+    #
+    # set_position_count(ser, str(3), 20000)
+    # set_target_position(ser, str(3), 16000)
+    #
+    # set_position_count(ser, str(4), 20000)
+    # set_target_position(ser, str(4), 18000)
+    # for i in addList: set_pid_gains(ser, str(i))
+    #
+    # gd = GetData()
+    # gd.start_recording()
+    #
+    # for i in addList: enable_pid(ser, str(i))
+    # rospy.sleep(3)
+    #
+    # for i in addList: apply_breaks(ser, str(i))
+    #
+    # gd.stop_recording()
+    # gd.convertandsave(0)
 
     #########################################################################
 
@@ -309,9 +326,9 @@ if __name__ == "__main__":
     # pcf_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, sub_callback, [sum_e, e_last, kp, ki, kd, pid, count, sum_e_arr])
     # rospy.spin()
 
-    # fully_close(ser, addList[4], 32)
+    # fully_close(ser, addList[0], 32)
     # time.sleep(1)
-    # fully_open(ser, addList[4], 32)
+    # fully_open(ser, addList[0], 32)
     # time.sleep(1)
     # apply_breaks(ser, addList[0])
 

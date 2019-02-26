@@ -29,12 +29,12 @@ int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barome
 int num_devices_;
 unsigned int ambient_value_;
 byte serialByte;
-uint16_t Coff[6][NUM_FINGERS];
+uint16_t Coff[6][5];
 int32_t Ti = 0, offi = 0, sensi = 0;
 int32_t data[3];
 
-volatile int32_t pressure_value_;
-volatile uint16_t proximity_value_;
+volatile int32_t pressure_value_[4];
+volatile uint16_t proximity_value_[4];
 
 
 ///////////////////////////////////////////////////////////
@@ -115,11 +115,16 @@ void writeByte(byte addr, byte val) {
 
 
 void initPressure(int muxAddr) {
+
+  int fingers = 4;
+  if (muxAddr == 113) {
+    fingers = 1;
+  }
   Wire.beginTransmission(muxAddr);
   Wire.write(0);
   int errcode = Wire.endTransmission();
   //  Serial.println(errcode);
-  for (int i = 0; i < NUM_FINGERS; i++) {
+  for (int i = 0; i < fingers; i++) {
     selectSensor(muxAddr, sensor_ports[i]);
     for (int j = 0; j < 6; j++) { //loop over Coefficient elements
       // Start I2C Transmission
@@ -139,7 +144,14 @@ void initPressure(int muxAddr) {
         data[0] = Wire.read();
         data[1] = Wire.read();
       }
-      Coff[j][i] = ((data[0] * 256) + data[1]);
+
+      if (fingers == 1) {
+        Coff[j][4] = ((data[0] * 256) + data[1]);
+      }
+      else {
+        Coff[j][i] = ((data[0] * 256) + data[1]);
+      }
+
       //            Serial.println(Coff[j][i]);
       delay(300);
     }
@@ -193,13 +205,20 @@ int32_t getPressureReading(int muxAddr, int sensor) {
 void readPressureValues() {
   int count = 0;
   for (int i = 0; i < num_devices_; i++) {
-    for (int j = 0; j < NUM_FINGERS; j++) {
-      pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
-      Serial.print(pressure_value_); Serial.print('\t');
-      packet.pressVals[count] = pressure_value_;
+
+    int fingers = 4;
+    if (i == 1) {
+      fingers = 1;
+    }
+
+    for (int j = 0; j < fingers; j++) {
+      pressure_value_[count] = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+      Serial.print(pressure_value_[count]); Serial.print('\t');
+      packet.pressVals[count] = pressure_value_[count];
       count += 1;
     }
   }
+//  return press_arr;
 }
 
 
@@ -231,6 +250,12 @@ void initVCNL4040() {
 
 
 void initIRSensor(int id) {
+
+  int fingers = 4;
+  if (id == 113) {
+    fingers = 1;
+  }
+
   Wire.beginTransmission(id);
   Wire.write(0);
   //  Serial.println("WIRE IN");
@@ -238,7 +263,7 @@ void initIRSensor(int id) {
   //  Serial.println(errcode);
 
   // initialize each IR sensor
-  for (int i = 0; i < NUM_FINGERS; i++)
+  for (int i = 0; i < fingers; i++)
   {
     // specify IR sensor
     selectSensor(id, sensor_ports[i]);
@@ -256,36 +281,46 @@ void initIRSensor(int id) {
   Wire.beginTransmission(id);
   Wire.write(0);
   Wire.endTransmission();
+
 }
 
 
 void readIRValues() {
   int count = 0;
   for (int i = 0; i < num_devices_; i++) {
-    for (int j = 0; j < NUM_FINGERS; j++) {
+
+    int fingers = 4;
+    if (i == 1) {
+      fingers = 1;
+    }
+
+    for (int j = 0; j < fingers; j++) {
       selectSensor(i2c_ids_[i], sensor_ports[j]);
-      proximity_value_ = readFromCommandRegister(PS_DATA_L);
-      Serial.print(proximity_value_); Serial.print('\t');
-      packet.irVals[count] = proximity_value_;
+      proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
+      Serial.print(proximity_value_[count]); Serial.print('\t');
+      packet.irVals[count] = proximity_value_[count];
       count += 1;
       //------- Touch detection -----/
       // Use highpass filter instead: https://playground.arduino.cc/Code/Filters
     }
   }
+//  return prox_arr;
 }
 
 
-void readNNpredictions(){
+void readNNpredictions() {
+  for(int i=0; i<4; i++){
   float *raw_data;
-  float output1;
+  float nn_output;
   // volatile float predictions[1];
   raw_data = (float*)malloc(2 * sizeof(float));
-  raw_data[0] = pressure_value_;
-  raw_data[1] = proximity_value_;
-  output1 = nnpred(raw_data);
-  Serial.print(output1); Serial.print('\t');
+  raw_data[0] = pressure_value_[i];
+  raw_data[1] = proximity_value_[i];
+  nn_output = nnpred(raw_data);
+  Serial.print(nn_output); Serial.print('\t');
   free(raw_data);
-  }
+    }
+}
 
 
 ///////////////////////////////////////////////////////////
@@ -442,6 +477,7 @@ void setup() {
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
+  //  Serial.println(num_devices_);
 
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
@@ -458,31 +494,31 @@ void setup() {
     packet.encoders[i] = 0;
   }
 
-//  Serial.begin (9600);
-//  Serial.println ();
-//  Serial.println ("I2C scanner. Scanning ...");
-//  byte count = 0;
-// 
-//  Wire.begin();
-//  for (byte i = 1; i < 120; i++)
-//  {
-//    Wire.beginTransmission (i);
-//    if (Wire.endTransmission () == 0)
-//      {
-//      Serial.print ("Found address: ");
-//      Serial.print (i, DEC);
-//      Serial.print (" (0x");
-//      Serial.print (i, HEX);
-//      Serial.println (")");
-//      count++;
-//      delay (1);  // maybe unneeded?
-//      } // end of good response
-//  } // end of for loop
-//  Serial.println ("Done.");
-//  Serial.print ("Found ");
-//  Serial.print (count, DEC);
-//  Serial.println (" device(s).");
-//  
+  //  Serial.begin (9600);
+  //  Serial.println ();
+  //  Serial.println ("I2C scanner. Scanning ...");
+  //  byte count = 0;
+  //
+  //  Wire.begin();
+  //  for (byte i = 1; i < 120; i++)
+  //  {
+  //    Wire.beginTransmission (i);
+  //    if (Wire.endTransmission () == 0)
+  //      {
+  //      Serial.print ("Found address: ");
+  //      Serial.print (i, DEC);
+  //      Serial.print (" (0x");
+  //      Serial.print (i, HEX);
+  //      Serial.println (")");
+  //      count++;
+  //      delay (1);  // maybe unneeded?
+  //      } // end of good response
+  //  } // end of for loop
+  //  Serial.println ("Done.");
+  //  Serial.print ("Found ");
+  //  Serial.print (count, DEC);
+  //  Serial.println (" device(s).");
+  //
 }
 
 
@@ -503,8 +539,9 @@ void loop() {
 
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readNNpredictions();
   readMotorEncodersValues();
-//  readNNpredictions();
+      
 
   //    byte* packetBytes = (byte*)&packet;
   //    Serial.write(packetBytes, sizeof(DataPacket));

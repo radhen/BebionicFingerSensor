@@ -3,7 +3,7 @@
 #include "rp_testing.h"
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[] = {113};//, MUX_ADDR|1};
+int i2c_ids_[] = {112};//, MUX_ADDR|1};
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
@@ -21,13 +21,13 @@ int i2c_ids_[] = {113};//, MUX_ADDR|1};
 //#define PS_DATA_M //High byte of PS_DATA_L
 #define ID  0x0C
 
-#define NFINGERS 1 // number of fingers connected
+#define NFINGERS 4 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 #define DELTA_pressure_value__THRESH 1.0
 #define I2C_FASTMODE 1
 
 /***** GLOBAL VARIABLES *****/
-int sensor_ports[NFINGERS] = {0}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NFINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 float prev_pressure_value_[NFINGERS];
 
 int num_devices_;
@@ -112,7 +112,7 @@ void initPressure(int muxAddr) {
   Wire.beginTransmission(muxAddr);
   Wire.write(0);
   int errcode = Wire.endTransmission();
-  Serial.println(errcode);
+//  Serial.println(errcode);
   for (int i = 0; i < NFINGERS; i++) {
     selectSensor(muxAddr, sensor_ports[i]);
     for (int j = 0; j < 6; j++) { //loop over Coefficient elements
@@ -221,6 +221,7 @@ void readPressureValues() {
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
       pressure_value_ = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+      Serial.print(pressure_value_); Serial.print("\t");
     }
   }
 }
@@ -295,6 +296,7 @@ void readIRValues() {
     for (int j = 0; j < NFINGERS; j++) {
       selectSensor(i2c_ids_[i], sensor_ports[j]);
       proximity_value_ = readFromCommandRegister(PS_DATA_L);
+      Serial.print(proximity_value_); Serial.print("\t");
 
       //    unsigned int prox_value = readProximity(i2c_ids_[i],sensor_ports[j]);
       //    Serial.print(prox_value);
@@ -308,7 +310,7 @@ void readIRValues() {
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   TWBR = 10;
   pinMode(13, OUTPUT);
@@ -403,20 +405,20 @@ void loop() {
 
   //  sendToPC(&result);
   
-    Serial.print(pressure_value_);
-    Serial.print('\t');
-    Serial.print(proximity_value_);
-    Serial.print('\t');
+//    Serial.print(pressure_value_);
+//    Serial.print('\t');
+//    Serial.print(proximity_value_);
+//    Serial.print('\n');
 
-  float *raw_data;
-  float output1;
-  // volatile float predictions[1];
-  raw_data = (float*)malloc(2 * sizeof(float));
-  raw_data[0] = pressure_value_;
-  raw_data[1] = proximity_value_;
-  output1 = nnpred(raw_data);
-  Serial.println(output1);
-  free(raw_data); // I fixed it :) It was a memory leak.
+//  float *raw_data;
+//  float output1;
+//  // volatile float predictions[1];
+//  raw_data = (float*)malloc(2 * sizeof(float));
+//  raw_data[0] = pressure_value_;
+//  raw_data[1] = proximity_value_;
+//  output1 = nnpred(raw_data);
+//  Serial.println(output1);
+//  free(raw_data); // I fixed it :) It was a memory leak.
 
   //  // RUNNING AVG FOR BARO
   //  // https://www.arduino.cc/en/Tutorial/Smoothing
@@ -483,5 +485,7 @@ void loop() {
   //      Serial.print(p);
   //      Serial.print(' ');
   //      Serial.println(ir);
+
+  Serial.print("\n");
 
 }
