@@ -7,8 +7,8 @@ from keras.models import load_model
 from keras.models import model_from_json
 #np.set_printoptions(threshold=np.nan)
 
-f= h5py.File('nn_motion3_reg_weights.best.hdf5', 'r')
-model= load_model('nn_motion3_reg_weights.best.hdf5')
+f= h5py.File('dragon.weights.best.hdf5', 'r')
+model= load_model('dragon.weights.best.hdf5')
 textFile= open("w_b_{}.txt".format(sys.argv[1]), "w")
 
 

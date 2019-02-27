@@ -24,7 +24,7 @@
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[] = {112}; //muxAddresses
-int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NUM_FINGERS] = {0,2,4,6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 
 int num_devices_;
 unsigned int ambient_value_;
@@ -33,8 +33,11 @@ uint16_t Coff[6][5];
 int32_t Ti = 0, offi = 0, sensi = 0;
 int32_t data[3];
 
-volatile int32_t pressure_value_[4];
-volatile uint16_t proximity_value_[4];
+volatile int32_t pressure_value_[NUM_FINGERS];
+volatile uint16_t proximity_value_[NUM_FINGERS];
+
+int32_t max_pressure[4] = {6680000.0, 5980000.0, 6140000.0, 7600000.0};
+uint16_t max_proximity[4] = {17000.0, 30000.0, 30000.0, 35000.0};
 
 
 ///////////////////////////////////////////////////////////
@@ -45,8 +48,8 @@ volatile uint16_t proximity_value_[4];
 // command buffer 500 bytes
 
 //FSM
-#define NUM_P_BOARDS 5
-byte pBoardAddresses[NUM_P_BOARDS] = {1, 2, 3, 4, 5};
+#define NUM_P_BOARDS 4
+byte pBoardAddresses[NUM_P_BOARDS] = {1, 2, 3, 4};
 
 #define fNONE 0
 #define fSTART 1
@@ -314,8 +317,8 @@ void readNNpredictions() {
   float nn_output;
   // volatile float predictions[1];
   raw_data = (float*)malloc(2 * sizeof(float));
-  raw_data[0] = pressure_value_[i];
-  raw_data[1] = proximity_value_[i];
+  raw_data[0] = proximity_value_[i]/float(max_proximity[i]);
+  raw_data[1] = pressure_value_[i]/float(max_pressure[i]);
   nn_output = nnpred(raw_data);
   Serial.print(nn_output); Serial.print('\t');
   free(raw_data);
@@ -540,7 +543,7 @@ void loop() {
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readNNpredictions();
-  readMotorEncodersValues();
+//  readMotorEncodersValues();
       
 
   //    byte* packetBytes = (byte*)&packet;

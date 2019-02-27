@@ -20,7 +20,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 class GetData(object):
     def __init__(self):
-        self.pcf_data = np.zeros((1,10))
+        self.pcf_data = np.zeros((1,14))
         self.endeff_data = np.empty((1,15))
         self.data = np.empty((1,16))
         # self.gg = grasp_generator()
@@ -78,7 +78,7 @@ class GetData(object):
 
 
     def pcf_callback(self, msg):
-        # print (msg.data)
+        print msg
         ################## TIME ######################
         now = rospy.get_rostime()
         sec = now.secs
@@ -92,7 +92,12 @@ class GetData(object):
         ir_1 = msg.data[5]
         ir_2 = msg.data[6]
         ir_3 = msg.data[7]
-        self.pcf_data = np.append(self.pcf_data, np.array([[sec, nsec, baro_0, baro_1, baro_2, baro_3, ir_0, ir_1, ir_2, ir_3]]), axis=0)
+        nn_0 = msg.data[8]
+        nn_1 = msg.data[9]
+        nn_2 = msg.data[10]
+        nn_3 = msg.data[11]
+        self.pcf_data = np.append(self.pcf_data, np.array([[sec, nsec, baro_0, baro_1, baro_2, baro_3, ir_0, ir_1, ir_2, ir_3,nn_0,nn_1,nn_2,nn_3]]), axis=0)
+
 
 
     def endeff_callback(self, data):

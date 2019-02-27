@@ -21,10 +21,10 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 
 PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
-NUM_P_BOARDS = 5
-DELAY = 0.03 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
+NUM_P_BOARDS = 4
+DELAY = 0.025 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
-TARG_FORCE = 16.00
+TARG_FORCE = 0.55
 
 def make_serial_connection(port, baudrate):
     try:
@@ -65,7 +65,7 @@ def get_addresses(ser):
 
 def set_address(ser):
     # he finger. Make sure to apply breaks after calling this function
-    sa = b'\x7e\x02\xAD\x01\x05\x7e'
+    sa = b'\x7e\x0A\xAD\x05\x01\x7e'
     ser.write(sa)
     time.sleep(1)
 
@@ -100,7 +100,7 @@ def apply_breaks(ser, addr):
     BREAK += bytes(chr(2 * int(addr)))
     BREAK += b'\x0c\x03\x00\x7e'
     ser.write(BREAK)
-    print "Applying breaks!"
+    # print "Applying breaks!"
     time.sleep(DELAY)
 
 
@@ -223,48 +223,129 @@ def push(x, y):
     return x
 
 
-def sub_callback(msg, args):
+def pid_callback(msg, args):
     # print (msg.data[0])
     # pass
 
-    e_curr = TARG_FORCE - msg.data[3]
+    emptyList = []
 
-    push(sum_e_arr, [e_curr])
-    args[0] = sum(sum_e_arr)
+    ########### SAVING DATA ###################
+    now = rospy.get_rostime()
+    sec = now.secs
+    nsec = now.nsecs
+    ################## PCF ######################
+    baro_0 = msg.data[0]
+    baro_1 = msg.data[1]
+    baro_2 = msg.data[2]
+    baro_3 = msg.data[3]
+    ir_0 = msg.data[4]
+    ir_1 = msg.data[5]
+    ir_2 = msg.data[6]
+    ir_3 = msg.data[7]
+    nn_0 = msg.data[8]
+    nn_1 = msg.data[9]
+    nn_2 = msg.data[10]
+    nn_3 = msg.data[11]
+    args[17] = np.append(args[17], np.array([[sec, nsec, baro_0, baro_1, baro_2, baro_3, ir_0, ir_1, ir_2, ir_3, nn_0, nn_1, nn_2, nn_3]]), axis=0)
 
-    diff_e = e_curr - args[1]
-    args[1] = e_curr
+    if args[12] == 0:
+        print "enter once"
+        global min_1
+        min_1 = msg.data[8]
+        global min_2
+        min_2 = msg.data[9]
+        global min_3
+        min_3 = msg.data[10]
+        global min_4
+        min_4 = msg.data[11]
+        args[12] = 1
 
-    u_t = args[2]*e_curr + args[3]*args[0] + args[4]*diff_e
+    #keep track of running min
+    if msg.data[8] < min_1: min_1 = msg.data[8]
+    if msg.data[9] < min_2: min_2 = msg.data[9]
+    if msg.data[10] < min_3: min_3 = msg.data[10]
+    if msg.data[11] < min_4: min_4 = msg.data[11]
+
+    # normalize nn ouput for each sensor
+    f_1 = (msg.data[8] - min_1) / 0.8
+    f_2 = (msg.data[9] - min_2) / 0.8
+    f_3 = (msg.data[10] - min_3) / 0.8
+    f_4 = (msg.data[11] - min_4) / 0.8
+
+    # print f_1, f_2, f_3, f_4
+
+    e_curr_1 = TARG_FORCE - f_1
+    e_curr_2 = TARG_FORCE - f_2
+    e_curr_3 = TARG_FORCE - f_3
+    e_curr_4 = TARG_FORCE - f_4
+
+    # print e_curr_1, e_curr_2, e_curr_3, e_curr_4
+
+    push(sum_e_arr_1, [e_curr_1])
+    args[0] = sum(sum_e_arr_1)
+    push(sum_e_arr_2, [e_curr_2])
+    args[1] = sum(sum_e_arr_2)
+    push(sum_e_arr_3, [e_curr_3])
+    args[2] = sum(sum_e_arr_3)
+    push(sum_e_arr_4, [e_curr_4])
+    args[3] = sum(sum_e_arr_4)
+
+    diff_e_1 = e_curr_1 - args[4]
+    args[4] = e_curr_1
+    diff_e_2 = e_curr_2 - args[5]
+    args[5] = e_curr_2
+    diff_e_3 = e_curr_3 - args[6]
+    args[6] = e_curr_3
+    diff_e_4 = e_curr_4 - args[7]
+    args[7] = e_curr_4
+
+    u_t_1 = args[8] * e_curr_1 + args[9] * args[0] + args[10] * diff_e_1
+    u_t_2 = args[8] * e_curr_2 + args[9] * args[1] + args[10] * diff_e_2
+    u_t_3 = args[8] * e_curr_3 + args[9] * args[2] + args[10] * diff_e_3
+    u_t_4 = args[8] * e_curr_4 + args[9] * args[3] + args[10] * diff_e_4
 
     # rescale from 0-3 to 0-255 (PWM)
-    pwm = int(((u_t)/(3)) * 250)
+
+    # print u_t_1, u_t_2, u_t_3, u_t_4
+
+    pwm_1 = int(((u_t_1) / (1.4)) * 50)
+    pwm_2 = int(((u_t_2) / (1.4)) * 50)
+    pwm_3 = int(((u_t_3) / (1.4)) * 50)
+    pwm_4 = int(((u_t_4) / (1.4)) * 50)
+
     # pwm = np.clip(pwm,0,250)
-    print e_curr, args[0], u_t, pwm
 
-    y_predict = [e_curr, u_t, pwm]
-    msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('pid_output', 2, 1)], 1), y_predict)
-    args[5].publish(msg)
+    # print pwm_1, '\t', e_curr_1, '\t', pwm_2, '\t', e_curr_2, '\t', pwm_3, '\t', e_curr_3, '\t', pwm_4, '\t', e_curr_4
 
+    # y_predict = [e_curr, u_t, pwm]
+    # msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('pid_output', 2, 1)], 1), y_predict)
+    # args[5].publish(msg)
 
-    # if -0.1 < e_curr < 0.1:
-    #     apply_breaks(ser, addList[0])
-    # else:
-    #     if pwm > 0:
-    #         fully_close(ser, addList[0], pwm)
-    #         print "closing"
-    #     else:
-    #         fully_open(ser, addList[0], abs(pwm))
-    #         print "opening"
+    e_curr = [e_curr_1, e_curr_2, e_curr_3, e_curr_4]
+    pwm = [pwm_1, pwm_2, pwm_3, pwm_4]
 
+    # time.sleep(5)
 
-    # print e_curr, args[0], args[1]
-
+    if not addList:
+        pid_sub.unregister()
+        path = '/home/radhen/Documents/bebionic_expData/'
+        np.savetxt(path + '/right_{}.txt'.format(1), args[17])
+        print "Exiting from subscriber and saving data"
+    else:
+        for i in addList:
+            if -0.25 < e_curr[int(i) - 1] < 0.25:
+                apply_breaks(ser, str(i))
+                print "Applying breaks {}".format(i)
+                addList.remove(i)
+            else:
+                fully_close(ser, str(i), abs(pwm[int(i) - 1]))
 
 
 
 if __name__ == "__main__":
-    rospy.init_node('real_time_testing')
+
+    rospy.init_node('bebionic_hand_control')
+
     ser = make_serial_connection(PORT, BAUDRATE)
     ser.flushInput()
     ser.flushOutput()
@@ -272,19 +353,22 @@ if __name__ == "__main__":
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
     addList = ['1','2','3','4']
-    print addList
+    # print addList
 
     # set_address(ser)
 
-    for i in addList: fully_open(ser, str(i), 32)
-    time.sleep(1)
-    for i in addList: apply_breaks(ser, str(i))
+    # for i in addList: fully_open(ser, str(i), 100)
+    # time.sleep(2)
+    # for i in addList: apply_breaks(ser, str(i))
 
     ############ Testing poistion control thru PID control ###############
 
-    # for i in addList: set_position_count(ser, str(i), 14000)
-    # for i in addList: set_target_position(ser, str(i), 10000)
-    # for i in addList: set_pid_gains(ser, str(i))
+    for i in addList: set_position_count(ser, str(i), 10000)
+    for i in addList: set_target_position(ser, str(i), 16000)
+    for i in addList: set_pid_gains(ser, str(i))
+    for i in addList: enable_pid(ser, str(i))
+    rospy.sleep(1)
+    for i in addList: apply_breaks(ser, str(i))
 
     # set_position_count(ser, str(1), 20000)
     # set_target_position(ser, str(1), 12000)
@@ -301,29 +385,41 @@ if __name__ == "__main__":
     #
     # gd = GetData()
     # gd.start_recording()
-    #
+
     # for i in addList: enable_pid(ser, str(i))
-    # rospy.sleep(3)
-    #
+    # rospy.sleep(2)
     # for i in addList: apply_breaks(ser, str(i))
-    #
+
     # gd.stop_recording()
     # gd.convertandsave(0)
 
     #########################################################################
 
-    # rospy.init_node('real_time_testing')
+
+    # pcf_data = np.zeros((1, 14))
     #
-    # pid = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
+    # pid_pub = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
     #
-    # sum_e = 0
-    # e_last = 0
-    # kp = 2.5
+    # sum_e_1 = 0
+    # sum_e_2 = 0
+    # sum_e_3 = 0
+    # sum_e_4 = 0
+    # e_last_1 = 0
+    # e_last_2 = 0
+    # e_last_3 = 0
+    # e_last_4 = 0
+    # kp = 1.5
     # ki = 0.05
-    # kd = 0.1
+    # kd = 0.08
     # count = 0
-    # sum_e_arr = np.zeros(25)
-    # pcf_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, sub_callback, [sum_e, e_last, kp, ki, kd, pid, count, sum_e_arr])
+    # sum_e_arr_1 = np.zeros(25)
+    # sum_e_arr_2 = np.zeros(25)
+    # sum_e_arr_3 = np.zeros(25)
+    # sum_e_arr_4 = np.zeros(25)
+    #
+    # pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback, [sum_e_1,sum_e_2,sum_e_3,sum_e_4, e_last_1,e_last_2,e_last_3,e_last_4,
+    #                                                                                kp,ki,kd,pid_pub,count,sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,pcf_data])
+    #
     # rospy.spin()
 
     # fully_close(ser, addList[0], 32)
@@ -332,5 +428,5 @@ if __name__ == "__main__":
     # time.sleep(1)
     # apply_breaks(ser, addList[0])
 
+    print "ANYTHING HAPPENED?"
 
-    print ("ANYTHING HAPPENED?")
