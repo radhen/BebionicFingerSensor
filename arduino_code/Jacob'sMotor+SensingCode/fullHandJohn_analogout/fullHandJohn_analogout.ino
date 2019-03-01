@@ -131,7 +131,7 @@ void setup(void) {
   delay(1000);
 
   for (int i = 0; i < NFINGERS; i++) {
-    initIRsensor(i); // initialize each IR sensor
+//    initIRsensor(i); // initialize each IR sensor
     initPressure(i); //initialize each Barometer sensor
   }
   
@@ -321,6 +321,7 @@ void readIRValues() {
   for (int i = 0; i < NFINGERS; i++) {
     selectSensor(fingers[i].irPort);
     unsigned int prox_value = readProximity();
+    Serial.print(prox_value); Serial.print('\t');
     //Need to flip endianness -- LabView is expecting the other one.
     packet.irVals[i] = ((prox_value&0xFF)<<8) | ((prox_value>>8)&0xFF);
     //Serial.write(buf,2);
@@ -404,6 +405,7 @@ void initPressure(int id) {  // initialize Barometers while looping over fingers
 
     // Convert the data
     Coff[i][id] = ((dataHi << 8) | dataLo);
+    Serial.print(Coff[i][id]);
   }
   delay(300);
 }
@@ -423,6 +425,7 @@ void readPressureValues() {
   requestStart = millis();
   for (int i = 0; i < NFINGERS; i++) {
     rawPressures[i] = fetchReadPressure(i);
+    Serial.print(rawPressures[i]); Serial.print('\t');
     requestTempReading(i);
   }
   while (millis() - requestStart < PRESS_MEAS_DELAY_MS) {
@@ -437,6 +440,7 @@ void readPressureValues() {
     tempTemperature = fetchReadTemp(i);
     float result = processPressure(i, rawPressures[i], tempTemperature);
     //useReadPressure(result);
+//    Serial.print(result); Serial.print('\t');
     packet.pressVals[i] = result;
 
     // Write force data to analog output //
@@ -628,22 +632,23 @@ void loop() {
   ///////////////////////
   // SIGENICS CODE HERE //
   ///////////////////////
-  lookForData();
-  if (newCommand == true) {
-    obey();
-    newCommand = false;
-  }
+//  lookForData();
+//  if (newCommand == true) {
+//    obey();
+//    newCommand = false;
+//  }
 
   ///////////////////////
   // CORRELL CODE HERE //
   ///////////////////////
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  readAllEncoders(); //-> array of Encoder Values (2 bytes per penny board)
-  byte* packetBytes = (byte*)&packet;
-  Serial.write(packetBytes, sizeof(DataPacket));
+//  readAllEncoders(); //-> array of Encoder Values (2 bytes per penny board)
+//  byte* packetBytes = (byte*)&packet;
+//  Serial.write(packetBytes, sizeof(DataPacket));
   
-  delay(20);
+//  delay(20);
+Serial.print('\n');
 
 }
 

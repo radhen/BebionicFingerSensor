@@ -21,7 +21,7 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 
 PORT = '/dev/ttyACM0'
 BAUDRATE = 115200
-NUM_P_BOARDS = 4
+NUM_P_BOARDS = 1
 DELAY = 0.025 # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
 
 TARG_FORCE = 0.55
@@ -65,7 +65,7 @@ def get_addresses(ser):
 
 def set_address(ser):
     # he finger. Make sure to apply breaks after calling this function
-    sa = b'\x7e\x0A\xAD\x05\x01\x7e'
+    sa = b'\x7e\x02\xAD\x01\x05\x7e'
     ser.write(sa)
     time.sleep(1)
 
@@ -344,15 +344,15 @@ def pid_callback(msg, args):
 
 if __name__ == "__main__":
 
-    rospy.init_node('bebionic_hand_control')
+    # rospy.init_node('bebionic_hand_control')
 
     ser = make_serial_connection(PORT, BAUDRATE)
     ser.flushInput()
     ser.flushOutput()
-    # addrs = get_addresses(ser)
+    addrs = get_addresses(ser)
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-    addList = ['1','2','3','4']
+    # addList = ['1','2','3','4']
     # print addList
 
     # set_address(ser)
@@ -363,12 +363,12 @@ if __name__ == "__main__":
 
     ############ Testing poistion control thru PID control ###############
 
-    for i in addList: set_position_count(ser, str(i), 10000)
-    for i in addList: set_target_position(ser, str(i), 16000)
-    for i in addList: set_pid_gains(ser, str(i))
-    for i in addList: enable_pid(ser, str(i))
-    rospy.sleep(1)
-    for i in addList: apply_breaks(ser, str(i))
+    # for i in addList: set_position_count(ser, str(i), 10000)
+    # for i in addList: set_target_position(ser, str(i), 16000)
+    # for i in addList: set_pid_gains(ser, str(i))
+    # for i in addList: enable_pid(ser, str(i))
+    # rospy.sleep(1)
+    # for i in addList: apply_breaks(ser, str(i))
 
     # set_position_count(ser, str(1), 20000)
     # set_target_position(ser, str(1), 12000)
