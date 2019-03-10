@@ -27,7 +27,7 @@
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[2] = {112, 113}; //muxAddresses
-int sensor_ports[NUM_FINGERS] = {0,2,4,6}; // Mux board ports for each Barometer sensor {0,2,4,6}
+int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 
 typedef struct {
   byte irPort;
@@ -37,25 +37,26 @@ typedef struct {
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ie, barPort).
 Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
-                             {4, 4},  //middle finger
-                             {2, 2},  //ring finger
-                             {0, 0},  //pinky finger
-                             {8, 8}}; //thumb
+  {4, 4},  //middle finger
+  {2, 2},  //ring finger
+  {0, 0},  //pinky finger
+  {8, 8}
+}; //thumb
 
-int muxStatus;                           
+int muxStatus;
 
 int num_devices_;
 unsigned int ambient_value_;
 byte serialByte;
-uint16_t Coff[6][5];
+uint16_t Coff[6][NUM_FINGERS];
 int32_t Ti = 0, offi = 0, sensi = 0;
 int32_t data[3];
 
-volatile int32_t pressure_value_[5];
-volatile uint16_t proximity_value_[5];
+volatile int32_t pressure_value_[NUM_FINGERS];
+volatile uint16_t proximity_value_[NUM_FINGERS];
 
-int32_t max_pressure[4] = {6680000.0, 5980000.0, 6140000.0, 7600000.0};
-uint16_t max_proximity[4] = {17000.0, 30000.0, 30000.0, 35000.0};
+int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
+uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000.0};
 
 
 ///////////////////////////////////////////////////////////
@@ -129,24 +130,24 @@ unsigned int readFromCommandRegister(byte commandCode)
 //}
 
 /*
- * Each individual mux allows selection between 8 different channels, the 8 bits of a single byte being used to set the on/off status of a given channel.
- * We are going to keep track of the status of the two muxes the same way, using the 16 bits of a two-byte int.
- *
- */
+   Each individual mux allows selection between 8 different channels, the 8 bits of a single byte being used to set the on/off status of a given channel.
+   We are going to keep track of the status of the two muxes the same way, using the 16 bits of a two-byte int.
+
+*/
 void selectSensor(int port) {
-  int muxStatusGoal = 1<<port;
-//  Serial.print("Port: "); Serial.print(port);
-  if( (muxStatus&0xFF) != (muxStatusGoal&0xFF) ){ //We only need update mux0 if the desired state for mux0 is not its current state.
+  int muxStatusGoal = 1 << port;
+  //  Serial.print("Port: "); Serial.print(port);
+  if ( (muxStatus & 0xFF) != (muxStatusGoal & 0xFF) ) { //We only need update mux0 if the desired state for mux0 is not its current state.
     Wire.beginTransmission(MUX0_ADDR); //Talk to mux0.
-    Wire.write( (byte)(muxStatusGoal&0xFF)); //Update mux0 to desired status.
+    Wire.write( (byte)(muxStatusGoal & 0xFF)); //Update mux0 to desired status.
     int errcode = Wire.endTransmission(); //Release i2c line.
-//    Serial.print("112"); Serial.print('\t'); Serial.println(errcode);
+    //    Serial.print("112"); Serial.print('\t'); Serial.println(errcode);
   }
-  if( (muxStatus&0xFF00) != (muxStatusGoal&0xFF00) ){ //We only need update mux1 if the desired state for mux1 is not its current state.
-    Wire.beginTransmission(MUX0_ADDR+1); //Talk to mux1.
-    Wire.write( (byte)((muxStatusGoal&0xFF00)>>8)); //Update mux1 to desired status.
+  if ( (muxStatus & 0xFF00) != (muxStatusGoal & 0xFF00) ) { //We only need update mux1 if the desired state for mux1 is not its current state.
+    Wire.beginTransmission(MUX0_ADDR + 1); //Talk to mux1.
+    Wire.write( (byte)((muxStatusGoal & 0xFF00) >> 8)); //Update mux1 to desired status.
     int errcode = Wire.endTransmission(); //Release i2c line.
-//    Serial.print("113"); Serial.print('\t'); Serial.println(errcode); 
+    //    Serial.print("113"); Serial.print('\t'); Serial.println(errcode);
   }
   muxStatus = muxStatusGoal;
 }
@@ -163,151 +164,72 @@ void writeByte(byte addr, byte val) {
 void initPressure(int id) {
   byte dataLo, dataHi;
 
-//  Wire.beginTransmission(muxAddr);
-//  Wire.write(0);
-//  Wire.endTransmission();
-  
-//  for (int i = 0; i < fingers; i++) {
+  selectSensor(fingers[id].barPort);
 
-//    selectSensor(muxAddr, sensor_ports[i]);
+  for (int i = 0; i < 6; i++) { //loop over Coefficient elements
+    Wire.beginTransmission(BARO_ADDRESS);
+    Wire.write(0xA2 + (i << 1));
+    Wire.endTransmission();
+    //      Serial.print(err); Serial.print('\t');
 
-    selectSensor(fingers[id].barPort);
-//    Serial.println(fingers[id].barPort);
+    Wire.requestFrom(BARO_ADDRESS, 2); // Request 2 bytes of data
 
-//    Wire.beginTransmission(BARO_ADDRESS);
-//    Wire.write(0x1E);
-//    int err = Wire.endTransmission();
-//    Serial.println(err);
-  
-    for (int i = 0; i < 6; i++) { //loop over Coefficient elements
-      Wire.beginTransmission(BARO_ADDRESS);
-      Wire.write(0xA2 + (i << 1));
-      Wire.endTransmission();
-//      Serial.print(err); Serial.print('\t');
-
-      Wire.requestFrom(BARO_ADDRESS, 2); // Request 2 bytes of data
-
-      if (Wire.available() == 2){
-//        Serial.println("got data");
-        dataHi = Wire.read();
-        dataLo = Wire.read();
-      }
-//      Coff[i][id] = ((dataHi << 8) | dataLo);
-      Coff[i][id] = ((dataHi*256) + dataLo);
-      Serial.print(Coff[i][id]); Serial.print('\t');
+    if (Wire.available() == 2) {
+      //        Serial.println("got data");
+      dataHi = Wire.read();
+      dataLo = Wire.read();
     }
-    Serial.print('\n');
-   delay(300);
-        
+    //      Coff[i][id] = ((dataHi << 8) | dataLo);
+    Coff[i][id] = ((dataHi * 256) + dataLo);
+    //      Serial.print(Coff[i][id]); Serial.print('\t');
+  }
+  //    Serial.print('\n');
+  delay(300);
+
 }
 
-//int32_t getPressureReading(int id) {
-////  selectSensor(muxAddr, sensor);
-//  selectSensor(fingers[id].barPort);
-//  
-//  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-//  Wire.write(0x1E); // Send reset command
-//  Wire.endTransmission(); // Stop I2C Transmission
-//
-//  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-//  Wire.write(0x40); // Refresh pressure with the OSR = 256
-//  Wire.endTransmission(); // Stop I2C Transmission
-//  
-//  delayMicroseconds(800);
-//
-////  selectSensor(fingers[id].barPort);
-//
-//  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-//  Wire.write(0x00);  // Select data register
-//  Wire.endTransmission(); // Stop I2C Transmission
-//
-//  Wire.requestFrom(BARO_ADDRESS, 3); // Request 3 bytes of data
-//
-//  if (Wire.available() == 3)
-//  {
-//    data[0] = Wire.read();
-//    data[1] = Wire.read();
-//    data[2] = Wire.read();
-//  }
-//
-//  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
-//}
-
-void requestPressureReading(int id) {
+int32_t getPressureReading(int id) {
+  //  selectSensor(muxAddr, sensor);
   selectSensor(fingers[id].barPort);
-  
-  Wire.beginTransmission(BARO_ADDRESS);  // Start I2C Transmission
-  Wire.write(0x1E);  // Send reset command
-  Wire.endTransmission();  // Stop I2C Transmission
 
-  Wire.beginTransmission(BARO_ADDRESS);  // Start I2C Transmission
-  Wire.write(0x40);  // Refresh pressure with the OSR = 256
-  Wire.endTransmission();  // Stop I2C Transmission
-}
+  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  Wire.write(0x1E); // Send reset command
+  Wire.endTransmission(); // Stop I2C Transmission
 
+  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  Wire.write(0x40); // Refresh pressure with the OSR = 256
+  Wire.endTransmission(); // Stop I2C Transmission
 
-unsigned long fetchReadPressure(int id) {
-  byte dataHi, dataMid, dataLo;
-  
-  selectSensor(fingers[id].barPort);
-  
-  Wire.beginTransmission(BARO_ADDRESS);  // Start I2C Transmission
+  delayMicroseconds(800);
+
+  //  selectSensor(fingers[id].barPort);
+
+  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
   Wire.write(0x00);  // Select data register
-  Wire.endTransmission();  // Stop I2C Transmission
+  Wire.endTransmission(); // Stop I2C Transmission
 
-  Wire.requestFrom(BARO_ADDRESS, 3);  // Request 3 bytes of data
+  Wire.requestFrom(BARO_ADDRESS, 3); // Request 3 bytes of data
 
-  if (Wire.available() == 3){
-    dataHi = Wire.read();
-    dataMid = Wire.read();
-    dataLo = Wire.read();
+  if (Wire.available() == 3)
+  {
+    data[0] = Wire.read();
+    data[1] = Wire.read();
+    data[2] = Wire.read();
   }
 
-  // Convert the data
-  return ((unsigned long)dataHi) << 16 | ((unsigned long)dataMid) << 8 | ((unsigned long)dataLo);
+  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
 }
+
 
 void readPressureValues() {
   int count = 0;
-//  for (int i = 0; i < num_devices_; i++) {
-//    
-//    int fingers = 4;
-//    if (i == 1) {
-//      fingers = 1;
-//    }
-//
-//    for (int j = 0; j < fingers; j++) {
-//      pressure_value_[count] = getPressureReading(i2c_ids_[i], sensor_ports[j]);
-//      Serial.print(pressure_value_[count]); Serial.print('\t');
-////      packet.pressVals[count] = pressure_value_[count];
-//      count += 1;
-//    }
-//  }
-
-//for (int i = 0; i < NUM_FINGERS; i++) {
-//    pressure_value_[count] = getPressureReading(i);
-//    Serial.print(pressure_value_[count]); Serial.print('\t');
-//    count += 1;
-//  }
-
-  unsigned long requestStart = millis();
 
   for (int i = 0; i < NUM_FINGERS; i++) {
-    requestPressureReading(i);
-  }
-  
-  while (millis() - requestStart < PRESS_MEAS_DELAY_MS) {
-    delay(1);
-  }
-  
-  requestStart = millis();
-  
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    pressure_value_[count] = fetchReadPressure(i);
+    pressure_value_[count] = getPressureReading(i);
     Serial.print(pressure_value_[count]); Serial.print('\t');
-    count += 1; 
-//    requestTempReading(i);
+    count += 1;
   }
+
 }
 
 
@@ -340,35 +262,35 @@ void initVCNL4040() {
 
 void initIRSensor(int id) {
 
-    selectSensor(fingers[id].irPort);
-    int deviceID = readFromCommandRegister(ID);
-    if (deviceID != 0x186)
-    {
-      Serial.println("Device not found. Check wiring.");
-      Serial.print("Expected: 0x186. Heard: 0x");
-      Serial.println(deviceID, HEX);
-      while (1); //Freeze!
-    }
-    //      Serial.println("VCNL4040 detected!");
-    initVCNL4040(); //Configure sensor
+  selectSensor(fingers[id].irPort);
+  int deviceID = readFromCommandRegister(ID);
+  if (deviceID != 0x186)
+  {
+    Serial.println("Device not found. Check wiring.");
+    Serial.print("Expected: 0x186. Heard: 0x");
+    Serial.println(deviceID, HEX);
+    while (1); //Freeze!
+  }
+  //      Serial.println("VCNL4040 detected!");
+  initVCNL4040(); //Configure sensor
 
-//    delay(50);
+  //    delay(50);
 }
 
 
 void readIRValues() {
   int count = 0;
- for (int i = 0; i < NUM_FINGERS; i++) {
+  for (int i = 0; i < NUM_FINGERS; i++) {
     selectSensor(fingers[i].irPort);
     proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
     Serial.print(proximity_value_[count]); Serial.print('\t');
     count += 1;
- }
+  }
 }
 
 
 void readNNpredictions() {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < NUM_FINGERS; i++) {
     float *raw_data;
     float nn_output;
     // volatile float predictions[1];
@@ -516,7 +438,7 @@ void readMotorEncodersValues() {
   for (int i = 0; i < NUM_P_BOARDS; i++) { // loop over penny boards
     encoder_value_ = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
     Serial.print(encoder_value_); Serial.print('\t');
-//    packet.encoders[count] = encoder_value_;
+    //    packet.encoders[count] = encoder_value_;
     count += 1;
   }
 }
@@ -529,23 +451,12 @@ void readMotorEncodersValues() {
 
 void setup() {
 
-  Serial.begin(57600);
+  Serial.begin(115200);
   Wire.begin();
-//  Wire.setClock(100000);
+  //  Wire.setClock(100000);
   pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
   newCommand = false;
   delay(1000);
-
-  // get number of i2c devices specified by user
-  num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-  //      Serial.println(num_devices_);
-
-  //initialize attached devices
-//  for (int i = 0; i < num_devices_; i++)
-//  {
-//    initIRSensor(i2c_ids_[i]);
-//    initPressure(i2c_ids_[i]);
-//  }
 
   //initialize attached devices
   for (int i = 0; i < NUM_FINGERS; i++)
@@ -554,39 +465,14 @@ void setup() {
     initPressure(i);
   }
 
-//  for (int i = 0; i < NUM_FINGERS; i++) {
-//    packet.irVals[i] = 0;
-//    packet.pressVals[i] = 0;
-//  }
-//  for (int i = 0; i < NUM_P_BOARDS; i++) {
-//    packet.encoders[i] = 0;
-//  }
+  //  for (int i = 0; i < NUM_FINGERS; i++) {
+  //    packet.irVals[i] = 0;
+  //    packet.pressVals[i] = 0;
+  //  }
+  //  for (int i = 0; i < NUM_P_BOARDS; i++) {
+  //    packet.encoders[i] = 0;
+  //  }
 
-  //  Serial.begin (9600);
-  //  Serial.println ();
-  //  Serial.println ("I2C scanner. Scanning ...");
-  //  byte count = 0;
-  //
-  //  Wire.begin();
-  //  for (byte i = 1; i < 120; i++)
-  //  {
-  //    Wire.beginTransmission (i);
-  //    if (Wire.endTransmission () == 0)
-  //      {
-  //      Serial.print ("Found address: ");
-  //      Serial.print (i, DEC);
-  //      Serial.print (" (0x");
-  //      Serial.print (i, HEX);
-  //      Serial.println (")");
-  //      count++;
-  //      delay (1);  // maybe unneeded?
-  //      } // end of good response
-  //  } // end of for loop
-  //  Serial.println ("Done.");
-  //  Serial.print ("Found ");
-  //  Serial.print (count, DEC);
-  //  Serial.println (" device(s).");
-  //
   muxStatus = 0;
 }
 
@@ -598,17 +484,16 @@ void loop() {
 
   digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-  //  lookForData();
-  //  if (newCommand == true) {
-  //    obey();
-  //    newCommand = false;
-  //  } 
+  lookForData();
+  if (newCommand == true) {
+    obey();
+    newCommand = false;
+  }
 
-    readIRValues(); //-> array of IR values (2 bytes per sensor)
-    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-    
-  //  readNNpredictions();
-  //  readMotorEncodersValues();
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readNNpredictions();
+  readMotorEncodersValues();
 
 
   //    byte* packetBytes = (byte*)&packet;
@@ -627,6 +512,6 @@ void loop() {
   //      Serial.print(payload[i]); Serial.print('\t');
   //    }
 
-    Serial.print('\n');
+  Serial.print('\n');
 
 }

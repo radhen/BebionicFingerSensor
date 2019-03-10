@@ -31,6 +31,11 @@ byte inByte;
 byte i2cBuf_test[16];
 byte i2cBuf_break[16];
 
+byte user_input;
+byte close_finger[4];
+byte open_finger[4];
+byte apply_break[4];
+byte command[4];
 
 
 void setup(void) {
@@ -40,26 +45,7 @@ void setup(void) {
   //i2c
   Wire.begin();
   newCommand = false;
-
-  // hex to close the finger
-//    i2cBuf_test[0] = 0x06;
-//    i2cBuf_test[1] = 0x0C;
-//    i2cBuf_test[2] = 0x80;
-//    i2cBuf_test[3] = 0x30;
-
-  // hex to open the finger
-  i2cBuf_test[0] = 0x06;
-  i2cBuf_test[1] = 0x0C;
-  i2cBuf_test[2] = 0xC0;
-  i2cBuf_test[3] = 0x40;
-
-  // hex to break the finger
-  i2cBuf_break[0] = 0x06;
-  i2cBuf_break[1] = 0x0C;
-  i2cBuf_break[2] = 0x03;
-  i2cBuf_break[3] = 0x00;
-
-  //  outCount = 4;
+  outCount = 4;
 }
 
 
@@ -180,42 +166,24 @@ void obey() {
 }
 
 
-void move_finger() {
-
-  for (int i = 0; i < 4; i++) {
-    //    Serial.println(i2cBuf_test[i]);
-    Wire.beginTransmission(i2cBuf_test[0] >> 1);
-    Wire.write(&i2cBuf_test[1], outCount - 1);
-    Wire.endTransmission();
-  }
-
-  Serial.println("Done moving.");
-
-  for (int i = 0; i < 4; i++) {
-    //    Serial.println(i2cBuf_test[i]); 
-    Wire.beginTransmission(i2cBuf_break[0] >> 1);
-    Wire.write(&i2cBuf_break[1], outCount - 1);
-    Wire.endTransmission();
-  }
-
-  Serial.println("Applying breaks!");
-
+void send_cmmnd(byte command[4]) {
+  Wire.beginTransmission(command[0] >> 1);
+  Wire.write(&command[1], outCount - 1);
+  Wire.endTransmission();
 }
 
 
 void loop() {
 
     lookForData();
-    if(newCommand==true){
+    if (newCommand == true) {
       obey();
-      newCommand=false;
+      newCommand = false;
     }
 
-//    if(debugFlag==true){
-//      move_finger();
-//      debugFlag=false;
-//    }
-//    Serial.println("In da loop");
-
+  //  if (debugFlag == true) {
+  //    send_cmmnd();
+  //    debugFlag = false;
+  //  }
 
 }
