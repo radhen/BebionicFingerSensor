@@ -67,8 +67,20 @@ uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000
 // command buffer 500 bytes
 
 //FSM
-#define NUM_P_BOARDS 5
-byte pBoardAddresses[NUM_P_BOARDS] = {1, 2, 3, 4, 5};
+#define NUM_PBOARDS 5
+
+byte user_input;
+byte close_finger[4];
+byte open_finger[4];
+byte apply_break[4];
+byte command[4];
+int outCount = 4;
+
+byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5};
+
+// the pboard addrs actually are 1,2,3,4,5 but we perfrom bitshift accrd. to manual and hence 2,4,6,8,10
+byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A};
+//byte addrs[NUM_PBOARDS] = {0x0A};
 
 #define fNONE 0
 #define fSTART 1
@@ -86,7 +98,7 @@ byte pBoardAddresses[NUM_P_BOARDS] = {1, 2, 3, 4, 5};
 
 byte inBuf[16];
 byte i2cBuf[16];
-byte outCount = 0;
+//byte outCount = 0;
 byte state = fNONE;
 bool newCommand = false, toggle = false, debugFlag = true;
 byte inByte;
@@ -96,7 +108,7 @@ volatile uint16_t encoder_value_;
 typedef struct data_packet_struct {
   int irVals[NUM_FINGERS];
   float pressVals[NUM_FINGERS];
-  int encoders[NUM_P_BOARDS];
+  int encoders[NUM_PBOARDS];
 } DataPacket;
 DataPacket packet;
 
@@ -435,7 +447,7 @@ unsigned int readEncoderValue(int pennyAddress) {
 
 void readMotorEncodersValues() {
   int count = 0;
-  for (int i = 0; i < NUM_P_BOARDS; i++) { // loop over penny boards
+  for (int i = 0; i < NUM_PBOARDS; i++) { // loop over penny boards
     encoder_value_ = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
     Serial.print(encoder_value_); Serial.print('\t');
     //    packet.encoders[count] = encoder_value_;
@@ -444,6 +456,11 @@ void readMotorEncodersValues() {
 }
 
 
+void send_cmmnd(byte command[4]) {
+  Wire.beginTransmission(command[0] >> 1);
+  Wire.write(&command[1], outCount - 1);
+  Wire.endTransmission();
+}
 
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID SETUP BELOW ///////////////////////
@@ -469,7 +486,7 @@ void setup() {
   //    packet.irVals[i] = 0;
   //    packet.pressVals[i] = 0;
   //  }
-  //  for (int i = 0; i < NUM_P_BOARDS; i++) {
+  //  for (int i = 0; i < NUM_PBOARDS; i++) {
   //    packet.encoders[i] = 0;
   //  }
 
@@ -490,27 +507,44 @@ void loop() {
     newCommand = false;
   }
 
+//
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readNNpredictions();
   readMotorEncodersValues();
 
 
-  //    byte* packetBytes = (byte*)&packet;
-  //    Serial.write(packetBytes, sizeof(DataPacket));
+//  if (Serial.available() > 0)
+//  {
+//    user_input = Serial.read();
+//
+//    if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
+//      scan_i2c();
+//      }
+//
+//    if (user_input == 0x71) { // send chr 'q' to close
+//      for (int i = 0; i < NUM_PBOARDS; i++) {
+//        byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x20};
+//        send_cmmnd(close_finger);
+//      }
+//    }
+//
+//    if (user_input == 0x77) { // send chr 'w' to break
+//      for (int i = 0; i < NUM_PBOARDS; i++) {
+//      byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
+//      send_cmmnd(apply_break);
+//      }
+//    }
+//
+//    if (user_input == 0x65) { // send chr 'e' to open
+//      for (int i = 0; i < NUM_PBOARDS; i++) {
+//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x20};
+//      send_cmmnd(open_finger);
+//      }
+//    }
+//
+//  }
 
-  //    Serial.print(*packet.pressVals);
-  //  Serial.println();
-
-  //    // set variable array to struct length
-  //    uint8_t payload[sizeof(DataPacket)];
-  //    //copy struct to variable array
-  //    memcpy(payload,&packet,sizeof(DataPacket));
-  //    //send each item of struct, now contained in payload array
-  //    for(int i=0;i < sizeof(payload);i++)
-  //    {
-  //      Serial.print(payload[i]); Serial.print('\t');
-  //    }
 
   Serial.print('\n');
 

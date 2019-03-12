@@ -222,38 +222,31 @@ if __name__ == "__main__":
 
     # ser = make_serial_connection(PORT, BAUDRATE)
     mf = MotorFunctions()
-    self.ser.flushInput()
-    self.ser.flushOutput()
+    # self.ser.flushInput()
+    # self.ser.flushOutput()
     # addrs = get_addresses(ser)
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-    # addList = ['1','2','3','4','5']
-    addList = ['1']
+    addList = ['1','2','3','4','5']
+    # addList = ['2']
     # print addList
 
     # set_address(ser)
 
-    # for i in addList: fully_open(ser, str(i), 100)
-    # time.sleep(2)
-    # for i in addList: apply_breaks(ser, str(i))
+    for i in addList: mf.fully_open(str(i), 30)
+    time.sleep(1)
+    for i in addList: mf.apply_breaks(str(i))
 
     ############ Testing poistion control thru PID control ###############
 
-    for i in addList: mf.set_position_count(ser, str(i), 2000)
-    for i in addList: mf.set_target_position(ser, str(i), 1000)
-    for i in addList: mf.set_pid_gains(ser, str(i))
-    for i in addList: mf.enable_pid(ser, str(i))
-    rospy.sleep(1)
-    for i in addList: mf.apply_breaks(ser, str(i))
+    # for i in addList: mf.set_position_count(ser, str(i), 2000)
+    # for i in addList: mf.set_target_position(ser, str(i), 1000)
+    # for i in addList: mf.set_pid_gains(ser, str(i))
+    # for i in addList: mf.enable_pid(ser, str(i))
+    # rospy.sleep(1)
+    # for i in addList: mf.apply_breaks(ser, str(i))
 
     #########################################################################
-
-
-    # fully_close(ser, addList[0], 32)
-    # time.sleep(1)
-    # fully_open(ser, addList[0], 32)
-    # time.sleep(1)
-    # apply_breaks(ser, addList[0])
 
     print "ANYTHING HAPPENED?"
 
