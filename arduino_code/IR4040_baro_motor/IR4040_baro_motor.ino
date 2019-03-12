@@ -58,6 +58,8 @@ volatile uint16_t proximity_value_[NUM_FINGERS];
 int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
 uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000.0};
 
+int timer1_counter;
+
 
 ///////////////////////////////////////////////////////////
 //////////////// SIGENICS INIT CODE BELOW ///////////////////////
@@ -491,7 +493,10 @@ void setup() {
   //  }
 
   muxStatus = 0;
+
 }
+
+
 
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID LOOP BELOW ///////////////////////
@@ -499,7 +504,7 @@ void setup() {
 
 void loop() {
 
-  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+//  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
   lookForData();
   if (newCommand == true) {
@@ -507,7 +512,7 @@ void loop() {
     newCommand = false;
   }
 
-//
+
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   readNNpredictions();

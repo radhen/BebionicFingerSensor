@@ -19,14 +19,10 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 '''
 
 
-
-
-
-
 class MotorFunctions(object):
 
     def __init__(self):
-        PORT = '/dev/ttyACM0'
+        PORT = '/dev/ttyACM1'
         BAUDRATE = 115200
         NUM_P_BOARDS = 1
         self.delay = 0.037  # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
@@ -227,14 +223,16 @@ if __name__ == "__main__":
     # addrs = get_addresses(ser)
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
-    addList = ['1','2','3','4','5']
-    # addList = ['2']
+    # addList = ['1','2','3','4','5']
+    addList = ['1']
     # print addList
 
     # set_address(ser)
 
-    for i in addList: mf.fully_open(str(i), 30)
-    time.sleep(1)
+    for i in addList: mf.fully_close(str(i), 64)
+    time.sleep(2)
+    for i in addList: mf.fully_open(str(i), 64)
+    time.sleep(2)
     for i in addList: mf.apply_breaks(str(i))
 
     ############ Testing poistion control thru PID control ###############

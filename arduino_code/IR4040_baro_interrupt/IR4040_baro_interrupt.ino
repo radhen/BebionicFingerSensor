@@ -19,86 +19,92 @@ int num_devices_;
 
 
 void initPressure(int muxAddr) {
-    Wire.beginTransmission(muxAddr);
-    Wire.write(0);
-    int errcode = Wire.endTransmission();
-    Serial.println(errcode);
-    for (int i = 0; i < NFINGERS; i++){
-        selectSensor(muxAddr, sensor_ports[i]);
-        for (int j = 0; j < 6; j++){ //loop over Coefficient elements
-            // Start I2C Transmission
-            Wire.beginTransmission(BARO_ADDRESS);
-            // Select data register
-            Wire.write(0xA2 + (2 * j));
-            // Stop I2C Transmission
-            Wire.endTransmission();
-  
-            // Request 2 bytes of data
-            Wire.requestFrom(BARO_ADDRESS, 2);
-  
-            // Read 2 bytes of data
-            // Coff msb, Coff lsb
-            if (Wire.available() == 2)
-            {
-              data[0] = Wire.read();
-              data[1] = Wire.read();
-            }
-            Coff[j][i] = ((data[0] * 256) + data[1]);
-//            Serial.println(Coff[j][i]);
-            delay(300);
-        }
+  Wire.beginTransmission(muxAddr);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
+  //    Serial.println(errcode);
+  for (int i = 0; i < NFINGERS; i++) {
+    selectSensor(muxAddr, sensor_ports[i]);
+    for (int j = 0; j < 6; j++) { //loop over Coefficient elements
+      // Start I2C Transmission
+      Wire.beginTransmission(BARO_ADDRESS);
+      // Select data register
+      Wire.write(0xA2 + (2 * j));
+      // Stop I2C Transmission
+      Wire.endTransmission();
+
+      // Request 2 bytes of data
+      Wire.requestFrom(BARO_ADDRESS, 2);
+
+      // Read 2 bytes of data
+      // Coff msb, Coff lsb
+      if (Wire.available() == 2)
+      {
+        data[0] = Wire.read();
+        data[1] = Wire.read();
+      }
+      Coff[j][i] = ((data[0] * 256) + data[1]);
+      //            Serial.println(Coff[j][i]);
+      delay(300);
     }
-    Wire.beginTransmission(muxAddr);
-    Wire.write(0);
-    Wire.endTransmission();
+  }
+  Wire.beginTransmission(muxAddr);
+  Wire.write(0);
+  Wire.endTransmission();
 }
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   TWBR = 10;
   delay(1000);
 
   // get number of i2c devices specified by user
   num_devices_ = sizeof(i2c_ids_) / sizeof(int);
-  
+
   //initialize attached devices
   for (int i = 0; i < num_devices_; i++)
   {
     Wire.beginTransmission(i2c_ids_[i]);
     Wire.write(0);
     int errcode = Wire.endTransmission();
-//    Serial.println(errcode);
-    initPressure(i2c_ids_[i]); 
+    //    Serial.println(errcode);
+    initPressure(i2c_ids_[i]);
   }
 
   // Initialize Timer
- pinMode(13, OUTPUT);
+  pinMode(13, OUTPUT);
 
-  // initialize timer1 
+
+  // LINK: https://www.robotshop.com/community/forum/t/arduino-101-timers-and-interrupts/13072
+  // example somewhere in the middle of the page
+
+  // initialize timer1
   noInterrupts();           // disable all interrupts
   TCCR1A = 0;
   TCCR1B = 0;
 
   // Set timer1_counter to the correct value for our interrupt interval
-  timer1_counter = 45536;   // preload timer 65536-16MHz/8/2000Hz
-  //timer1_counter = 64286;   // preload timer 65536-16MHz/256/50Hz
-  //timer1_counter = 64911;   // preload timer 65536-16MHz/256/2Hz
-  
+//    timer1_counter = 45536;   // preload timer 65536-16MHz/8/2000Hz
+//    timer1_counter = 34286;   // preload timer 65536-16MHz/256/50Hz
+  timer1_counter = 65504;   // preload timer 65536-16MHz/256/1KHz
+
   TCNT1 = timer1_counter;   // preload timer
-  TCCR1B |= (1 << CS11);    // 8 prescaler 
+  TCCR1B |= (1 << CS12);    // 8 prescaler
   TIMSK1 |= (1 << TOIE1);   // enable timer overflow interrupt
   interrupts();             // enable all interrupts
 }
 
 
-ISR(TIMER1_OVF_vect)        // interrupt service routine 
+ISR(TIMER1_OVF_vect)        // interrupt service routine
 {
-  TCNT1 = timer1_counter;   // preload timer
-  digitalWrite(13,!digitalRead(13));
-  readPressureValues();
-//checking_interrupt();
+  sei();
+  TCNT1 = 65504;   // preload timer
+  digitalWrite(13, !digitalRead(13));
+//  Serial.println("inside interrupt");
+    readPressureValues();
+//  sei();
 }
 
 void selectSensor(int muxID, int i) {
@@ -144,21 +150,22 @@ int32_t getPressureReading(int muxAddr, int sensor) {
     data[2] = Wire.read();
   }
 
-   return ((data[0]*65536.0) + (data[1]*256.0) + data[2]);
+  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
 }
-  
+
 
 void readPressureValues() {
   for (int i = 0; i < num_devices_; i++) {
     for (int j = 0; j < NFINGERS; j++) {
-     mbar = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+      mbar = getPressureReading(i2c_ids_[i], sensor_ports[j]);
+      Serial.println(mbar);
+    }
   }
-}
 }
 
 void loop() {
-//  cli();
-//  float p  = mbar;
-//  sei();
-  Serial.println("loop works!");
+//      cli();
+//      float p  = mbar;
+//      sei();
+//Serial.println(mbar);
 }
