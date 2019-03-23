@@ -8,6 +8,7 @@ from std_msgs.msg import Float32MultiArray, MultiArrayLayout, MultiArrayDimensio
 from simple_pid import PID
 from binascii import unhexlify
 from get_data import GetData
+from serial import SerialException
 
 
 '''
@@ -22,9 +23,9 @@ called the command code and the rest two are payload bytes. Ref. PBoard manual f
 class MotorFunctions(object):
 
     def __init__(self):
-        PORT = '/dev/ttyACM1'
+        PORT = '/dev/ttyACM0'
         BAUDRATE = 115200
-        NUM_P_BOARDS = 1
+        self.NUM_P_BOARDS = 1
         self.delay = 0.037  # decided by the sensor samp freq. i.e. 50Hz with motor control loop (5Khz)
         TARG_FORCE = 0.55
 
@@ -49,25 +50,25 @@ class MotorFunctions(object):
             return []
 
 
-    def get_addresses(self, ser):
+    def get_addresses(self):
         while 1:
             try:
                 # send 0x2C hex to serial to read board addresses
-                ser.write(b"\x2C")
+                self.ser.write(b"\x2C")
                 time.sleep(0.1)
                 # get_all_bytes_from_connection(ser)
-                dataIn = ser.read_until(size=NUM_P_BOARDS+1)
+                dataIn = self.ser.read_until(size=self.NUM_P_BOARDS+1)
                 # print dataIn
-                if len(dataIn)==NUM_P_BOARDS+1:
+                if len(dataIn)==self.NUM_P_BOARDS+1:
                     print dataIn
                     return dataIn
-            except serial.serialException as e:
+            except serial.SerialException as e:
                 print ('There is no new data from serial port')
 
 
     def set_address(self):
         # he finger. Make sure to apply breaks after calling this function
-        sa = b'\x7e\x02\xAD\x01\x05\x7e'
+        sa = b'\x7e\x02\xAD\x01\x06\x7e'
         self.ser.write(sa)
         time.sleep(1)
 
@@ -218,31 +219,37 @@ if __name__ == "__main__":
 
     # ser = make_serial_connection(PORT, BAUDRATE)
     mf = MotorFunctions()
+
     # self.ser.flushInput()
     # self.ser.flushOutput()
-    # addrs = get_addresses(ser)
+
+    # addrs = mf.get_addresses()
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
     # addList = ['1','2','3','4','5']
-    addList = ['1']
+    addList = ['6']
     # print addList
 
-    # set_address(ser)
+    # mf.set_address()
 
-    for i in addList: mf.fully_close(str(i), 64)
-    time.sleep(2)
-    for i in addList: mf.fully_open(str(i), 64)
-    time.sleep(2)
-    for i in addList: mf.apply_breaks(str(i))
+    # for i in addList: mf.fully_close(str(i), 64)
+    # time.sleep(0.5)
+    # for i in addList: mf.apply_breaks(str(i))
+
+    # time.sleep(1)
+
+    # for i in addList: mf.fully_open(str(i), 64)
+    # time.sleep(1)
+    # for i in addList: mf.apply_breaks(str(i))
 
     ############ Testing poistion control thru PID control ###############
 
-    # for i in addList: mf.set_position_count(ser, str(i), 2000)
-    # for i in addList: mf.set_target_position(ser, str(i), 1000)
-    # for i in addList: mf.set_pid_gains(ser, str(i))
-    # for i in addList: mf.enable_pid(ser, str(i))
-    # rospy.sleep(1)
-    # for i in addList: mf.apply_breaks(ser, str(i))
+    for i in addList: mf.set_position_count(str(i), 10000)
+    for i in addList: mf.set_target_position(str(i), 1000)
+    for i in addList: mf.set_pid_gains(str(i))
+    for i in addList: mf.enable_pid(str(i))
+    rospy.sleep(2)
+    for i in addList: mf.apply_breaks(str(i))
 
     #########################################################################
 

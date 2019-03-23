@@ -10,7 +10,7 @@
 #define fNONE 0
 #define fSTART 1
 #define fESCAPE 2
-#define fEND 3
+#define fEND 30
 
 #define ESCAPE 0x7D
 #define HDLC 0x7E

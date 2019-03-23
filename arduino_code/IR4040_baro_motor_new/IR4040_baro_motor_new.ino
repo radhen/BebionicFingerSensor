@@ -3,12 +3,12 @@
 ////////////////////////////////////////////////////////
 
 #include <Wire.h>
-#include "rp_testing.h"
+//#include "rp_testing.h"
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
+#define BARO_ADDRESS 0x48  // MS5637_02BA03 I2C address is 0x76(118)
 #define CMD_RESET 0x1E
-#define VCNL4040_ADDR 0x60 //7-bit unshifted I2C address of VCNL4040
+#define VCNL4040_ADDR 0x5E //7-bit unshifted I2C address of VCNL4040
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
 //#define PS_CONF2 //High byte of PS_CONF1
@@ -19,7 +19,7 @@
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 5 // number of fingers connected
+#define NUM_FINGERS 1 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 #define MUX0_ADDR 112
@@ -27,7 +27,7 @@
 
 /***** USER PARAMETERS *****/
 int i2c_ids_[2] = {112, 113}; //muxAddresses
-int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
+//int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
 
 typedef struct {
   byte irPort;
@@ -36,12 +36,12 @@ typedef struct {
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ie, barPort).
-Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
-  {4, 4},  //middle finger
-  {2, 2},  //ring finger
-  {0, 0},  //pinky finger
-  {8, 8}
-}; //thumb
+//Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
+//  {4, 4},  //middle finger
+//  {2, 2},  //ring finger
+//  {0, 0},  //pinky finger
+//  {8, 8}
+//}; //thumb
 
 int muxStatus;
 
@@ -55,8 +55,8 @@ int32_t data[3];
 volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
 
-int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
-uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000.0};
+//int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
+//uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000.0};
 
 int timer1_counter;
 
@@ -178,7 +178,7 @@ void writeByte(byte addr, byte val) {
 void initPressure(int id) {
   byte dataLo, dataHi;
 
-  selectSensor(fingers[id].barPort);
+  //  selectSensor(fingers[id].barPort);
 
   for (int i = 0; i < 6; i++) { //loop over Coefficient elements
     Wire.beginTransmission(BARO_ADDRESS);
@@ -195,16 +195,16 @@ void initPressure(int id) {
     }
     //      Coff[i][id] = ((dataHi << 8) | dataLo);
     Coff[i][id] = ((dataHi * 256) + dataLo);
-    //      Serial.print(Coff[i][id]); Serial.print('\t');
+    Serial.print(Coff[i][id]); Serial.print('\t');
   }
-  //    Serial.print('\n');
+  Serial.print('\n');
   delay(300);
 
 }
 
 int32_t getPressureReading(int id) {
   //  selectSensor(muxAddr, sensor);
-  selectSensor(fingers[id].barPort);
+  //  selectSensor(fingers[id].barPort);
 
   Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
   Wire.write(0x1E); // Send reset command
@@ -276,7 +276,7 @@ void initVCNL4040() {
 
 void initIRSensor(int id) {
 
-  selectSensor(fingers[id].irPort);
+  //  selectSensor(fingers[id].irPort);
   int deviceID = readFromCommandRegister(ID);
   if (deviceID != 0x186)
   {
@@ -285,7 +285,7 @@ void initIRSensor(int id) {
     Serial.println(deviceID, HEX);
     while (1); //Freeze!
   }
-  //      Serial.println("VCNL4040 detected!");
+  Serial.println("VCNL4040 detected!");
   initVCNL4040(); //Configure sensor
 
   //    delay(50);
@@ -295,7 +295,7 @@ void initIRSensor(int id) {
 void readIRValues() {
   int count = 0;
   for (int i = 0; i < NUM_FINGERS; i++) {
-    selectSensor(fingers[i].irPort);
+    //    selectSensor(fingers[i].irPort);
     proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
     Serial.print(proximity_value_[count]); Serial.print('\t');
     count += 1;
@@ -303,19 +303,19 @@ void readIRValues() {
 }
 
 
-void readNNpredictions() {
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    float *raw_data;
-    float nn_output;
-    // volatile float predictions[1];
-    raw_data = (float*)malloc(2 * sizeof(float));
-    raw_data[0] = proximity_value_[i] / float(max_proximity[i]);
-    raw_data[1] = pressure_value_[i] / float(max_pressure[i]);
-    nn_output = nnpred(raw_data);
-    Serial.print(nn_output); Serial.print('\t');
-    free(raw_data);
-  }
-}
+//void readNNpredictions() {
+//  for (int i = 0; i < NUM_FINGERS; i++) {
+//    float *raw_data;
+//    float nn_output;
+//    // volatile float predictions[1];
+//    raw_data = (float*)malloc(2 * sizeof(float));
+//    raw_data[0] = proximity_value_[i] / float(max_proximity[i]);
+//    raw_data[1] = pressure_value_[i] / float(max_pressure[i]);
+//    nn_output = nnpred(raw_data);
+//    Serial.print(nn_output); Serial.print('\t');
+//    free(raw_data);
+//  }
+//}
 
 
 ///////////////////////////////////////////////////////////
@@ -481,7 +481,7 @@ void setup() {
   for (int i = 0; i < NUM_FINGERS; i++)
   {
     initIRSensor(i);
-    initPressure(i);
+        initPressure(i);
   }
 
   //  for (int i = 0; i < NUM_FINGERS; i++) {
@@ -504,51 +504,19 @@ void setup() {
 
 void loop() {
 
-//  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+  //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-  lookForData();
-  if (newCommand == true) {
-    obey();
-    newCommand = false;
-  }
+  //  lookForData();
+  //  if (newCommand == true) {
+  //    obey();
+  //    newCommand = false;
+  //  }
 
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  readNNpredictions();
-  readMotorEncodersValues();
-
-
-//  if (Serial.available() > 0)
-//  {
-//    user_input = Serial.read();
-//
-//    if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
-//      scan_i2c();
-//      }
-//
-//    if (user_input == 0x71) { // send chr 'q' to close
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//        byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x20};
-//        send_cmmnd(close_finger);
-//      }
-//    }
-//
-//    if (user_input == 0x77) { // send chr 'w' to break
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//      byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
-//      send_cmmnd(apply_break);
-//      }
-//    }
-//
-//    if (user_input == 0x65) { // send chr 'e' to open
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x20};
-//      send_cmmnd(open_finger);
-//      }
-//    }
-//
-//  }
+    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  //  readNNpredictions();
+  //  readMotorEncodersValues();
 
 
   Serial.print('\n');

@@ -142,14 +142,21 @@ if __name__ == "__main__":
 
     mf = MotorFunctions()
 
-    addList = ['1','2','3','4','5']
-    # addList = ['5']
+    # addList = ['3','4']
+    # addList = ['6']
 
 
     ############ Testing poistion control thru PID control ###############
 
     # for i in addList: mf.set_position_count(str(i), 1000)
-    # for i in addList: mf.set_target_position(str(i), 4000)
+    # for i in addList: mf.set_target_position(str(i), 10000)
+    # for i in addList: mf.set_pid_gains(str(i))
+    # for i in addList: mf.enable_pid(str(i))
+    # rospy.sleep(1)
+    # for i in addList: mf.apply_breaks(str(i))
+    #
+    # for i in addList: mf.set_position_count(str(i), 10000)
+    # for i in addList: mf.set_target_position(str(i), 1000)
     # for i in addList: mf.set_pid_gains(str(i))
     # for i in addList: mf.enable_pid(str(i))
     # rospy.sleep(1)
@@ -158,40 +165,69 @@ if __name__ == "__main__":
 
     ############ Testing force control thru PID control ###############
 
-    pcf_data = np.zeros((1, 17))
-    pid_pub = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
+    # pcf_data = np.zeros((1, 17))
+    # pid_pub = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
+    # 
+    # sum_e_1 = 0
+    # sum_e_2 = 0
+    # sum_e_3 = 0
+    # sum_e_4 = 0
+    # sum_e_5 = 0
+    # sum_e_list = [sum_e_1,sum_e_2,sum_e_3,sum_e_4,sum_e_5]
+    # 
+    # e_last_1 = 0
+    # e_last_2 = 0
+    # e_last_3 = 0
+    # e_last_4 = 0
+    # e_last_5 = 0
+    # e_last_list = [e_last_1, e_last_2, e_last_3, e_last_4, e_last_1]
+    # 
+    # kp = 70.0
+    # ki = 0.05
+    # kd = 0.08
+    # count = 0
+    # 
+    # sum_e_arr_1 = np.zeros(25)
+    # sum_e_arr_2 = np.zeros(25)
+    # sum_e_arr_3 = np.zeros(25)
+    # sum_e_arr_4 = np.zeros(25)
+    # sum_e_arr_5 = np.zeros(25)
+    # sum_e_arr_list = [sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,sum_e_arr_5]
+    # 
+    # # pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback, [sum_e_1,sum_e_2,sum_e_3,sum_e_4,sum_e_5,e_last_1,e_last_2,e_last_3,e_last_4,e_last_5,
+    # #                                                                                kp,ki,kd,pid_pub,count,sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,pcf_data])
+    # 
+    # pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback,
+    #                            [sum_e_list, e_last_list, kp, ki, kd, pid_pub, count, sum_e_arr_list, pcf_data, mf])
+    # 
+    # rospy.spin()
 
-    sum_e_1 = 0
-    sum_e_2 = 0
-    sum_e_3 = 0
-    sum_e_4 = 0
-    sum_e_5 = 0
-    sum_e_list = [sum_e_1,sum_e_2,sum_e_3,sum_e_4,sum_e_5]
 
-    e_last_1 = 0
-    e_last_2 = 0
-    e_last_3 = 0
-    e_last_4 = 0
-    e_last_5 = 0
-    e_last_list = [e_last_1, e_last_2, e_last_3, e_last_4, e_last_1]
+    ############ "Manipulate" ###############
 
-    kp = 70.0
-    ki = 0.05
-    kd = 0.08
-    count = 0
+    # addList = ['3', '4']
+    # addList = ['6']
 
-    sum_e_arr_1 = np.zeros(25)
-    sum_e_arr_2 = np.zeros(25)
-    sum_e_arr_3 = np.zeros(25)
-    sum_e_arr_4 = np.zeros(25)
-    sum_e_arr_5 = np.zeros(25)
-    sum_e_arr_list = [sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,sum_e_arr_5]
+    # for i in addList: mf.set_position_count(str(i), 2000)
+    # for i in addList: mf.set_target_position(str(i), 1000)
+    # for i in addList: mf.set_pid_gains(str(i))
+    # for i in addList: mf.enable_pid(str(i))
+    # rospy.sleep(1)
+    # for i in addList: mf.apply_breaks(str(i))
 
-    # pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback, [sum_e_1,sum_e_2,sum_e_3,sum_e_4,sum_e_5,e_last_1,e_last_2,e_last_3,e_last_4,e_last_5,
-    #                                                                                kp,ki,kd,pid_pub,count,sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,pcf_data])
-
-    pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback,
-                               [sum_e_list, e_last_list, kp, ki, kd, pid_pub, count, sum_e_arr_list, pcf_data, mf])
-
-    rospy.spin()
+    # d = {0: ['3', 2000, 1750], 1: ['6', 1000, 10000]}
+    # for key in d: mf.set_position_count(d[key][0], d[key][1])
+    # for key in d: mf.set_target_position(d[key][0], d[key][2])
+    # for key in d: mf.set_pid_gains(d[key][0])
+    # for key in d: mf.enable_pid(d[key][0])
+    # rospy.sleep(1)
+    # for key in d: mf.apply_breaks(d[key][0])
+    #
+    # d = {0: ['3', 1750, 2000], 1: ['6', 10000, 1000]}
+    # for key in d: mf.set_position_count(d[key][0], d[key][1])
+    # for key in d: mf.set_target_position(d[key][0], d[key][2])
+    # for key in d: mf.set_pid_gains(d[key][0])
+    # for key in d: mf.enable_pid(d[key][0])
+    # rospy.sleep(1)
+    # for key in d: mf.apply_breaks(d[key][0])
 
