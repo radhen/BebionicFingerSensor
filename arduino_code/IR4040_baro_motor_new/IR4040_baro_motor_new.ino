@@ -125,8 +125,8 @@ unsigned int readFromCommandRegister(byte commandCode)
 {
   Wire.beginTransmission(VCNL4040_ADDR);
   Wire.write(commandCode);
-  Wire.endTransmission(false); //Send a restart command. Do not release bus.
-
+  int err = Wire.endTransmission(false); //Send a restart command. Do not release bus.
+  Serial.println(err);
   Wire.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
 
   unsigned int data = Wire.read();
@@ -278,6 +278,7 @@ void initIRSensor(int id) {
 
   //  selectSensor(fingers[id].irPort);
   int deviceID = readFromCommandRegister(ID);
+  Serial.println(deviceID);
   if (deviceID != 0x186)
   {
     Serial.println("Device not found. Check wiring.");
@@ -480,7 +481,7 @@ void setup() {
   //initialize attached devices
   for (int i = 0; i < NUM_FINGERS; i++)
   {
-    initIRSensor(i);
+//    initIRSensor(i);
         initPressure(i);
   }
 
@@ -513,12 +514,12 @@ void loop() {
   //  }
 
 
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
-    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   //  readNNpredictions();
   //  readMotorEncodersValues();
 
 
-  Serial.print('\n');
+//  Serial.print('\n');
 
 }
