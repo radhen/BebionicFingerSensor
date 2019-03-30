@@ -19,55 +19,55 @@ def pid_callback(msg, args):
     # pass
 
     emptyList = []
-    TARG_FORCE = 0.045
+    TARG_DIS = 0.06
 
     ########### SAVING DATA ###################
     now = rospy.get_rostime()
     sec = now.secs
     nsec = now.nsecs
     ################## PCF ######################
-    b_1, b_2, b_3, b_4, b_5 = msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4]
-    ir_1, ir_2, ir_3, ir_4, ir_5 = msg.data[5], msg.data[6], msg.data[7], msg.data[8], msg.data[9]
-    nn_1, nn_2, nn_3, nn_4, nn_5 = msg.data[10], msg.data[11], msg.data[12], msg.data[13], msg.data[14]
-    args[8] = np.append(args[8], np.array([[sec, nsec, b_1, b_2, b_3, b_4, b_5, ir_1, ir_2, ir_3, ir_4, ir_5, nn_1, nn_2, nn_3, nn_4, nn_5]]), axis=0)
+    ir_1, ir_2, ir_3, ir_4, ir_5 = msg.data[0], msg.data[1], msg.data[2], msg.data[3], msg.data[4]
+    # ir_1, ir_2, ir_3, ir_4, ir_5 = msg.data[5], msg.data[6], msg.data[7], msg.data[8], msg.data[9]
+    # nn_1, nn_2, nn_3, nn_4, nn_5 = msg.data[10], msg.data[11], msg.data[12], msg.data[13], msg.data[14]
+    args[8] = np.append(args[8], np.array([[sec, nsec, ir_4, msg.data[8]]]), axis=0)
 
     if args[6] == 0:
         print "enter once"
         global min_1
-        min_1 = msg.data[10]
+        min_1 = msg.data[0]
         global min_2
-        min_2 = msg.data[11]
+        min_2 = msg.data[1]
         global min_3
-        min_3 = msg.data[12]
+        min_3 = msg.data[2]
         global min_4
-        min_4 = msg.data[13]
+        min_4 = msg.data[3]
         global min_5
-        min_5 = msg.data[13]
+        min_5 = msg.data[4]
         args[6] = 1
 
     #keep track of running min
-    if msg.data[10] < min_1: min_1 = msg.data[10]
-    if msg.data[11] < min_2: min_2 = msg.data[11]
-    if msg.data[12] < min_3: min_3 = msg.data[12]
-    if msg.data[13] < min_4: min_4 = msg.data[13]
-    if msg.data[14] < min_5: min_5 = msg.data[14]
+    if msg.data[0] < min_1: min_1 = msg.data[0]
+    if msg.data[1] < min_2: min_2 = msg.data[1]
+    if msg.data[2] < min_3: min_3 = msg.data[2]
+    if msg.data[3] < min_4: min_4 = msg.data[3]
+    if msg.data[4] < min_5: min_5 = msg.data[4]
 
     # normalize nn ouput for each sensor
-    f_1 = (msg.data[10] - min_1) / 0.8
-    f_2 = (msg.data[11] - min_2) / 0.8
-    f_3 = (msg.data[12] - min_3) / 0.8
-    f_4 = (msg.data[13] - min_4) / 0.8
-    f_5 = (msg.data[14] - min_5) / 0.8
+    f_1 = (msg.data[0] - min_1)
+    f_3 = (msg.data[2] - min_3)
+    f_2 = (msg.data[1] - min_2)
+    f_4 = (msg.data[3] - min_4)
+    f_5 = (msg.data[4] - min_5)
 
-    print f_1, '\t', f_2, '\t', f_3, '\t', f_4, '\t', f_5, '\n'
+    # print f_1, '\t', f_2, '\t', f_3, '\t', f_4, '\t', f_5, '\n'
 
-    e_curr_1 = TARG_FORCE - f_1
-    e_curr_2 = TARG_FORCE - f_2
-    e_curr_3 = TARG_FORCE - f_3
-    e_curr_4 = TARG_FORCE - f_4
-    e_curr_5 = TARG_FORCE - f_5
+    e_curr_1 = TARG_DIS - f_1
+    e_curr_2 = TARG_DIS - f_2
+    e_curr_3 = TARG_DIS - f_3
+    e_curr_4 = TARG_DIS - f_4
+    e_curr_5 = TARG_DIS - f_5
 
-    # print e_curr_1, '\t', e_curr_2, '\t', e_curr_3, '\t', e_curr_4, '\n'
+    # print e_curr_1, '\t', e_curr_2, '\t', e_curr_3, '\t', e_curr_4, '\t', e_curr_5, '\n'
     # print e_curr_1
 
     push(args[7][0], [e_curr_1])
@@ -92,11 +92,11 @@ def pid_callback(msg, args):
     diff_e_5 = e_curr_5 - args[1][4]
     args[1][4] = e_curr_5
 
-    u_t_1 = args[2][0] * e_curr_1 #+ args[3] * args[0][0] + args[4] * diff_e_1
-    u_t_2 = args[2][1] * e_curr_2 #+ args[3] * args[0][1] + args[4] * diff_e_2
-    u_t_3 = args[2][2] * e_curr_3 #+ args[3] * args[0][2] + args[4] * diff_e_3
-    u_t_4 = args[2][3] * e_curr_4 #+ args[3] * args[0][3] + args[4] * diff_e_4
-    u_t_5 = args[2][4] * e_curr_4 #+ args[3] * args[0][4] + args[4] * diff_e_5
+    u_t_1 = args[2][0] * e_curr_1 + args[3] * args[0][0] + args[4] * diff_e_1
+    u_t_2 = args[2][1] * e_curr_2 + args[3] * args[0][1] + args[4] * diff_e_2
+    u_t_3 = args[2][2] * e_curr_3 + args[3] * args[0][2] + args[4] * diff_e_3
+    u_t_4 = args[2][3] * e_curr_4 + args[3] * args[0][3] + args[4] * diff_e_4
+    u_t_5 = args[2][4] * e_curr_4 + args[3] * args[0][4] + args[4] * diff_e_5
 
     # rescale from 0-3 to 0-255 (PWM)
 
@@ -110,10 +110,10 @@ def pid_callback(msg, args):
 
     # pwm = np.clip(pwm,0,250)
 
-    # print pwm_1, '\t', e_curr_1, '\t', pwm_2, '\t', e_curr_2, '\t', pwm_3, '\t', e_curr_3, '\t', pwm_4, '\t', e_curr_4
+    # print pwm_1, '\t', pwm_2, '\t', pwm_3, '\t', pwm_4, '\t', pwm_5, '\n'
 
-    # y_predict = [e_curr, u_t, pwm]
-    # msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('pid_output', 2, 1)], 1), y_predict)
+    # y_predict = [1/np.square(msg.data[0]), 1/np.square(msg.data[1]), 1/np.square(msg.data[2]), 1/np.square(msg.data[3]), 1/np.square(msg.data[4])]
+    # msg = Float32MultiArray(MultiArrayLayout([MultiArrayDimension('pid_output', 5, 1)], 1), y_predict)
     # args[5].publish(msg)
 
     e_curr = [e_curr_1, e_curr_2, e_curr_3, e_curr_4, e_curr_5]
@@ -128,23 +128,28 @@ def pid_callback(msg, args):
     #     print "Exiting from subscriber and saving data"
     # else:
     #     for i in addList:
-    #         if -0.001 < e_curr[int(i) - 1] < 0.001: #e_curr[int(i) - 1]
+    #         if e_curr[int(i) - 1] < 0.005:
     #             args[9].apply_breaks(str(i))
     #             print "Applying breaks {}".format(i)
     #             addList.remove(i)
     #             print addList
-    #         else:
-    #             args[9].fully_close(str(i), abs(pwm[int(i)-1])) #pwm[int(i) - 1]
+    #         if e_curr[int(i)-1] > 0.005:
+    #             args[9].fully_close(str(i), abs(pwm[int(i) - 1]))
+            # if e_curr[int(i)-1] < -0.01:
+            #     print ("overshooot!")
 
+    ## PWM TEST ##
     # for i in addList:
-    #     if e_curr_1 > 0.0075:
-    #         args[9].fully_close(str(i), abs(pwm_1))
-    #         print "closing"
-    #     if e_curr_1 < -0.0075:
-    #         args[9].fully_open(str(i), abs(pwm_1))
-    #         print "opening"
-    #     if -0.0075 < e_curr_1 < 0.0075:
-    #         print "resting.."
+    #     if msg.data[8] > 1000:
+    #         args[9].fully_close(str(i), 34)
+    #     else:
+    #         print "Applying breaks {}".format(i)
+    #         args[9].apply_breaks(str(i))
+    #         pid_sub.unregister()
+    #         path = '/home/radhen/Documents/bebionic_expData/'
+    #         np.savetxt(path + '/pwm_34.txt', args[8])
+    #         print "Exiting from subscriber and saving data"
+
 
 
 if __name__ == "__main__":
@@ -153,19 +158,19 @@ if __name__ == "__main__":
 
     mf = MotorFunctions()
 
-    addList = ['3','4']
-    # addList = ['4']
+    # addList = ['3','4']
+    addList = ['4']
 
 
     ############ Testing poistion control thru PID control ###############
 
-    # for i in addList: mf.set_position_count(str(i), 1000)
-    # for i in addList: mf.set_target_position(str(i), 10000)
+    for i in addList: mf.set_position_count(str(i), 3000)
+    # for i in addList: mf.set_target_position(str(i), 2000)
     # for i in addList: mf.set_pid_gains(str(i))
     # for i in addList: mf.enable_pid(str(i))
     # rospy.sleep(1)
     # for i in addList: mf.apply_breaks(str(i))
-    #
+
     # for i in addList: mf.set_position_count(str(i), 10000)
     # for i in addList: mf.set_target_position(str(i), 1000)
     # for i in addList: mf.set_pid_gains(str(i))
@@ -176,7 +181,7 @@ if __name__ == "__main__":
 
     ############ Testing force control thru PID control ###############
 
-    pcf_data = np.zeros((1, 17))
+    pcf_data = np.zeros((1, 4))
     pid_pub = rospy.Publisher("/pid_output", Float32MultiArray, queue_size=1)
 
     sum_e_1 = 0
@@ -193,9 +198,9 @@ if __name__ == "__main__":
     e_last_5 = 0
     e_last_list = [e_last_1, e_last_2, e_last_3, e_last_4, e_last_1]
 
-    kp = [430.0, 430.0, 350.0, 450.0, 400.0]
-    ki = 0.05
-    kd = 0.08
+    kp = [300.0, 300.0, 375.0, 500.0, 300.0]
+    ki = 10
+    kd = 5
     count = 0
 
     sum_e_arr_1 = np.zeros(25)
@@ -204,9 +209,6 @@ if __name__ == "__main__":
     sum_e_arr_4 = np.zeros(25)
     sum_e_arr_5 = np.zeros(25)
     sum_e_arr_list = [sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,sum_e_arr_5]
-
-    # pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback, [sum_e_1,sum_e_2,sum_e_3,sum_e_4,sum_e_5,e_last_1,e_last_2,e_last_3,e_last_4,e_last_5,
-    #                                                                                kp,ki,kd,pid_pub,count,sum_e_arr_1,sum_e_arr_2,sum_e_arr_3,sum_e_arr_4,pcf_data])
 
     pid_sub = rospy.Subscriber("/sensor_values", Float32MultiArray, pid_callback,
                                [sum_e_list, e_last_list, kp, ki, kd, pid_pub, count, sum_e_arr_list, pcf_data, mf])

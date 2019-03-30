@@ -6,9 +6,9 @@
 //#include "rp_testing.h"
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x48  // MS5637_02BA03 I2C address is 0x76(118)
+#define BARO_ADDRESS 0x23  // MS5637_02BA03 I2C address is 0x76(118)
 #define CMD_RESET 0x1E
-#define VCNL4040_ADDR 0x5E //7-bit unshifted I2C address of VCNL4040
+#define VCNL4040_ADDR 0x35 //7-bit unshifted I2C address of VCNL4040
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
 //#define PS_CONF2 //High byte of PS_CONF1
@@ -126,7 +126,7 @@ unsigned int readFromCommandRegister(byte commandCode)
   Wire.beginTransmission(VCNL4040_ADDR);
   Wire.write(commandCode);
   int err = Wire.endTransmission(false); //Send a restart command. Do not release bus.
-  Serial.println(err);
+//  Serial.println(err);
   Wire.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
 
   unsigned int data = Wire.read();
@@ -179,6 +179,9 @@ void initPressure(int id) {
   byte dataLo, dataHi;
 
   //  selectSensor(fingers[id].barPort);
+  Wire.beginTransmission(BARO_ADDRESS);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
 
   for (int i = 0; i < 6; i++) { //loop over Coefficient elements
     Wire.beginTransmission(BARO_ADDRESS);
@@ -195,16 +198,23 @@ void initPressure(int id) {
     }
     //      Coff[i][id] = ((dataHi << 8) | dataLo);
     Coff[i][id] = ((dataHi * 256) + dataLo);
-    Serial.print(Coff[i][id]); Serial.print('\t');
+//    Serial.print(Coff[i][id]); Serial.print('\t');
   }
-  Serial.print('\n');
+//  Serial.print('\n');
   delay(300);
+  Wire.beginTransmission(BARO_ADDRESS);
+  Wire.write(0);
+  Wire.endTransmission();
 
 }
 
 int32_t getPressureReading(int id) {
   //  selectSensor(muxAddr, sensor);
   //  selectSensor(fingers[id].barPort);
+
+  Wire.beginTransmission(BARO_ADDRESS);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
 
   Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
   Wire.write(0x1E); // Send reset command
@@ -239,6 +249,9 @@ void readPressureValues() {
   int count = 0;
 
   for (int i = 0; i < NUM_FINGERS; i++) {
+    Wire.beginTransmission(VCNL4040_ADDR);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
     pressure_value_[count] = getPressureReading(i);
     Serial.print(pressure_value_[count]); Serial.print('\t');
     count += 1;
@@ -277,8 +290,12 @@ void initVCNL4040() {
 void initIRSensor(int id) {
 
   //  selectSensor(fingers[id].irPort);
+  Wire.beginTransmission(VCNL4040_ADDR);
+  Wire.write(0);
+  int errcode = Wire.endTransmission();
+
   int deviceID = readFromCommandRegister(ID);
-  Serial.println(deviceID);
+//  Serial.println(deviceID);
   if (deviceID != 0x186)
   {
     Serial.println("Device not found. Check wiring.");
@@ -286,10 +303,13 @@ void initIRSensor(int id) {
     Serial.println(deviceID, HEX);
     while (1); //Freeze!
   }
-  Serial.println("VCNL4040 detected!");
+//  Serial.println("VCNL4040 detected!");
   initVCNL4040(); //Configure sensor
 
   //    delay(50);
+  Wire.beginTransmission(VCNL4040_ADDR);
+  Wire.write(0);
+  Wire.endTransmission();
 }
 
 
@@ -347,9 +367,9 @@ void scan_i2c(void) {
       ++devCt;
     }
   }
-  Serial.print(devCt);
+  Serial.println(devCt);
   for (ct = 0; ct < devCt; ct++) {
-    Serial.print(addList[ct]);
+    Serial.println(addList[ct]);
   }
   //  Serial.print('\t');
 }
@@ -471,7 +491,7 @@ void send_cmmnd(byte command[4]) {
 
 void setup() {
 
-  Serial.begin(115200);
+  Serial.begin(9600);
   Wire.begin();
   //  Wire.setClock(100000);
   pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
@@ -482,7 +502,7 @@ void setup() {
   for (int i = 0; i < NUM_FINGERS; i++)
   {
 //    initIRSensor(i);
-        initPressure(i);
+//        initPressure(i);
   }
 
   //  for (int i = 0; i < NUM_FINGERS; i++) {
@@ -492,6 +512,34 @@ void setup() {
   //  for (int i = 0; i < NUM_PBOARDS; i++) {
   //    packet.encoders[i] = 0;
   //  }
+
+  while (!Serial) 
+    {
+    }
+
+  Serial.println ();
+  Serial.println ("I2C scanner. Scanning ...");
+  byte count = 0;
+  
+  Wire.begin();
+  for (byte i = 8; i < 120; i++)
+  {
+    Wire.beginTransmission (i);
+    if (Wire.endTransmission () == 0)
+      {
+      Serial.print ("Found address: ");
+      Serial.print (i, DEC);
+      Serial.print (" (0x");
+      Serial.print (i, HEX);
+      Serial.println (")");
+      count++;
+      delay (1);  // maybe unneeded?
+      } // end of good response
+  } // end of for loop
+  Serial.println ("Done.");
+  Serial.print ("Found ");
+  Serial.print (count, DEC);
+  Serial.println (" device(s).");
 
   muxStatus = 0;
 
@@ -507,11 +555,11 @@ void loop() {
 
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-  //  lookForData();
-  //  if (newCommand == true) {
-  //    obey();
-  //    newCommand = false;
-  //  }
+    lookForData();
+    if (newCommand == true) {
+      obey();
+      newCommand = false;
+    }
 
 
 //  readIRValues(); //-> array of IR values (2 bytes per sensor)
@@ -521,5 +569,7 @@ void loop() {
 
 
 //  Serial.print('\n');
+
+
 
 }

@@ -71,7 +71,7 @@ float prev_ir;
 float prox_highpass = 0;
 
 // create a one pole (RC) lowpass filter
-FilterOnePole highpassFilter(HIGHPASS, 3.0);
+FilterOnePole highpassFilter(HIGHPASS, 5.0);
 FilterOnePole lowpassFilter(LOWPASS, 0.05);
 RunningStatistics inputStats;
 

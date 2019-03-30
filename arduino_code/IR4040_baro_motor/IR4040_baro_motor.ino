@@ -4,6 +4,9 @@
 
 #include <Wire.h>
 #include "rp_testing.h"
+#include <Filters.h> // Library from arduino https://playground.arduino.cc/Code/Filters/ simle high/low pass filter
+#include <filters.h> // Library from a guy on git for butterworth high pass filter
+
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x76  // MS5637_02BA03 I2C address is 0x76(118)
@@ -36,12 +39,13 @@ typedef struct {
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ie, barPort).
-Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
-  {4, 4},  //middle finger
+Digit fingers[NUM_FINGERS] = {{0, 0},  //pinky finger
   {2, 2},  //ring finger
-  {0, 0},  //pinky finger
+  {4, 4},  //middle finger
+  {6, 6},  //index finger
   {8, 8}
-}; //thumb
+};   //thumb
+
 
 int muxStatus;
 
@@ -55,10 +59,25 @@ int32_t data[3];
 volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
 
-int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
-uint16_t max_proximity[NUM_FINGERS] = {40000.0, 35000.0, 30000.0, 17000.0, 25000.0};
+volatile float prox_err[NUM_FINGERS];
+volatile float prox_nrm[NUM_FINGERS];
+volatile float pwm[NUM_FINGERS];
+volatile float kp[NUM_FINGERS] = {300.0, 300.0, 300.0, 60.0, 300.0};
+bool break_flag = true;
+
+int32_t max_pressure[NUM_FINGERS] = {6653000.0, 5950000.0, 6115000.0, 7800000.0, 7000000.0};
+uint16_t max_proximity[NUM_FINGERS] = {17000.0, 30000.0, 35000.0, 40000.0, 25000.0};
+volatile uint16_t max_distance[NUM_FINGERS] = {7000.0, 15000.0, 17000.0, 20000.0, 11000.0};
 
 int timer1_counter;
+
+FilterOnePole highpassFilter(HIGHPASS, 0.1);
+RunningStatistics inputStats;
+
+// Creating high-pass filter; maximum order is 2
+const float cutoff_freq   = 600.0;   //Cutoff frequency in Hz
+const float sampling_time = 0.01; //Sampling time in seconds.
+Filter fhp(cutoff_freq, sampling_time, IIR::ORDER::OD1, IIR::TYPE::HIGHPASS);
 
 
 ///////////////////////////////////////////////////////////
@@ -69,7 +88,7 @@ int timer1_counter;
 // command buffer 500 bytes
 
 //FSM
-#define NUM_PBOARDS 6
+#define NUM_PBOARDS 5
 
 byte user_input;
 byte close_finger[4];
@@ -78,10 +97,10 @@ byte apply_break[4];
 byte command[4];
 int outCount = 4;
 
-byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5, 6};
+byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5};
 
 // the pboard addrs actually are 1,2,3,4,5 but we perfrom bitshift accrd. to manual and hence 2,4,6,8,10
-byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C};
+//byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C};
 //byte addrs[NUM_PBOARDS] = {0x0A};
 
 #define fNONE 0
@@ -297,9 +316,45 @@ void readIRValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
     selectSensor(fingers[i].irPort);
     proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
-    Serial.print(proximity_value_[count]); Serial.print('\t');
+    prox_nrm[count] = proximity_value_[count] / float(max_distance[i]);
+//        Serial.print(prox_nrm[count]); Serial.print('\t');
+
+    // high pass filter with arduino library
+    //    float highpass_ir = highpassFilter.input(proximity_value_[count]/float(max_distance[i]));
+    //    Serial.print(highpass_ir); Serial.print('\t');
+
+    // high pass filter from guy from github
+    //    float sign_filt = fhp.filterIn(proximity_value_[count]);
+    //    Serial.print(sign_filt); Serial.print('\t');
+
+    //*********** bunch of things for pid control ************//
+
+    prox_err[count] = float(1.0) - prox_nrm[count];
+    //      Serial.print(prox_err[count]); Serial.print('\t');
+    pwm[count] = prox_err[count] * kp[count];
+    //      Serial.print(int(pwm[count])); Serial.print('\t');
+
     count += 1;
   }
+
+  if (prox_err[3] > 0.22) {
+    byte close_finger[4] = {0x08, 0x0C, 0x80, 0x14};
+    send_cmmnd(close_finger);
+//    Serial.print("closing"); 
+  }
+  if (prox_err[3] < 0.1){
+    byte open_finger[4] = {0x08, 0x0C, 0xC0, 0x14};
+    send_cmmnd(open_finger);
+    }
+  else {
+    if (break_flag == true)
+      byte apply_break[4] = {0X08, 0x0C, 0x03, 0x00};
+      send_cmmnd(apply_break);
+//      Serial.print("Apply break. Enter Once Only");
+      break_flag = false;
+  }
+
+
 }
 
 
@@ -504,51 +559,53 @@ void setup() {
 
 void loop() {
 
-//  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+  //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-  lookForData();
-  if (newCommand == true) {
-    obey();
-    newCommand = false;
-  }
+  //  lookForData();
+  //  if (newCommand == true) {
+  //    obey();
+  //    newCommand = false;
+  //  }
 
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  readNNpredictions();
-  readMotorEncodersValues();
+  //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  //  readNNpredictions();
+  //  readMotorEncodersValues();
+
+  //  Serial.println(proximity_value_[3]);
 
 
-//  if (Serial.available() > 0)
-//  {
-//    user_input = Serial.read();
-//
-//    if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
-//      scan_i2c();
-//      }
-//
-//    if (user_input == 0x71) { // send chr 'q' to close
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//        byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x20};
-//        send_cmmnd(close_finger);
-//      }
-//    }
-//
-//    if (user_input == 0x77) { // send chr 'w' to break
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//      byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
-//      send_cmmnd(apply_break);
-//      }
-//    }
-//
-//    if (user_input == 0x65) { // send chr 'e' to open
-//      for (int i = 0; i < NUM_PBOARDS; i++) {
-//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x20};
-//      send_cmmnd(open_finger);
-//      }
-//    }
-//
-//  }
+  //  if (Serial.available() > 0)
+  //  {
+  //    user_input = Serial.read();
+  //
+  //    if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
+  //      scan_i2c();
+  //      }
+  //
+  //    if (user_input == 0x71) { // send chr 'q' to close
+  //      for (int i = 0; i < NUM_PBOARDS; i++) {
+  //        byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x20};
+  //        send_cmmnd(close_finger);
+  //      }
+  //    }
+  //
+  //    if (user_input == 0x77) { // send chr 'w' to break
+  //      for (int i = 0; i < NUM_PBOARDS; i++) {
+  //      byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
+  //      send_cmmnd(apply_break);
+  //      }
+  //    }
+  //
+  //    if (user_input == 0x65) { // send chr 'e' to open
+  //      for (int i = 0; i < NUM_PBOARDS; i++) {
+  //      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x20};
+  //      send_cmmnd(open_finger);
+  //      }
+  //    }
+  //
+  //  }
 
 
   Serial.print('\n');
