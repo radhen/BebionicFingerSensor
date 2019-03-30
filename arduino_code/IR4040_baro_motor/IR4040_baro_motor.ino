@@ -61,13 +61,22 @@ volatile uint16_t proximity_value_[NUM_FINGERS];
 
 volatile float prox_err[NUM_FINGERS];
 volatile float prox_nrm[NUM_FINGERS];
+volatile float prox_nrm_zero[NUM_FINGERS];
 volatile float pwm[NUM_FINGERS];
-volatile float kp[NUM_FINGERS] = {300.0, 300.0, 300.0, 60.0, 300.0};
+volatile float prev_prox_err[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+volatile float diff_prox_err[NUM_FINGERS]; 
+float prox_target[NUM_FINGERS] = {0.22, 0.19, 0.15, 0.17, 0.15};
+float kp_close[NUM_FINGERS] = {150.0, 150.0, 140.0, 145.0, 140.0};
+float kp_open[NUM_FINGERS] = {50.0, 50.0, 50.0, 50.0, 50.0};
+float kd_open[NUM_FINGERS] = {30.0, 30.0, 30.0, 30.0, 10.0};
 bool break_flag = true;
+bool min_flag = true;
+int drop_count = 5;
 
 int32_t max_pressure[NUM_FINGERS] = {6653000.0, 5950000.0, 6115000.0, 7800000.0, 7000000.0};
 uint16_t max_proximity[NUM_FINGERS] = {17000.0, 30000.0, 35000.0, 40000.0, 25000.0};
 volatile uint16_t max_distance[NUM_FINGERS] = {7000.0, 15000.0, 17000.0, 20000.0, 11000.0};
+float min_distance[NUM_FINGERS];
 
 int timer1_counter;
 
@@ -100,7 +109,7 @@ int outCount = 4;
 byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5};
 
 // the pboard addrs actually are 1,2,3,4,5 but we perfrom bitshift accrd. to manual and hence 2,4,6,8,10
-//byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C};
+byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A};
 //byte addrs[NUM_PBOARDS] = {0x0A};
 
 #define fNONE 0
@@ -312,47 +321,73 @@ void initIRSensor(int id) {
 
 
 void readIRValues() {
+
   int count = 0;
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    selectSensor(fingers[i].irPort);
-    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
-    prox_nrm[count] = proximity_value_[count] / float(max_distance[i]);
-//        Serial.print(prox_nrm[count]); Serial.print('\t');
 
-    // high pass filter with arduino library
-    //    float highpass_ir = highpassFilter.input(proximity_value_[count]/float(max_distance[i]));
-    //    Serial.print(highpass_ir); Serial.print('\t');
-
-    // high pass filter from guy from github
-    //    float sign_filt = fhp.filterIn(proximity_value_[count]);
-    //    Serial.print(sign_filt); Serial.print('\t');
-
-    //*********** bunch of things for pid control ************//
-
-    prox_err[count] = float(1.0) - prox_nrm[count];
-    //      Serial.print(prox_err[count]); Serial.print('\t');
-    pwm[count] = prox_err[count] * kp[count];
-    //      Serial.print(int(pwm[count])); Serial.print('\t');
-
-    count += 1;
-  }
-
-  if (prox_err[3] > 0.22) {
-    byte close_finger[4] = {0x08, 0x0C, 0x80, 0x14};
-    send_cmmnd(close_finger);
-//    Serial.print("closing"); 
-  }
-  if (prox_err[3] < 0.1){
-    byte open_finger[4] = {0x08, 0x0C, 0xC0, 0x14};
-    send_cmmnd(open_finger);
+  if (drop_count > 0 ){
+    drop_count -= 1;
+//    Serial.println("dropping values");
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      selectSensor(fingers[i].irPort);
+      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
     }
+    }
+    
   else {
-    if (break_flag == true)
-      byte apply_break[4] = {0X08, 0x0C, 0x03, 0x00};
-      send_cmmnd(apply_break);
-//      Serial.print("Apply break. Enter Once Only");
-      break_flag = false;
+    for (int i = 0; i < NUM_FINGERS - 1; i++) {
+      selectSensor(fingers[i].irPort);
+      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
+      prox_nrm[i] = proximity_value_[i] / float(max_distance[i]);
+//      Serial.print(prox_nrm[i]); Serial.print('\t');
+  
+      // high pass filter with arduino library
+      //    float highpass_ir = highpassFilter.input(proximity_value_[count]/float(max_distance[i]));
+      //    Serial.print(highpass_ir); Serial.print('\t');
+  
+      // high pass filter from guy from github
+      //    float sign_filt = fhp.filterIn(proximity_value_[count]);
+      //    Serial.print(sign_filt); Serial.print('\t');
+  
+      //*********** zeroing the ir sensor values ************//
+  
+      if (min_flag == true) {
+        min_distance[i] = prox_nrm[i];
+      }
+  
+      if (prox_nrm[i] < min_distance[i]) {
+        min_distance[i] = prox_nrm[i];
+      }
+  
+      prox_nrm_zero[i] = prox_nrm[i] - min_distance[i];
+//      Serial.print(prox_nrm_zero[i]); Serial.print('\t');
+      
+  
+      //*********** bunch of things for pid control ************//
+  
+      prox_err[i] = prox_target[i] - prox_nrm_zero[i];
+      diff_prox_err[i] = abs(prox_err[i] - prev_prox_err[i]);
+      prev_prox_err[i] = prox_err[i];
+//      Serial.print(diff_prox_err[i]); Serial.print('\t');
+
+    if (prox_err[i] > 0.01) {
+      pwm[i] = prox_err[i] * kp_close[i];
+//      Serial.print(int(pwm[i])); Serial.print('\t');
+      byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
+      send_cmmnd(close_finger);
+    }
+    if (prox_err[i] < -0.01){
+      pwm[i] = prox_err[i] * kp_open[i] + diff_prox_err[i] * kd_open[i];
+//      Serial.print(abs(int(pwm[i]))); Serial.print('\t');
+      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
+      send_cmmnd(open_finger);
+      }
   }
+
+  min_flag = false;
+    
+    }
+
+
 
 
 }
@@ -527,7 +562,7 @@ void setup() {
 
   Serial.begin(115200);
   Wire.begin();
-  //  Wire.setClock(100000);
+  Wire.setClock(100000);
   pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
   newCommand = false;
   delay(1000);
@@ -548,6 +583,8 @@ void setup() {
   //  }
 
   muxStatus = 0;
+
+  delay(1000);
 
 }
 
