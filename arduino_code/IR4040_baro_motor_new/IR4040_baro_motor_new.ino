@@ -6,9 +6,9 @@
 //#include "rp_testing.h"
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x23  // MS5637_02BA03 I2C address is 0x76(118)
+#define BARO_ADDRESS 0x2B  // MS5637_02BA03 I2C address is 0x76(118)
 #define CMD_RESET 0x1E
-#define VCNL4040_ADDR 0x35 //7-bit unshifted I2C address of VCNL4040
+#define VCNL4040_ADDR 0x3D //7-bit unshifted I2C address of VCNL4040
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
 //#define PS_CONF2 //High byte of PS_CONF1
@@ -491,7 +491,7 @@ void send_cmmnd(byte command[4]) {
 
 void setup() {
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   //  Wire.setClock(100000);
   pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
@@ -501,8 +501,8 @@ void setup() {
   //initialize attached devices
   for (int i = 0; i < NUM_FINGERS; i++)
   {
-//    initIRSensor(i);
-//        initPressure(i);
+    initIRSensor(i);
+        initPressure(i);
   }
 
   //  for (int i = 0; i < NUM_FINGERS; i++) {
@@ -513,33 +513,33 @@ void setup() {
   //    packet.encoders[i] = 0;
   //  }
 
-  while (!Serial) 
-    {
-    }
-
-  Serial.println ();
-  Serial.println ("I2C scanner. Scanning ...");
-  byte count = 0;
-  
-  Wire.begin();
-  for (byte i = 8; i < 120; i++)
-  {
-    Wire.beginTransmission (i);
-    if (Wire.endTransmission () == 0)
-      {
-      Serial.print ("Found address: ");
-      Serial.print (i, DEC);
-      Serial.print (" (0x");
-      Serial.print (i, HEX);
-      Serial.println (")");
-      count++;
-      delay (1);  // maybe unneeded?
-      } // end of good response
-  } // end of for loop
-  Serial.println ("Done.");
-  Serial.print ("Found ");
-  Serial.print (count, DEC);
-  Serial.println (" device(s).");
+//  while (!Serial) 
+//    {
+//    }
+//
+//  Serial.println ();
+//  Serial.println ("I2C scanner. Scanning ...");
+//  byte count = 0;
+//  
+//  Wire.begin();
+//  for (byte i = 8; i < 120; i++)
+//  {
+//    Wire.beginTransmission (i);
+//    if (Wire.endTransmission () == 0)
+//      {
+//      Serial.print ("Found address: ");
+//      Serial.print (i, DEC);
+//      Serial.print (" (0x");
+//      Serial.print (i, HEX);
+//      Serial.println (")");
+//      count++;
+//      delay (1);  // maybe unneeded?
+//      } // end of good response
+//  } // end of for loop
+//  Serial.println ("Done.");
+//  Serial.print ("Found ");
+//  Serial.print (count, DEC);
+//  Serial.println (" device(s).");
 
   muxStatus = 0;
 
@@ -555,20 +555,20 @@ void loop() {
 
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-    lookForData();
-    if (newCommand == true) {
-      obey();
-      newCommand = false;
-    }
+//    lookForData();
+//    if (newCommand == true) {
+//      obey();
+//      newCommand = false;
+//    }
 
 
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
-//    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   //  readNNpredictions();
   //  readMotorEncodersValues();
 
 
-//  Serial.print('\n');
+  Serial.print('\n');
 
 
 

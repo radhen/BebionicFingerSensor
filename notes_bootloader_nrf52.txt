@@ -1,0 +1,9 @@
+1. Upload the bootloader
+Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
+Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
+
+2. Install Arduino Core (DONE!)
+
+Followed this -> Instructions to install: https://learn.sparkfun.com/tutorials/nrf52840-development-with-arduino-and-circuitpython
+
+Extra -> Github page on Arduino code (source files): https://github.com/sandeepmistry/arduino-nRF5
