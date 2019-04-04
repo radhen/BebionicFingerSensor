@@ -99,3 +99,27 @@ RunningStatistics inputStats;
 //      st_ir = (ir - inputStats.mean())/sd;}
 //    float lowpass_ir = lowpassFilter.input(st_ir);
 //    Serial.println(st_ir);
+
+
+
+
+
+//******* Separate PWM calculation for open and close. Comment the pwm line above if using this *******//
+//    if (prox_err[i] > 0.0) {
+//      pwm[i] = prox_err[i]*kp_close[i] + diff_prox_err[i]*kd_close[i] + sum_prox_err[i]*ki_close[i];
+//      Serial.print(int(pwm[i])); Serial.print('\t');
+//      byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
+//      send_cmmnd(close_finger);
+//    }
+//
+//    if (prox_err[i] < 0.0){
+//      pwm[i] = prox_err[i]*kp_open[i] + diff_prox_err[i]*kd_open[i] + sum_prox_err[i]*ki_open[i];
+//      Serial.print(abs(int(pwm[i]))); Serial.print('\t');
+//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
+//      send_cmmnd(open_finger);
+//      }
+//
+//    if (-0.01 <= prox_err[i] <= 0.01){
+//      sum_prox_err[i] = 0;
+//      }
+
