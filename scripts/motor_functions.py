@@ -227,7 +227,7 @@ if __name__ == "__main__":
     # print "Board address(es): "+str(addrs[1:])
     # addList = [addrs[i+1] for i in range(len(addrs[1:]))]
     # addList = ['1','2','3','4','5']
-    addList = ['4']
+    addList = ['5']
     # print addList
 
     # mf.set_address()
@@ -244,8 +244,8 @@ if __name__ == "__main__":
 
     ############ Testing poistion control thru PID control ###############
 
-    for i in addList: mf.set_position_count(str(i), 1000)
-    for i in addList: mf.set_target_position(str(i), 3000)
+    for i in addList: mf.set_position_count(str(i), 5000)
+    for i in addList: mf.set_target_position(str(i), 1000)
     for i in addList: mf.set_pid_gains(str(i))
     for i in addList: mf.enable_pid(str(i))
     rospy.sleep(2)

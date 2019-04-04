@@ -4,8 +4,8 @@
 
 #include <Wire.h>
 #include "rp_testing.h"
-#include <Filters.h> // Library from arduino https://playground.arduino.cc/Code/Filters/ simle high/low pass filter
-#include <filters.h> // Library from a guy on git for butterworth high pass filter
+#include <Filters.h> // Library from arduino https://playground.arduino.cc/Code/Filters/ simple high/low pass filter
+#include <filters.h> // Library from a guy on git for butterworth high pass filter https://github.com/MartinBloedorn/libFilter
 
 
 /***** GLOBAL CONSTANTS *****/
@@ -59,10 +59,17 @@ int32_t data[3];
 volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
 
+
+////////////// Exponential Avg. variables /////////////////
+volatile float prev_proximity_value_[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+volatile float EMA_a[NUM_FINGERS] = {0.5, 0.5, 0.5, 1.5, 0.5};
+volatile float EMA_S_ir[NUM_FINGERS];
+///////////////////////////////////////////////////////////
+
+
 ///////////////// PID VARIABLES //////////////////////
 volatile float prox_err[NUM_FINGERS];
 volatile float prox_nrm[NUM_FINGERS];
-volatile float prox_nrm_zero[NUM_FINGERS];
 volatile float pwm[NUM_FINGERS];
 volatile float prev_prox_err[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
 volatile float diff_prox_err[NUM_FINGERS]; 
@@ -70,33 +77,41 @@ volatile float sum_prox_err[NUM_FINGERS];
  
 float prox_target[NUM_FINGERS] = {0.5, 0.5, 0.5, 0.5, 0.5};
 
-float kp_close[NUM_FINGERS] = {75.0, 60.0, 60.0, 70.0, 60.0};
-float kd_close[NUM_FINGERS] = {0.0, 0.0, 0.0, 100.0, 0.0};
-float ki_close[NUM_FINGERS] = {0.1, 0.1, 0.1, 1.5, 0.1};
-float kp_open[NUM_FINGERS] = {40.0, 30.0, 30.0, 40.0, 40.0};
-float kd_open[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
-float ki_open[NUM_FINGERS] = {0.1, 0.1, 0.1, 0.1, 0.1};
+float kp_close[NUM_FINGERS] = {60.0, 52.0, 40.0, 60.0, 80.0};
+float kd_close[NUM_FINGERS] = {2.0, 0.0, 3.0, 5.0, 0.0};
+float ki_close[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+
+//float kp_open[NUM_FINGERS] = {40.0, 30.0, 30.0, 40.0, 40.0};
+//float kd_open[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+//float ki_open[NUM_FINGERS] = {0.1, 0.1, 0.1, 0.1, 0.1};
 
 bool break_flag = true;
-bool min_flag = true;
+bool min_flag_ir = true;
+bool min_flag_baro =  true;
 int drop_count = 5;
+int drop_count_baro = 10;
+
+volatile float press_nrm[NUM_FINGERS];
 //////////////////////////////////////////////////////
 
 
 int32_t max_pressure[NUM_FINGERS] = {6653000.0, 5950000.0, 6115000.0, 7800000.0, 7000000.0};
-uint16_t max_proximity[NUM_FINGERS] = {17000.0, 30000.0, 35000.0, 40000.0, 25000.0};
+volatile float min_pressure[NUM_FINGERS];
 volatile uint16_t max_distance[NUM_FINGERS] = {10000.0, 20000.0, 20000.0, 20000.0, 11000.0};
 volatile float min_distance[NUM_FINGERS];
+uint16_t max_proximity[NUM_FINGERS] = {17000.0, 30000.0, 35000.0, 40000.0, 25000.0}; // for NN
 
 int timer1_counter;
 
-FilterOnePole highpassFilter(HIGHPASS, 0.1);
+
+/////////// High Pass filter variable ////////////
+FilterOnePole highpassFilter(HIGHPASS, 50);
 RunningStatistics inputStats;
 
 // Creating high-pass filter; maximum order is 2
-const float cutoff_freq   = 600.0;   //Cutoff frequency in Hz
-const float sampling_time = 0.01; //Sampling time in seconds.
-Filter fhp(cutoff_freq, sampling_time, IIR::ORDER::OD1, IIR::TYPE::HIGHPASS);
+const float cutoff_freq   = 37.0;   //Cutoff frequency in Hz
+const float sampling_time = 0.006; //Sampling time in seconds.
+Filter fhp(cutoff_freq, sampling_time, IIR::ORDER::OD2, IIR::TYPE::HIGHPASS);
 
 
 ///////////////////////////////////////////////////////////
@@ -274,13 +289,32 @@ int32_t getPressureReading(int id) {
 
 
 void readPressureValues() {
-  int count = 0;
 
+  if (drop_count_baro > 0){
+    // Drop first five values from all the sensors
+    drop_count -= 1;
+    for (int i = 0; i < NUM_FINGERS; i++) {
+    pressure_value_[i] = getPressureReading(i);
+    }
+    }
   for (int i = 0; i < NUM_FINGERS; i++) {
-    pressure_value_[count] = getPressureReading(i);
-    Serial.print(pressure_value_[count]); Serial.print('\t');
-    count += 1;
+    pressure_value_[i] = getPressureReading(i);
+//    Serial.print(pressure_value_[count]); Serial.print('\t');
+
+    //*********** NORMALIZE BARO SENSOR VALUES ************//
+    // keep track of the running min values
+    if (min_flag_baro == true) {
+      min_pressure[i] = pressure_value_[i];
+//       Serial.print(min_pressure[i]); Serial.print('\t');
+    }
+    if (pressure_value_[i] < min_pressure[i]) {
+      min_pressure[i] = pressure_value_[i];
+    }
+    press_nrm[i] = float(pressure_value_[i] - min_pressure[i])/float(max_pressure[i] - min_pressure[i]);
+//    Serial.print(press_nrm[i], 6); Serial.print('\t');
   }
+
+  min_flag_baro = false;
 
 }
 
@@ -333,6 +367,7 @@ void initIRSensor(int id) {
 void readIRValues() {
 
   if (drop_count > 0 ){
+    // Drop first five values from all the sensors
     drop_count -= 1;
 //    Serial.println("dropping values");
     for (int i = 0; i < NUM_FINGERS; i++) {
@@ -342,95 +377,86 @@ void readIRValues() {
     }
     
   else {
-    
-    for (int i = 0; i < NUM_FINGERS - 1; i++) {
+    for (int i = 0; i < NUM_FINGERS; i++) {
 //      digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
       selectSensor(fingers[i].irPort);
       proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
 //      Serial.print(proximity_value_[i]); Serial.print('\t');
-  
-      // high pass filter with arduino library
-      //    float highpass_ir = highpassFilter.input(proximity_value_[count]/float(max_distance[i]));
-      //    Serial.print(highpass_ir); Serial.print('\t');
-  
-      // high pass filter from guy from github
-      //    float sign_filt = fhp.filterIn(proximity_value_[count]);
-      //    Serial.print(sign_filt); Serial.print('\t');
+
+
+            //******* high pass filter with arduino library ******//
+//      float highpass_ir = highpassFilter.input(prox_nrm[i]);
+//      Serial.print(highpass_ir); Serial.print('\t');
+
+
+       //********* high pass filter from guy from github **********//
+//          float sign_filt = fhp.filterIn(proximity_value_[i]);
+//          Serial.print(sign_filt); Serial.print('\t');
 
   
-      //*********** NORMALIZE SENSOR VALUES ************//
+      //*********** NORMALIZE IR SENSOR VALUES ************//
       // keep track of the running min values
-      if (min_flag == true) {
+      if (min_flag_ir == true) {
         min_distance[i] = proximity_value_[i];
       }
       if (proximity_value_[i] < min_distance[i]) {
         min_distance[i] = proximity_value_[i];
       }
-      // normalize the sensor values
       prox_nrm[i] = float(proximity_value_[i] - min_distance[i])/float(max_distance[i] - min_distance[i]);
-
-//      Serial.print(0);  // To freeze the lower limit
-//      Serial.print(" ");
-//      Serial.print(0.5);  // To freeze the upper limit
-//      Serial.print(" ");
 //      Serial.print(prox_nrm[i]); Serial.print('\t');
+
+
+      //******** Exponential average for Contact detection ********//
+      EMA_S_ir[i] = (EMA_a[i]*prox_nrm[i]) + ((1.0 - EMA_a[i])*prev_proximity_value_[i]);
+      prev_proximity_value_[i] = EMA_S_ir[i];
+//      Serial.print(EMA_S_ir[i], 6); Serial.print('\t');
 
   
       //*********** PID CONTROL ************//
-      prox_err[i] = prox_target[i] - prox_nrm[i];
-      
+      prox_err[i] = prox_target[i] - prox_nrm[i];  
       diff_prox_err[i] = prox_err[i] - prev_prox_err[i];
       prev_prox_err[i] = prox_err[i];
-      
       sum_prox_err[i] += prox_err[i];
-      
       pwm[i] = prox_err[i]*kp_close[i] + diff_prox_err[i]*kd_close[i] + sum_prox_err[i]*ki_close[i];
-      
 //      Serial.print(pwm[i]); Serial.print('\t');
 
 
+    //******* Separate PWM calculation for open and close. Comment the pwm line above if using this *******//
 //    if (prox_err[i] > 0.0) {
-////      pwm[i] = prox_err[i]*kp_close[i] + diff_prox_err[i]*kd_close[i] + sum_prox_err[i]*ki_close[i];
-////      Serial.print(int(pwm[i])); Serial.print('\t');
+//      pwm[i] = prox_err[i]*kp_close[i] + diff_prox_err[i]*kd_close[i] + sum_prox_err[i]*ki_close[i];
+//      Serial.print(int(pwm[i])); Serial.print('\t');
 //      byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
-////      send_cmmnd(close_finger);
+//      send_cmmnd(close_finger);
 //    }
 //    
 //    if (prox_err[i] < 0.0){
-////      pwm[i] = prox_err[i]*kp_open[i] + diff_prox_err[i]*kd_open[i] + sum_prox_err[i]*ki_open[i];
-////      Serial.print(abs(int(pwm[i]))); Serial.print('\t');
-//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
-////      send_cmmnd(open_finger);
-//      }
-//      
-////    if (-0.01 <= prox_err[i] <= 0.01){
-////      sum_prox_err[i] = 0;
-////      }
-
-
-
-    if (pwm[3] > 0.0) {
-//      pwm[i] = prox_err[i]*kp_close[i] + diff_prox_err[i]*kd_close[i] + sum_prox_err[i]*ki_close[i];
-//      Serial.print(int(pwm[i])); Serial.print('\t');
-      byte close_finger[4] = {addrs[3], 0x0C, 0x80, int(pwm[3])};
-      send_cmmnd(close_finger);
-    }
-    
-    if (prox_err[3] < 0.0){
 //      pwm[i] = prox_err[i]*kp_open[i] + diff_prox_err[i]*kd_open[i] + sum_prox_err[i]*ki_open[i];
 //      Serial.print(abs(int(pwm[i]))); Serial.print('\t');
-      byte open_finger[4] = {addrs[3], 0x0C, 0xC0, abs(int(pwm[3]))};
-      send_cmmnd(open_finger);
+//      byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
+//      send_cmmnd(open_finger);
+//      }
+//      
+//    if (-0.01 <= prox_err[i] <= 0.01){
+//      sum_prox_err[i] = 0;
+//      }
+
+
+    //********* Single PWM calculation for open and close **********// 
+    if (pwm[4] > 0.0) {
+      byte close_finger[4] = {addrs[4], 0x0C, 0x80, int(pwm[4])};
+//      send_cmmnd(close_finger);
+    }
+    
+    if (prox_err[i] < 0.0){
+      byte open_finger[4] = {addrs[4], 0x0C, 0xC0, abs(int(pwm[4]))};
+//      send_cmmnd(open_finger);
       }
       
   }
 
-  min_flag = false;
+  min_flag_ir = false;
     
     }
-
-
-
 
 }
 
@@ -643,20 +669,25 @@ void loop() {
 
     digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-  //  lookForData();
-  //  if (newCommand == true) {
-  //    obey();
-  //    newCommand = false;
-  //  }
+//    lookForData();
+//    if (newCommand == true) {
+//      obey();
+//      newCommand = false;
+//    }
 
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-  //  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   //  readNNpredictions();
 //  readMotorEncodersValues();
 
   //  Serial.println(proximity_value_[3]);
 
+  
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      Serial.print(prox_nrm[i],6); Serial.print('\t');
+      Serial.print(press_nrm[i],6); Serial.print('\t');
+      }
 
   //  if (Serial.available() > 0)
   //  {

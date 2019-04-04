@@ -1,9 +1,22 @@
 1. Upload the bootloader
-Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
-Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
+
+- Bootloader on Git: https://github.com/adafruit/Adafruit_nRF52_Bootloader
+
+- Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
+	A. Instructions for Windows. Problem with compling the bootloader. GCC errors! One could also just no compline the source code and just 	upload the .hex file? Not sure. Confirm!
+	B. Uses nrfjprog which is a helper program to talk to JLink devices like the nrf52840 DK we ordered or Segger JLink device
+
+- Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
+	A. Instructions for Ubuntu/Mac OS/Windows
+	B. Uses Arduino to flash the bootloader
+
+- Useful Link: https://learn.adafruit.com/introducing-the-adafruit-nrf52840-feather/update-bootloader
+	A. Instructions for Ubuntu/Mac OS/Windows
+	B. Uses adafruit-util as the helper program
+
 
 2. Install Arduino Core (DONE!)
 
-Followed this -> Instructions to install: https://learn.sparkfun.com/tutorials/nrf52840-development-with-arduino-and-circuitpython
+- Followed this -> Instructions to install: https://learn.sparkfun.com/tutorials/nrf52840-development-with-arduino-and-circuitpython
 
-Extra -> Github page on Arduino code (source files): https://github.com/sandeepmistry/arduino-nRF5
+- Extra -> Github page on Arduino code (source files): https://github.com/sandeepmistry/arduino-nRF5
