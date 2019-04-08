@@ -3,12 +3,20 @@
 - Bootloader on Git: https://github.com/adafruit/Adafruit_nRF52_Bootloader
 
 - Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
-	A. Instructions for Windows. Problem with compling the bootloader. GCC errors! One could also just no compline the source code and just 	upload the .hex file? Not sure. Confirm!
+	A. Instructions for Windows. Problem with compling the bootloader. GCC errors! One could also just not complie the source code and just 	upload the .hex file? Not sure. Confirm! Yes that is correct.
+	A1. Using nrfjprog worked on windows. First of all erase the chip by typing "nrfjprog -f nrf52 --eraseall"
+	A2. Then upload the hex file by typing "nrfjprog -f nrf52 --program pca10056_bootloader.hex"
+	A3. Note that you need to hold the SWD cable onto the MUX board and also simulatenously press the RESET button on the MUX board. Also the 		MUX board needs to plugged in via USB and also powered through one of the QWIIC connector. The main power input has some issue with the 	voltage regulator. 
 	B. Uses nrfjprog which is a helper program to talk to JLink devices like the nrf52840 DK we ordered or Segger JLink device
+	C. Still no luck. The MUX board gets recognized now on the USB list but not by Arduino.
+	D. Tried on Ubunutu. nrfjrpog does not install on Ubuntu. ERROR: JLinkARM DLL not found. Please reinstall latest JLinkARM.
 
 - Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
 	A. Instructions for Ubuntu/Mac OS/Windows
 	B. Uses Arduino to flash the bootloader
+	C. Tried to use adaLink command line tool to upload the code. Error related to Jlink. Installed Jlink. works now. 
+	D. Getting Error. AdaLinkError: Could not find nrf52840, is it connected?
+
 
 - Useful Link: https://learn.adafruit.com/introducing-the-adafruit-nrf52840-feather/update-bootloader
 	A. Instructions for Ubuntu/Mac OS/Windows

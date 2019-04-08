@@ -60,10 +60,15 @@ volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
 
 
-////////////// Exponential Avg. variables /////////////////
-volatile float prev_proximity_value_[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
-volatile float EMA_a[NUM_FINGERS] = {0.5, 0.5, 0.5, 1.5, 0.5};
-volatile float EMA_S_ir[NUM_FINGERS];
+////////////// Exponential Avg. variables for CONTACT detection/////////////////
+// https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
+volatile float highpass_proximity_value_[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+volatile float EMA_a_ir[NUM_FINGERS] = {0.5, 0.5, 0.5, 0.5, 0.5};
+volatile float EMA_S_ir[NUM_FINGERS] = {0.0, 0.0, 0.0, 0.0, 0.0};
+float contact_threshold[NUM_FINGERS] = {0.18, 0.3, 0.25, 0.3, 0.3};
+int contact_pwm[NUM_FINGERS] = {25, 25, 20, 20, 20};
+bool contact_flag = false;
+bool touch_flag[NUM_FINGERS] = {false, false, false, false, false};
 ///////////////////////////////////////////////////////////
 
 
@@ -96,7 +101,7 @@ bool min_flag_ir = true;
 bool min_flag_baro =  true;
 int drop_count_ir = 10;
 int drop_count_baro = 10;
-
+bool pid_flag = false;
 //////////////////////////////////////////////////////
 
 
@@ -110,7 +115,7 @@ int timer1_counter;
 
 
 /////////// High Pass filter variable ////////////
-FilterOnePole highpassFilter(HIGHPASS, 50);
+FilterOnePole highpassFilter(HIGHPASS, 200);
 RunningStatistics inputStats;
 
 // Creating high-pass filter; maximum order is 2
@@ -320,26 +325,26 @@ void readPressureValues() {
 
 
     //*********** PID POSITION CONTROL ************//
-      press_err[i] = press_target[i] - press_nrm[i];
-      diff_press_err[i] = prox_err[i] - prev_press_err[i];
-      prev_press_err[i] = press_err[i];
-      sum_press_err[i] += press_err[i];
-      pwm[i] = press_err[i] * kp_press[i] + diff_press_err[i] * kd_press[i] + sum_press_err[i] * ki_press[i];
-      Serial.print(pwm[i]); Serial.print('\t');
-      
-    
+    press_err[i] = press_target[i] - press_nrm[i];
+    diff_press_err[i] = prox_err[i] - prev_press_err[i];
+    prev_press_err[i] = press_err[i];
+    sum_press_err[i] += press_err[i];
+    pwm[i] = press_err[i] * kp_press[i] + diff_press_err[i] * kd_press[i] + sum_press_err[i] * ki_press[i];
+//    Serial.print(pwm[i]); Serial.print('\t');
+
+
     //********* Single PWM calculation for open and close **********//
-      if (pwm[3] > 0.0) {
-        byte close_finger[4] = {addrs[3], 0x0C, 0x80, int(pwm[3])};
-              send_cmmnd(close_finger);
-      }
+//    if (pwm[3] > 0.0) {
+//      byte close_finger[4] = {addrs[3], 0x0C, 0x80, int(pwm[3])};
+//      send_cmmnd(close_finger);
+//    }
+//
+//    if (prox_err[3] < 0.0) {
+//      byte open_finger[4] = {addrs[3], 0x0C, 0xC0, abs(int(pwm[3]))};
+//      send_cmmnd(open_finger);
+//    }
 
-      if (prox_err[3] < 0.0) {
-        byte open_finger[4] = {addrs[3], 0x0C, 0xC0, abs(int(pwm[3]))};
-              send_cmmnd(open_finger);
-      }
 
-    
   }
 
   min_flag_baro = false;
@@ -405,16 +410,12 @@ void readIRValues() {
   }
 
   else {
-    for (int i = 0; i < NUM_FINGERS -1 ; i++) {
-      //      digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+    float sum_pid_err = 0.0;
+    for (int i = 0; i < NUM_FINGERS-1; i++) {
+      digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
       selectSensor(fingers[i].irPort);
       proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
       //      Serial.print(proximity_value_[i]); Serial.print('\t');
-
-
-      //******* high pass filter with arduino library ******//
-      //      float highpass_ir = highpassFilter.input(prox_nrm[i]);
-      //      Serial.print(highpass_ir); Serial.print('\t');
 
 
       //********* high pass filter from guy from github **********//
@@ -431,41 +432,66 @@ void readIRValues() {
         min_distance[i] = proximity_value_[i];
       }
       prox_nrm[i] = float(proximity_value_[i] - min_distance[i]) / float(max_distance[i] - min_distance[i]);
-      //      Serial.print(prox_nrm[i]); Serial.print('\t');
+//      Serial.print(prox_nrm[i]); Serial.print('\t');
 
 
-      //******** Exponential average for Contact detection ********//
-      //      EMA_S_ir[i] = (EMA_a[i]*prox_nrm[i]) + ((1.0 - EMA_a[i])*prev_proximity_value_[i]);
-      //      prev_proximity_value_[i] = EMA_S_ir[i];
-      //      Serial.print(EMA_S_ir[i], 6); Serial.print('\t');
+      //******* high pass filter with arduino library ******//
+      //      float highpass_ir = highpassFilter.input(prox_nrm[i]);
+      //      Serial.print(highpass_ir); Serial.print('\t');
 
 
-      //*********** PID POSITION CONTROL ************//
-      prox_err[i] = prox_target[i] - prox_nrm[i];
-      diff_prox_err[i] = prox_err[i] - prev_prox_err[i];
-      prev_prox_err[i] = prox_err[i];
-      sum_prox_err[i] += prox_err[i];
-      pwm[i] = prox_err[i] * kp_prox[i] + diff_prox_err[i] * kd_prox[i] + sum_prox_err[i] * ki_prox[i];
-      //      Serial.print(pwm[i]); Serial.print('\t');
-      
 
-      //********* Single PWM calculation for open and close **********//
-      if (pwm[i] > 0.0) {
-        byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
-              send_cmmnd(close_finger);
+      if (contact_flag == true) {
+        //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
+        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
+        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
+//        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+
+        if (highpass_proximity_value_[i] < 0.25 & touch_flag[i] == false) {
+          byte close_finger[4] = {addrs[i], 0x0C, 0x80, contact_pwm[i]};
+          send_cmmnd(close_finger);
+        }
+        else {
+          touch_flag[i] = true;
+          byte break_finger[4] = {addrs[i], 0x0C, 0x03, 0};
+          send_cmmnd(break_finger);
+        }
+
       }
 
-      if (prox_err[i] < 0.0) {
-        byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
-              send_cmmnd(open_finger);
-      }
 
+      if (pid_flag == true) {
+        //*********** PID POSITION CONTROL ************//
+        prox_err[i] = prox_target[i] - prox_nrm[i];
+        diff_prox_err[i] = prox_err[i] - prev_prox_err[i];
+        prev_prox_err[i] = prox_err[i];
+        sum_prox_err[i] += prox_err[i];
+        pwm[i] = prox_err[i] * kp_prox[i] + diff_prox_err[i] * kd_prox[i] + sum_prox_err[i] * ki_prox[i];
+        //      Serial.print(prox_err[i]); Serial.print('\t');
+
+        //********* Single PWM calculation for open and close **********//
+        if (pwm[i] > 0.0) {
+          byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
+          send_cmmnd(close_finger);
+        }
+        if (pwm[i] < 0.0) {
+          byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
+          send_cmmnd(open_finger);
+        }
+        sum_pid_err += prox_err[i];
+      }
     }
+
+        sum_pid_err = float(abs(sum_pid_err))/4.0;
+        Serial.println(sum_pid_err);
+        if (sum_pid_err < 0.04){
+          pid_flag = false;
+          contact_flag = true;
+          }
 
     min_flag_ir = false;
 
   }
-
 }
 
 
@@ -677,25 +703,25 @@ void loop() {
 
   digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-//      lookForData();
-//      if (newCommand == true) {
-//        obey();
-//        newCommand = false;
-//      }
+  //      lookForData();
+  //      if (newCommand == true) {
+  //        obey();
+  //        newCommand = false;
+  //      }
 
 
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   //  readNNpredictions();
   //  readMotorEncodersValues();
 
   //  Serial.println(proximity_value_[3]);
 
 
-//  for (int i = 0; i < NUM_FINGERS; i++) {
-//    Serial.print(prox_nrm[i], 6); Serial.print('\t');
-//    Serial.print(press_nrm[i], 6); Serial.print('\t');
-//  }
+  //  for (int i = 0; i < NUM_FINGERS; i++) {
+  //    Serial.print(prox_nrm[i], 6); Serial.print('\t');
+  //    Serial.print(press_nrm[i], 6); Serial.print('\t');
+  //  }
 
   //  if (Serial.available() > 0)
   //  {
