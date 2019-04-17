@@ -123,3 +123,27 @@ RunningStatistics inputStats;
 //      sum_prox_err[i] = 0;
 //      }
 
+
+
+//***************** detect contact and stop fingers starting pinky to index *********************//
+      if (contact_flag[i] == true) {
+        //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
+        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
+        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
+//        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+
+        if (highpass_proximity_value_[finger_num] < contact_threshold[finger_num]) {
+          byte close_finger[4] = {addrs[finger_num], 0x0C, 0x80, contact_pwm[finger_num]};
+          send_cmmnd(close_finger);
+        }
+        else {
+          touch_flag[finger_num] = true;
+          byte break_finger[4] = {addrs[finger_num], 0x0C, 0x03, 0};
+          send_cmmnd(break_finger);
+          finger_num += 1;
+        }
+        if (finger_num == 4){
+           contact_flag[i] = false;
+          }
+      }
+
