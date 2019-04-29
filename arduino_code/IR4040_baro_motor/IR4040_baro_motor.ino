@@ -4,8 +4,8 @@
 
 #include <Wire.h>
 #include "rp_testing.h"
-#include <Filters.h> // Library from arduino https://playground.arduino.cc/Code/Filters/ simple high/low pass filter
-#include <filters.h> // Library from a guy on git for butterworth high pass filter https://github.com/MartinBloedorn/libFilter
+//#include <Filters.h> // Library from arduino https://playground.arduino.cc/Code/Filters/ simple high/low pass filter
+//#include <filters.h> // Library from a guy on git for butterworth high pass filter https://github.com/MartinBloedorn/libFilter
 
 
 /***** GLOBAL CONSTANTS *****/
@@ -115,13 +115,13 @@ int timer1_counter;
 
 
 /////////// High Pass filter variable ////////////
-FilterOnePole highpassFilter(HIGHPASS, 200);
-RunningStatistics inputStats;
+//FilterOnePole highpassFilter(HIGHPASS, 200);
+//RunningStatistics inputStats;
 
 // Creating high-pass filter; maximum order is 2
 const float cutoff_freq   = 37.0;   //Cutoff frequency in Hz
 const float sampling_time = 0.006; //Sampling time in seconds.
-Filter fhp(cutoff_freq, sampling_time, IIR::ORDER::OD2, IIR::TYPE::HIGHPASS);
+//Filter fhp(cutoff_freq, sampling_time, IIR::ORDER::OD2, IIR::TYPE::HIGHPASS);
 
 
 ///////////////////////////////////////////////////////////
@@ -322,7 +322,9 @@ void readPressureValues() {
       min_pressure[i] = pressure_value_[i];
     }
     press_nrm[i] = float(pressure_value_[i] - min_pressure[i]) / float(max_pressure[i] - min_pressure[i]);
-//    Serial.print(press_nrm[i], 6); Serial.print('\t');
+    
+    // SARAH UNCOMMENTED THIS!!!!
+    //Serial.print(press_nrm[i], 6); Serial.print('\t');
 
 
     //*********** PID POSITION CONTROL ************//
@@ -433,7 +435,9 @@ void readIRValues() {
         min_distance[i] = proximity_value_[i];
       }
       prox_nrm[i] = float(proximity_value_[i] - min_distance[i]) / float(max_distance[i] - min_distance[i]);
-//      Serial.print(prox_nrm[i]); Serial.print('\t');
+
+      // SARAH UNCOMMENTED THIS!!!
+      //Serial.print(prox_nrm[i]); Serial.print('\t');
 
 
       //******* high pass filter with arduino library ******//
@@ -442,7 +446,7 @@ void readIRValues() {
 
       EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
       highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
-//      Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+//      Serial.print(highpass_proximity_valu/e_[i], 6); Serial.print('\t');
 
       if (contact_flag == true) {
         //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
@@ -495,17 +499,25 @@ void readIRValues() {
 
 
 void readNNpredictions() {
+   float nn_output;
+   unsigned long start, elapsed;
   for (int i = 0; i < NUM_FINGERS; i++) {
     float *raw_data;
-    float nn_output;
-    // volatile float predictions[1];
     raw_data = (float*)malloc(2 * sizeof(float));
     raw_data[0] = float(prox_nrm[i]);
     raw_data[1] = float(press_nrm[i]);
+
+    start= micros();
     nn_output = nnpred(raw_data);
-    Serial.print(nn_output); Serial.print('\t');
-    free(raw_data);
+    elapsed= micros()- start;
+    
+    Serial.print("nn_output: ");
+    Serial.print(nn_output); 
+    Serial.print(", elapsed [ms]: ");
+    Serial.println(elapsed/1000.0f);
+     
   }
+  Serial.println("here");
 }
 
 
@@ -706,17 +718,17 @@ void loop() {
 
   digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-        lookForData();
-        if (newCommand == true) {
-          obey();
-          newCommand = false;
-        }
+//        lookForData();
+//        if (newCommand == true) {
+//          obey();
+//          newCommand = false;
+//        }
 
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-//    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//    readNNpredictions();
-    readMotorEncodersValues();
+    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//    readM/otorEncodersValues();
+      readNNpredictions();
 
   //  Serial.println(proximity_value_[3]);
 

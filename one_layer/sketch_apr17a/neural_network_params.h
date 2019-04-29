@@ -1,11 +1,3 @@
-#ifndef __NEURAL_NET_PARAMS_H__
-#define __NEURAL_NET_PARAMS_H__
-
-#ifdef __cpluscplus
-extern "C" {
-#endif
-
-
 const float W_0[2][2] = {{0.69485956, 1.3295125 },  {-0.8202908 ,  0.07904192}};
 
 const float b_0[2] = {0.18518262, -0.09902414};
@@ -50,10 +42,4 @@ const float W_4[4][1] = {{0.5689076},  {-0.966036},  {-0.1663366},  {0.76221985}
 
 const float b_4[1] = {0.017919056};
 
-
-#ifdef __cplusplus
-}
-
-#endif
-#endif
   
