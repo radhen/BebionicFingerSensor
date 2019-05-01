@@ -310,7 +310,7 @@ void readPressureValues() {
   }
   for (int i = 0; i < NUM_FINGERS; i++) {
     pressure_value_[i] = getPressureReading(i);
-//        Serial.print(pressure_value_[count]); Serial.print('\t');
+    //        Serial.print(pressure_value_[count]); Serial.print('\t');
 
     //*********** NORMALIZE BARO SENSOR VALUES ************//
     // keep track of the running min values
@@ -322,7 +322,7 @@ void readPressureValues() {
       min_pressure[i] = pressure_value_[i];
     }
     press_nrm[i] = float(pressure_value_[i] - min_pressure[i]) / float(max_pressure[i] - min_pressure[i]);
-    
+
     // SARAH UNCOMMENTED THIS!!!!
     //Serial.print(press_nrm[i], 6); Serial.print('\t');
 
@@ -333,19 +333,19 @@ void readPressureValues() {
     prev_press_err[i] = press_err[i];
     sum_press_err[i] += press_err[i];
     pwm[i] = press_err[i] * kp_press[i] + diff_press_err[i] * kd_press[i] + sum_press_err[i] * ki_press[i];
-//    Serial.print(pwm[i]); Serial.print('\t');
+    //    Serial.print(pwm[i]); Serial.print('\t');
 
 
     //********* Single PWM calculation for open and close **********//
-//    if (pwm[3] > 0.0) {
-//      byte close_finger[4] = {addrs[3], 0x0C, 0x80, int(pwm[3])};
-//      send_cmmnd(close_finger);
-//    }
-//
-//    if (prox_err[3] < 0.0) {
-//      byte open_finger[4] = {addrs[3], 0x0C, 0xC0, abs(int(pwm[3]))};
-//      send_cmmnd(open_finger);
-//    }
+    //    if (pwm[3] > 0.0) {
+    //      byte close_finger[4] = {addrs[3], 0x0C, 0x80, int(pwm[3])};
+    //      send_cmmnd(close_finger);
+    //    }
+    //
+    //    if (prox_err[3] < 0.0) {
+    //      byte open_finger[4] = {addrs[3], 0x0C, 0xC0, abs(int(pwm[3]))};
+    //      send_cmmnd(open_finger);
+    //    }
 
 
   }
@@ -414,7 +414,7 @@ void readIRValues() {
 
   else {
     float sum_pid_err = 0.0;
-    for (int i = 0; i < NUM_FINGERS-1; i++) {
+    for (int i = 0; i < NUM_FINGERS - 1; i++) {
       digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
       selectSensor(fingers[i].irPort);
       proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
@@ -446,26 +446,27 @@ void readIRValues() {
 
       EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
       highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
-//      Serial.print(highpass_proximity_valu/e_[i], 6); Serial.print('\t');
+      //      Serial.print(highpass_proximity_valu/e_[i], 6); Serial.print('\t');
 
       if (contact_flag == true) {
         //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
-//        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
-//        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
-//        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+        //        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
+        //        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
+        //        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
 
         if (highpass_proximity_value_[finger_num] < contact_threshold[finger_num]) {
           byte close_finger[4] = {addrs[finger_num], 0x0C, 0x80, contact_pwm[finger_num]};
           send_cmmnd(close_finger);
         }
         else {
-//          touch_flag[finger_num] = true;
+          //          touch_flag[finger_num] = true;
           byte break_finger[4] = {addrs[finger_num], 0x0C, 0x03, 0};
           send_cmmnd(break_finger);
           finger_num += 1;
-        }   
-        if (finger_num == 4){
-            contact_flag = false;}
+        }
+        if (finger_num == 4) {
+          contact_flag = false;
+        }
       }
 
 
@@ -489,7 +490,7 @@ void readIRValues() {
         }
         sum_pid_err += prox_err[i];
       }
-      
+
     }
 
     min_flag_ir = false;
@@ -499,25 +500,25 @@ void readIRValues() {
 
 
 void readNNpredictions() {
-   float nn_output;
-   unsigned long start, elapsed;
+  float nn_output;
+  unsigned long start, elapsed;
   for (int i = 0; i < NUM_FINGERS; i++) {
     float *raw_data;
     raw_data = (float*)malloc(2 * sizeof(float));
     raw_data[0] = float(prox_nrm[i]);
     raw_data[1] = float(press_nrm[i]);
 
-    start= micros();
+    start = micros();
     nn_output = nnpred(raw_data);
-    elapsed= micros()- start;
-    
-    Serial.print("nn_output: ");
-    Serial.print(nn_output); 
-    Serial.print(", elapsed [ms]: ");
-    Serial.println(elapsed/1000.0f);
-     
+    elapsed = micros() - start;
+
+    //    Serial.print("nn_out/put: ");
+    Serial.print(nn_output); Serial.print('\t');
+    //    Serial.print(", elapsed [ms]: ");
+    //    Serial.println(elapsed/1000.0f);
+
   }
-  Serial.println("here");
+  //  Serial.println("here");
 }
 
 
@@ -654,7 +655,7 @@ void readMotorEncodersValues() {
   int count = 0;
   for (int i = 0; i < NUM_PBOARDS; i++) { // loop over penny boards
     encoder_value_ = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
-        Serial.print(encoder_value_); Serial.print('\t');
+    Serial.print(encoder_value_); Serial.print('\t');
     //    packet.encoders[count] = encoder_value_;
     count += 1;
   }
@@ -699,8 +700,9 @@ void setup() {
   //  }
 
   for (int i = 0; i < NUM_PBOARDS; i++) {
-        byte zero_encoder[4] = {addrs[i], 0x08, 0xFF, 0xFF};
-        send_cmmnd(zero_encoder);}
+    byte zero_encoder[4] = {addrs[i], 0x08, 0xFF, 0xFF};
+    send_cmmnd(zero_encoder);
+  }
 
   muxStatus = 0;
 
@@ -718,17 +720,18 @@ void loop() {
 
   digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-//        lookForData();
-//        if (newCommand == true) {
-//          obey();
-//          newCommand = false;
-//        }
+  //        lookForData();
+  //        if (newCommand == true) {
+  //          obey();
+  //          newCommand = false;
+  //        }
 
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
-    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//    readM/otorEncodersValues();
-      readNNpredictions();
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readNNpredictions();
+  //    readMotorEncodersValues();
+
 
   //  Serial.println(proximity_value_[3]);
 
@@ -737,44 +740,44 @@ void loop() {
   //    Serial.print(prox_nrm[i], 6); Serial.print('\t');
   //    Serial.print(press_nrm[i], 6); Serial.print('\t');
   //  }
-  
 
-//    if (Serial.available() > 0){
-//      
-//      user_input = Serial.read();
-//  
-//      if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
-//        scan_i2c();}
-//  
-//      if (user_input == 0x71) { // send chr 'q' to close
-//        for (int i = 0; i < NUM_PBOARDS; i++) {
-//          byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x10};
-//          send_cmmnd(close_finger);}}
-//  
-//      if (user_input == 0x77) { // send chr 'w' to break
-//        for (int i = 0; i < NUM_PBOARDS; i++) {
-//        byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
-//        send_cmmnd(apply_break);}}
-//  
-//      if (user_input == 0x65) { // send chr 'e' to open
-//        for (int i = 0; i < NUM_PBOARDS; i++) {
-//        byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x10};
-//        send_cmmnd(open_finger);}}
-//
-//        if (user_input == 0x70){ // send chr 'p' to start pid position controller
-//          pid_flag = true;
-//          contact_flag = false;}
-//        
-//      if (user_input == 0x63){ // send chr 'c' to start contact detection
-//          pid_flag = false;
-//          finger_num = 0;
-//          contact_flag = true;}
-//          
-//      if (user_input == 0x6E){ // send chr 'n' to do nothing
-//          pid_flag = false;
-//          contact_flag = false;}}
 
-    
+  //    if (Serial.available() > 0){
+  //
+  //      user_input = Serial.read();
+  //
+  //      if (user_input == 0x2C){ // send chr ',' to read Pboard addrs
+  //        scan_i2c();}
+  //
+  //      if (user_input == 0x71) { // send chr 'q' to close
+  //        for (int i = 0; i < NUM_PBOARDS; i++) {
+  //          byte close_finger[4] = {addrs[i], 0x0C, 0x80, 0x10};
+  //          send_cmmnd(close_finger);}}
+  //
+  //      if (user_input == 0x77) { // send chr 'w' to break
+  //        for (int i = 0; i < NUM_PBOARDS; i++) {
+  //        byte apply_break[4] = {addrs[i], 0x0C, 0x03, 0x00};
+  //        send_cmmnd(apply_break);}}
+  //
+  //      if (user_input == 0x65) { // send chr 'e' to open
+  //        for (int i = 0; i < NUM_PBOARDS; i++) {
+  //        byte open_finger[4] = {addrs[i], 0x0C, 0xC0, 0x10};
+  //        send_cmmnd(open_finger);}}
+  //
+  //        if (user_input == 0x70){ // send chr 'p' to start pid position controller
+  //          pid_flag = true;
+  //          contact_flag = false;}
+  //
+  //      if (user_input == 0x63){ // send chr 'c' to start contact detection
+  //          pid_flag = false;
+  //          finger_num = 0;
+  //          contact_flag = true;}
+  //
+  //      if (user_input == 0x6E){ // send chr 'n' to do nothing
+  //          pid_flag = false;
+  //          contact_flag = false;}}
+
+
   Serial.print('\n');
 
 }
