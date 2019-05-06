@@ -323,8 +323,7 @@ void readPressureValues() {
     }
     press_nrm[i] = float(pressure_value_[i] - min_pressure[i]) / float(max_pressure[i] - min_pressure[i]);
 
-    // SARAH UNCOMMENTED THIS!!!!
-    //Serial.print(press_nrm[i], 6); Serial.print('\t');
+//    Serial.print(press_nrm[i], 6); Serial.print('\t');
 
 
     //*********** PID POSITION CONTROL ************//
@@ -414,8 +413,8 @@ void readIRValues() {
 
   else {
     float sum_pid_err = 0.0;
-    for (int i = 0; i < NUM_FINGERS - 1; i++) {
-      digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+    for (int i = 0; i < NUM_FINGERS; i++) {
+//      digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
       selectSensor(fingers[i].irPort);
       proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
       //      Serial.print(proximity_value_[i]); Serial.print('\t');
@@ -436,8 +435,7 @@ void readIRValues() {
       }
       prox_nrm[i] = float(proximity_value_[i] - min_distance[i]) / float(max_distance[i] - min_distance[i]);
 
-      // SARAH UNCOMMENTED THIS!!!
-      //Serial.print(prox_nrm[i]); Serial.print('\t');
+//      Serial.print(prox_nrm[i]); Serial.print('\t');
 
 
       //******* high pass filter with arduino library ******//
@@ -448,48 +446,48 @@ void readIRValues() {
       highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
       //      Serial.print(highpass_proximity_valu/e_[i], 6); Serial.print('\t');
 
-      if (contact_flag == true) {
-        //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
-        //        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
-        //        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
-        //        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+//      if (contact_flag == true) {
+//        //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
+//        //        EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
+//        //        highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
+//        //        Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+//
+//        if (highpass_proximity_value_[finger_num] < contact_threshold[finger_num]) {
+//          byte close_finger[4] = {addrs[finger_num], 0x0C, 0x80, contact_pwm[finger_num]};
+//          send_cmmnd(close_finger);
+//        }
+//        else {
+//          //          touch_flag[finger_num] = true;
+//          byte break_finger[4] = {addrs[finger_num], 0x0C, 0x03, 0};
+//          send_cmmnd(break_finger);
+//          finger_num += 1;
+//        }
+//        if (finger_num == 4) {
+//          contact_flag = false;
+//        }
+//      }
 
-        if (highpass_proximity_value_[finger_num] < contact_threshold[finger_num]) {
-          byte close_finger[4] = {addrs[finger_num], 0x0C, 0x80, contact_pwm[finger_num]};
-          send_cmmnd(close_finger);
-        }
-        else {
-          //          touch_flag[finger_num] = true;
-          byte break_finger[4] = {addrs[finger_num], 0x0C, 0x03, 0};
-          send_cmmnd(break_finger);
-          finger_num += 1;
-        }
-        if (finger_num == 4) {
-          contact_flag = false;
-        }
-      }
 
-
-      if (pid_flag == true) {
-        //*********** PID POSITION CONTROL ************//
-        prox_err[i] = prox_target[i] - prox_nrm[i];
-        diff_prox_err[i] = prox_err[i] - prev_prox_err[i];
-        prev_prox_err[i] = prox_err[i];
-        sum_prox_err[i] += prox_err[i];
-        pwm[i] = prox_err[i] * kp_prox[i] + diff_prox_err[i] * kd_prox[i] + sum_prox_err[i] * ki_prox[i];
-        //      Serial.print(prox_err[i]); Serial.print('\t');
-
-        //********* Single PWM calculation for open and close **********//
-        if (pwm[i] > 0.0) {
-          byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
-          send_cmmnd(close_finger);
-        }
-        if (pwm[i] < 0.0) {
-          byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
-          send_cmmnd(open_finger);
-        }
-        sum_pid_err += prox_err[i];
-      }
+//      if (pid_flag == true) {
+//        //*********** PID POSITION CONTROL ************//
+//        prox_err[i] = prox_target[i] - prox_nrm[i];
+//        diff_prox_err[i] = prox_err[i] - prev_prox_err[i];
+//        prev_prox_err[i] = prox_err[i];
+//        sum_prox_err[i] += prox_err[i];
+//        pwm[i] = prox_err[i] * kp_prox[i] + diff_prox_err[i] * kd_prox[i] + sum_prox_err[i] * ki_prox[i];
+//        //      Serial.print(prox_err[i]); Serial.print('\t');
+//
+//        //********* Single PWM calculation for open and close **********//
+//        if (pwm[i] > 0.0) {
+//          byte close_finger[4] = {addrs[i], 0x0C, 0x80, int(pwm[i])};
+//          send_cmmnd(close_finger);
+//        }
+//        if (pwm[i] < 0.0) {
+//          byte open_finger[4] = {addrs[i], 0x0C, 0xC0, abs(int(pwm[i]))};
+//          send_cmmnd(open_finger);
+//        }
+//        sum_pid_err += prox_err[i];
+//      }
 
     }
 
@@ -513,12 +511,13 @@ void readNNpredictions() {
     elapsed = micros() - start;
 
     //    Serial.print("nn_out/put: ");
-    Serial.print(nn_output); Serial.print('\t');
+//    Serial.print(nn_output); Serial.print('\t');
     //    Serial.print(", elapsed [ms]: ");
-    //    Serial.println(elapsed/1000.0f);
-
+        Serial.println(elapsed/1000.0f);
+//    digitalWrite(13, !digitalRead(13));
   }
   //  Serial.println("here");
+  
 }
 
 
@@ -674,7 +673,7 @@ void send_cmmnd(byte command[4]) {
 
 void setup() {
 
-  Serial.begin(115200);
+  Serial.begin(9600);
   Wire.begin();
   Wire.setClock(100000);
   //  Wire.setClock( 400000L);
@@ -718,7 +717,7 @@ void setup() {
 
 void loop() {
 
-  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
+//  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
   //        lookForData();
   //        if (newCommand == true) {
