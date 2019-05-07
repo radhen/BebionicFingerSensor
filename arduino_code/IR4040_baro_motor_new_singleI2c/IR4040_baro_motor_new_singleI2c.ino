@@ -570,6 +570,4 @@ void loop() {
 
  Serial.print('\n');
 
-
-
 }

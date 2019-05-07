@@ -5,19 +5,20 @@
 
 #include <Wire.h>
 #include <bluefruit.h>
-
 BLEUart bleuart; // uart over ble
 //#include "rp_testing.h"
 
 
 //***** Simultaneous use of two i2c ports ********//
 //***** https://github.com/espressif/arduino-esp32/issues/977 ********//
-#define SDA_IN 22 // these are pin numbers on the 
-#define SCL_IN 52
-#define SDA_OUT 24
-#define SCL_OUT 27
+#define SDA_IN 8 // (22) these are pin numbers on the MDBT50Q chip on the Sparkfun Pro nrf52840 Mini
+#define SCL_IN 11 // (52) -------------- " -------------------- " ------------------- " -------------
+#define SDA_OUT 6 // -------------- " -------------------- " ------------------- " -------------
+#define SCL_OUT 9 // -------------- " -------------------- " ------------------- " -------------
+// TwoWire defination from the Wire_nrf52.cpp file
 TwoWire I2C_in(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_IN, SCL_IN);
 TwoWire I2C_out(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_OUT, SCL_OUT);
+
 
 
 /***** GLOBAL CONSTANTS *****/
@@ -310,15 +311,17 @@ void readPressureValues() {
   I2C_in.write(byte(0));
   int errcode = I2C_in.endTransmission();
     pressure_value_[count] = getPressureReading(i);
-    //Serial
     Serial.print(pressure_value_[count]); Serial.print('\t');
+
     //I2C_out
     I2C_out.beginTransmission(8);
     I2C_out.write(pressure_value_[count]); I2C_out.write('\t');
     I2C_out.endTransmission();
+    
     if(bleuart.available()){
       bleuart.write(pressure_value_[count]); bleuart.write('\t');
     }
+    
     count += 1;
   }
 
@@ -385,14 +388,17 @@ void readIRValues() {
     proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
     //Serial out
     Serial.print(proximity_value_[count]); Serial.print('\t');
+
     //I2C out
     I2C_out.beginTransmission(8);
     I2C_out.write(proximity_value_[count]); I2C_out.write('\t');
     I2C_out.endTransmission();
+    
     //bluetooth out
      if(bleuart.available()){
       bleuart.write(proximity_value_[count]); bleuart.write('\t');
     }
+    
     count += 1;
   }
 }
@@ -574,46 +580,45 @@ void setup() {
   delay(1000);
 
   // Initialize Bluetooth:
-  Bluefruit.begin();
-  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
-  Bluefruit.setTxPower(4);
-  Bluefruit.setName("RoboticMaterials_Centerboard");
-  bleuart.begin();
-
-  // Start advertising device and bleuart services
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addTxPower();
-  Bluefruit.Advertising.addService(bleuart);
-  Bluefruit.ScanResponse.addName();
-
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  // Set advertising interval (in unit of 0.625ms):
-  Bluefruit.Advertising.setInterval(32, 244);
-  // number of seconds in fast mode:
-  Bluefruit.Advertising.setFastTimeout(30);
-  Bluefruit.Advertising.start(0);  
+//  Bluefruit.begin();
+//  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+//  Bluefruit.setTxPower(4);
+//  Bluefruit.setName("RoboticMaterials_Centerboard");
+//  bleuart.begin();
+//
+//  // Start advertising device and bleuart services
+//  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+//  Bluefruit.Advertising.addTxPower();
+//  Bluefruit.Advertising.addService(bleuart);
+//  Bluefruit.ScanResponse.addName();
+//
+//  Bluefruit.Advertising.restartOnDisconnect(true);
+//  // Set advertising interval (in unit of 0.625ms):
+//  Bluefruit.Advertising.setInterval(32, 244);
+//  // number of seconds in fast mode:
+//  Bluefruit.Advertising.setFastTimeout(30);
+//  Bluefruit.Advertising.start(0);  
 
 //  initialize attached devices
   for (int i = 0; i < NUM_FINGERS; i++)
   {
     initIRSensor(i);
-        initPressure(i);
+    initPressure(i);
   }
 
 
 //  while (!Serial) 
 //    {
 //    }
-//
 //  Serial.println ();
 //  Serial.println ("I2C scanner. Scanning ...");
 //  byte count = 0;
 //  
-//  I2C_in.begin();
+//  I2C_out.begin();
 //  for (byte i = 8; i < 120; i++)
 //  {
-//    I2C_in.beginTransmission (i);
-//    if (I2C_in.endTransmission () == 0)
+//    I2C_out.beginTransmission (i);
+//    if (I2C_out.endTransmission () == 0)
 //      {
 //      Serial.print ("Found address: ");
 //      Serial.print (i, DEC);
@@ -653,9 +658,7 @@ void loop() {
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   //  readNNpredictions();
-  //  readMotorEncodersValues();
-
-//scan_i2c_in();
+//    readMotorEncodersValues();
 
   Serial.print('\n');
 

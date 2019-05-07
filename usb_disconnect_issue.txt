@@ -1,1 +1,8 @@
 http://wiki.bauwe.nl/Arduino/ProMicro
+
+/etc/init.d/udev restart
+
+sudo udevadm trigger
+
+Udev rules for adafruit boards
+https://learn.adafruit.com/adafruit-arduino-ide-setup/linux-setup
