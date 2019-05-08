@@ -75,8 +75,8 @@ in the command line
 
 7. Another helpful link on Sparkfun forum. Topic that I had created to ask why the nrf boards got disconnected from the Arduino IDE upon uploading any kind of code - http://forum.sparkfun.com/viewtopic.php?f=99&t=49799 
 	A. http://wiki.bauwe.nl/Arduino/ProMicro
-	B. /etc/init.d/udev restart
-	C. Udev rules for adafruit boards - https://learn.adafruit.com/adafruit-arduino-ide-setup/linux-setup
+	B. This commands restarts the udev after you have added/removed udev files - /etc/init.d/udev restart
+	C. Udev rules for adafruit boards (this is the only thing you'll need to do, most probably) - https://learn.adafruit.com/adafruit-arduino-ide-setup/linux-setup
 
 ----------------------------------------------------------------------------------------------------------------------------
 
