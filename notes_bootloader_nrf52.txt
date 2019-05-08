@@ -1,9 +1,51 @@
-1. Upload the bootloader
 
-- Bootloader on Git: https://github.com/adafruit/Adafruit_nRF52_Bootloader
+-------------------------------------------- FLASH BOOTLOADER: CORE STEPS  --------------------------------------------------------------
+
+One-time set up for installing bootloader:
+1. Install nrfjprog: https://www.nordicsemi.com/?sc_itemid=%7B56868165-9553-444D-AA57-15BDE1BF6B49%7D
+2. Buy a bootloader-installer: https://www.digikey.com/product-detail/en/nordic-semiconductor-asa/NRF52-DK/1490-1053-ND/5773879
+3. Add a solder blob to SB47, right next to the 'Debug Out' connector. <add picture> (this disconnects the on-board nrf5280 so that you can actually tell if you aren't connected properly to the board you care about).
+4. Download the bootloader *.hex file from here: https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases (using this specific version: https://github.com/adafruit/Adafruit_nRF52_Bootloader/releases/tag/0.2.9)
+
+One-time set up for arduino ide programming:
+0. Download Arduion 1.8.9 version. 
+1. Follow this guide: https://learn.sparkfun.com/tutorials/nrf52840-development-with-arduino-and-circuitpython
+
+Bootloader programming steps:
+0. Add solder blob to fix voltage regulator. Two of caps HC1 and HC2 were not grounded. Will be fixed in future release of the center board.  
+1. Plug in USB connection on center board.
+2. Hold 10-pin programming connector in place <add picture>
+3. Run:
+./nrfjprog -e
+./nrfjprog --program <bootloader.hex from above> --chiperase -f nrf52 --reset
+
+You can now program the board over USB with the Arduino IDE.
 
 
-- Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
+------------------------------------------- MISC COMMANDS ------------------------------------------------------------------------
+
+See commands below to upload the latest bootloader on the Sparkfun Pro nrf52840 mini board and our custom center board. Seems to me like I need to use the nrfjprog command line tool to upload the bootloader onto the Sparkfun board using the DK to do it the proper way. Once you've flashed the Adafruit nRF52 Bootloader you can use adafruit-nrfutil moving forward to re-flash the bootloader, and can ditch the J-Link.
+
+Use the commands below to flash bootloader on an EMPTY board using the nrf52840 DK board 
+./nrjprog -e
+./nrfjprog --program feather_nrf52840_express_bootloader-0.2.9_s140_6.1.1.hex --chiperase -f nrf52 --reset
+
+The command below finally worked. Note that I am not using the nrf52840 DK board to upload the bootloader. 
+adafruit-nrfutil --verbose dfu serial --package feather_nrf52840_express_bootloader-0.2.10_s140_6.1.1.zip -p /dev/ttyACM0 -b 115200 --singlebank --touch 1200
+
+Use the command below to update an exisiting bootloader. No need for the DK board. Just connect the custom designed board.
+adafruit-nrfutil --verbose dfu serial --package feather_nrf52840_express_bootloader-0.2.9_s140_6.1.1.zip -p /dev/ttyACM0 -b 115200 --singlebank --touch 1200
+
+make sure you have permission to write on the port. To do so type
+sudo chmod 666 /dev/ttyACM0
+in the command line
+
+
+-------------------------------------------- HELPFUL URLs --------------------------------------------------------
+
+1. Bootloader on Git: https://github.com/adafruit/Adafruit_nRF52_Bootloader
+
+2. Useful Link: https://learn.adafruit.com/circuitpython-on-the-nrf52/nrf52840-bootloader
 	A. Instructions for Windows.
 	A1. Using nrfjprog worked on windows. First of all erase the chip by typing "nrfjprog -f nrf52 --eraseall"
 	A2. Then upload the hex file by typing "nrfjprog -f nrf52 --program pca10056_bootloader.hex"
@@ -12,43 +54,30 @@
 	C. Still no luck. The MUX board gets recognized now on the USB list but not by Arduino.
 	D. Tried on Ubunutu. nrfjrpog does not install on Ubuntu. ERROR: JLinkARM DLL not found. Please reinstall latest JLinkARM.
 
-- Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
+3. Useful Link: https://learn.adafruit.com/bluefruit-nrf52-feather-learning-guide/flashing-the-bootloader
 	A. Instructions for Ubuntu/Mac OS/Windows
 	B. Uses Arduino to flash the bootloader
 	C. Tried to use adaLink command line tool to upload the code. Error related to Jlink. Installed Jlink. works now. 
 	D. Getting Error. AdaLinkError: Could not find nrf52840, is it connected?
 
 
-- Useful Link: https://learn.adafruit.com/introducing-the-adafruit-nrf52840-feather/update-bootloader
+4. Useful Link: https://learn.adafruit.com/introducing-the-adafruit-nrf52840-feather/update-bootloader
 	A. Instructions for Ubuntu/Mac OS/Windows
 	B. Uses adafruit-util as the helper program
 
 
-2. Install Arduino Core (DONE!)
+5. Install Arduino Core (DONE!)
 	- Followed this -> Instructions to install: https://learn.sparkfun.com/tutorials/nrf52840-development-with-arduino-and-circuitpython
 	- Extra -> Github page on Arduino code (source files): https://github.com/sandeepmistry/arduino-nRF5
 
 
-Upload latest bootloader on Sparkfun nrf52840 mini board. 
-The command below finally worked. Note that I am not using the nrf52840 DK board to upload the bootloader. 
+6. Helpful link from Sparkfun forum on nrf52840 - https://forum.sparkfun.com/viewtopic.php?f=114&t=49541&p=202843&hilit=nrf52840#p202843
 
-adafruit-nrfutil --verbose dfu serial --package feather_nrf52840_express_bootloader-0.2.10_s140_6.1.1.zip -p /dev/ttyACM0 -b 115200 --singlebank --touch 1200
+7. Another helpful link on Sparkfun forum. Topic that I had created to ask why the nrf boards got disconnected from the Arduino IDE upon uploading any kind of code - http://forum.sparkfun.com/viewtopic.php?f=99&t=49799 
+	A. http://wiki.bauwe.nl/Arduino/ProMicro
+	B. /etc/init.d/udev restart
+	C. Udev rules for adafruit boards - https://learn.adafruit.com/adafruit-arduino-ide-setup/linux-setup
 
-Can upload an example code from Arduino on the sparkfun mini board but it does seem to work. Binking LED 7 code does not work. Reset pin and PIN13 do not put the board in bootloader mode. Another option is ground PIN2 while resetting the board. Tried to do a hardware reset. Does not work!
-
-
-
-Use the command below to flash bootloader on an EMPTY board using the nrf52840 DK board 
-./nrfjprog --program feather_nrf52840_express_bootloader-0.2.9_s140_6.1.1.hex --chiperase -f nrf52 --reset
-
-Use the command below to update an exisiting bootloader. No need for the DK board. Just connect the custom designed board.
-adafruit-nrfutil --verbose dfu serial --package feather_nrf52840_express_bootloader-0.2.9_s140_6.1.1.zip -p /dev/ttyACM0 -b 115200 --singlebank --touch 1200
-make sure you have permission to write on the port. To do so type
-sudo chmod 666 /dev/ttyACM0
-in the command line
+----------------------------------------------------------------------------------------------------------------------------
 
 
-Helpful link from Sparkfun forum on nrf52840
-https://forum.sparkfun.com/viewtopic.php?f=114&t=49541&p=202843&hilit=nrf52840#p202843
-
-Seems like I need to use the nrfjprog command line tool to upload the bootloader onto the Sparkfun board using the DK to do it the proper way. Once you've flashed the Adafruit nRF52 Bootloader you can use adafruit-nrfutil moving forward to re-flash the bootloader, and can ditch the J-Link.
