@@ -11,20 +11,29 @@ BLEUart bleuart; // uart over ble
 
 //***** Simultaneous use of two i2c ports ********//
 //***** https://github.com/espressif/arduino-esp32/issues/977 ********//
-#define SDA_IN 8 // (22) these are pin numbers on the MDBT50Q chip on the Sparkfun Pro nrf52840 Mini
-#define SCL_IN 11 // (52) -------------- " -------------------- " ------------------- " -------------
-#define SDA_OUT 6 // -------------- " -------------------- " ------------------- " -------------
-#define SCL_OUT 9 // -------------- " -------------------- " ------------------- " -------------
-// TwoWire defination from the Wire_nrf52.cpp file
-TwoWire I2C_in(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_IN, SCL_IN);
-TwoWire I2C_out(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_OUT, SCL_OUT);
+#define SDA_1 8 // these are pin numbers on the MDBT50Q chip on the Sparkfun Pro nrf52840 Mini
+#define SCL_1 11 // -------------- " -------------------- " ------------------- " -------------
+#define SDA_2 6 // -------------- " -------------------- " ------------------- " -------------
+#define SCL_2 9 // -------------- " -------------------- " ------------------- " -------------
 
+#define OUTPUT_I2C_ADDRESS 0x08
+
+#define I2C_OUT_ENABLED false
+#define BLUETOOTH_ENABLED false
+
+// TwoWire definition from the Wire_nrf52.cpp file
+//TwoWire I2C_in(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SDA_1, SCL_1);
+TwoWire I2C_in(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_1, SCL_1);
+#if(I2C_OUT_ENABLED)
+TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SDA_2, SCL_2);
+//TwoWire I2C_out(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SDA_2, SCL_2);
+#endif
+
+#define LED_PIN 7
 
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x2B  // MS5637_02BA03 I2C address is 0x76(118)
 #define CMD_RESET 0x1E
-#define VCNL4040_ADDR 0x3D //7-bit unshifted I2C address of VCNL4040
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
 //#define PS_CONF2 //High byte of PS_CONF1
@@ -35,28 +44,17 @@ TwoWire I2C_out(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 1 // number of fingers connected
+#define NUM_FINGERS 2 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
-#define MUX0_ADDR 112
-
-/***** USER PARAMETERS *****/
-int i2c_ids_[2] = {112, 113}; //muxAddresses
-//int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
-
 typedef struct {
-  byte irPort;
-  byte barPort;
+  byte irAddr;
+  byte barAddr;
 } Digit;
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ie, barPort).
-//Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
-//  {4, 4},  //middle finger
-//  {2, 2},  //ring finger
-//  {0, 0},  //pinky finger
-//  {8, 8}
-//}; //thumb
+Digit fingers[NUM_FINGERS] = {{0x5A,0x4C},{0x1C,0x0A}};
 
 int muxStatus;
 
@@ -66,6 +64,10 @@ byte serialByte;
 uint16_t Coff[6][NUM_FINGERS];
 int32_t Ti = 0, offi = 0, sensi = 0;
 int32_t data[3];
+
+bool light_on;
+unsigned long last_light_switch;
+#define BLINKY_LIGHT_PERIOD_MS 500
 
 volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
@@ -135,25 +137,29 @@ DataPacket packet;
 //////////////////////////////////////////////////////////
 
 void scan_i2c_in(){
-Serial.println("Scanning I2C Addresses Channel 1");
-uint8_t cnt=0;
-for(uint8_t i=0;i<128;i++){
-  I2C_in.beginTransmission(i);
-  uint8_t ec=I2C_in.endTransmission(true);
-  if(ec==0){
-    if(i<16)Serial.print('0');
-    Serial.print(i,HEX);
-    cnt++;
-  }
-  else Serial.print("..");
-  Serial.print(' ');
-  if ((i&0x0f)==0x0f)Serial.println();
-  }
-Serial.print("Scan Completed, ");
-Serial.print(cnt);
-Serial.println(" I2C Devices found.");
+  Serial.println ("I2C scanner. Scanning ...");
+  byte device_count = 0;
+  I2C_in.begin();
+  for (byte i = 0; i < 128; i++){
+    I2C_in.beginTransmission (i);
+    if (I2C_in.endTransmission () == 0) {
+      Serial.print ("Found address: 0x");
+      if(i<16){
+        Serial.print("0");
+      }
+      Serial.print (i, HEX);
+      Serial.println ("");
+      device_count++;
+      delay (1);  // maybe unneeded?
+      } // end of good response
+  } // end of for loop
+  Serial.println ("Done.");
+  Serial.print ("Found ");
+  Serial.print (device_count, DEC);
+  Serial.println (" device(s).");
 }
 
+#if(I2C_OUT_ENABLED)
 void scan_i2c_out(){
 Serial.println("Scanning I2C Addresses Channel 2");
 uint8_t cnt=0;
@@ -173,81 +179,28 @@ Serial.print("Scan Completed, ");
 Serial.print(cnt);
 Serial.println(" I2C Devices found.");
 }
+#endif
 
 ///////////////////////////////////////////////////////////
 ///////////// PCF SENSOR FUNCTIONS BELOW ///////////////
 //////////////////////////////////////////////////////////
 
-// Reads a two byte value from a command register
-unsigned int readFromCommandRegister(byte commandCode)
-{
-  I2C_in.beginTransmission(VCNL4040_ADDR);
-  I2C_in.write(commandCode);
-  int err = I2C_in.endTransmission(false); //Send a restart command. Do not release bus.
-//  Serial.println(err);
-  I2C_in.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
-
-  unsigned int data = I2C_in.read();
-  data |= I2C_in.read() << 8;
-
-  return (data);
-}
-
-
-//void selectSensor(int muxID, int i) {
-//  I2C_in.beginTransmission(muxID);
-//  I2C_in.write(1 << i);
-//  int errcode = I2C_in.endTransmission();
-////  Serial.println(errcode);
-//}
-
-/*
-   Each individual mux allows selection between 8 different channels, the 8 bits of a single byte being used to set the on/off status of a given channel.
-   We are going to keep track of the status of the two muxes the same way, using the 16 bits of a two-byte int.
-
-*/
-void selectSensor(int port) {
-  int muxStatusGoal = 1 << port;
-  //  Serial.print("Port: "); Serial.print(port);
-  if ( (muxStatus & 0xFF) != (muxStatusGoal & 0xFF) ) { //We only need update mux0 if the desired state for mux0 is not its current state.
-    I2C_in.beginTransmission(MUX0_ADDR); //Talk to mux0.
-    I2C_in.write( (byte)(muxStatusGoal & 0xFF)); //Update mux0 to desired status.
-    int errcode = I2C_in.endTransmission(); //Release i2c line.
-    //    Serial.print("112"); Serial.print('\t'); Serial.println(errcode);
-  }
-  if ( (muxStatus & 0xFF00) != (muxStatusGoal & 0xFF00) ) { //We only need update mux1 if the desired state for mux1 is not its current state.
-    I2C_in.beginTransmission(MUX0_ADDR + 1); //Talk to mux1.
-    I2C_in.write( (byte)((muxStatusGoal & 0xFF00) >> 8)); //Update mux1 to desired status.
-    int errcode = I2C_in.endTransmission(); //Release i2c line.
-    //    Serial.print("113"); Serial.print('\t'); Serial.println(errcode);
-  }
-  muxStatus = muxStatusGoal;
-}
-
-
-void writeByte(byte addr, byte val) {
-  I2C_in.beginTransmission(VCNL4040_ADDR);
-  I2C_in.write(addr);
-  I2C_in.write(val);
-  I2C_in.endTransmission(); //Release bus
-}
-
-
-void initPressure(int id) {
+void initPressure(int fingerID) {
   byte dataLo, dataHi;
 
-  //  selectSensor(fingers[id].barPort);
-  I2C_in.beginTransmission(BARO_ADDRESS);
+  const byte baro_address = fingers[fingerID].barAddr;
+  
+  I2C_in.beginTransmission(baro_address);
   I2C_in.write(byte(0));
   int errcode = I2C_in.endTransmission();
 
   for (int i = 0; i < 6; i++) { //loop over Coefficient elements
-    I2C_in.beginTransmission(BARO_ADDRESS);
+    I2C_in.beginTransmission(baro_address);
     I2C_in.write(0xA2 + (i << 1));
     I2C_in.endTransmission();
     //      Serial.print(err); Serial.print('\t');
 
-    I2C_in.requestFrom(BARO_ADDRESS, 2); // Request 2 bytes of data
+    I2C_in.requestFrom(baro_address, 2); // Request 2 bytes of data
 
     if (I2C_in.available() == 2) {
       //        Serial.println("got data");
@@ -255,42 +208,37 @@ void initPressure(int id) {
       dataLo = I2C_in.read();
     }
     //      Coff[i][id] = ((dataHi << 8) | dataLo);
-    Coff[i][id] = ((dataHi * 256) + dataLo);
+    Coff[i][fingerID] = ((dataHi * 256) + dataLo);
 //    Serial.print(Coff[i][id]); Serial.print('\t');
   }
 //  Serial.print('\n');
   delay(300);
-  I2C_in.beginTransmission(BARO_ADDRESS);
+  I2C_in.beginTransmission(baro_address);
   I2C_in.write(byte(0));
   I2C_in.endTransmission();
 
 }
 
-int32_t getPressureReading(int id) {
-  //  selectSensor(muxAddr, sensor);
-  //  selectSensor(fingers[id].barPort);
-
-  I2C_in.beginTransmission(BARO_ADDRESS);
+int32_t getPressureReading(byte address) {
+  I2C_in.beginTransmission(address);
   I2C_in.write(byte(0));
   int errcode = I2C_in.endTransmission();
 
-  I2C_in.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  I2C_in.beginTransmission(address); // Start I2C Transmission
   I2C_in.write(0x1E); // Send reset command
   I2C_in.endTransmission(); // Stop I2C Transmission
 
-  I2C_in.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  I2C_in.beginTransmission(address); // Start I2C Transmission
   I2C_in.write(0x40); // Refresh pressure with the OSR = 256
   I2C_in.endTransmission(); // Stop I2C Transmission
 
   delayMicroseconds(800);
 
-  //  selectSensor(fingers[id].barPort);
-
-  I2C_in.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  I2C_in.beginTransmission(address); // Start I2C Transmission
   I2C_in.write(byte(0x00));  // Select data register
   I2C_in.endTransmission(); // Stop I2C Transmission
 
-  I2C_in.requestFrom(BARO_ADDRESS, 3); // Request 3 bytes of data
+  I2C_in.requestFrom(address, 3); // Request 3 bytes of data
 
   if (I2C_in.available() == 3)
   {
@@ -304,33 +252,45 @@ int32_t getPressureReading(int id) {
 
 
 void readPressureValues() {
-  int count = 0;
-
   for (int i = 0; i < NUM_FINGERS; i++) {
-    I2C_in.beginTransmission(VCNL4040_ADDR);
-  I2C_in.write(byte(0));
-  int errcode = I2C_in.endTransmission();
-    pressure_value_[count] = getPressureReading(i);
-    Serial.print(pressure_value_[count]); Serial.print('\t');
+    const byte baro_address = fingers[i].barAddr;
+    pressure_value_[i] = getPressureReading(baro_address);
+    Serial.print(pressure_value_[i]); Serial.print('\t');
 
-    //I2C_out
-    I2C_out.beginTransmission(8);
-    I2C_out.write(pressure_value_[count]); I2C_out.write('\t');
-    I2C_out.endTransmission();
+    #if(I2C_OUT_ENABLED)
+      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
+      I2C_out.write(pressure_value_[i]); I2C_out.write('\t');
+      I2C_out.endTransmission();
+    #endif
     
-    if(bleuart.available()){
-      bleuart.write(pressure_value_[count]); bleuart.write('\t');
-    }
-    
-    count += 1;
+
+    #if(BLUETOOTH_ENABLED)
+      if(bleuart.available()){
+        bleuart.write(pressure_value_[i]); bleuart.write('\t');
+      }
+    #endif
   }
 
 }
 
-
-void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
+// Reads a two byte value from a command register
+unsigned int readFromCommandRegister(byte address, byte commandCode)
 {
-  I2C_in.beginTransmission(VCNL4040_ADDR);
+  I2C_in.beginTransmission(address);
+  I2C_in.write(commandCode);
+  int err = I2C_in.endTransmission(false); //Send a restart command. Do not release bus.
+//  Serial.println(err);
+  I2C_in.requestFrom(address, 2); //Command codes have two bytes stored in them
+
+  unsigned int data = I2C_in.read();
+  data |= I2C_in.read() << 8;
+
+  return (data);
+}
+
+void writeToCommandRegister(byte address, byte commandCode, byte lowVal, byte highVal)
+{
+  I2C_in.beginTransmission(address);
   I2C_in.write(commandCode);
   I2C_in.write(lowVal); //Low byte of command
   I2C_in.write(highVal); //High byte of command
@@ -338,33 +298,34 @@ void writeToCommandRegister(byte commandCode, byte lowVal, byte highVal)
 }
 
 
-void initVCNL4040() {
+void initVCNL4040(byte address) {
   //Clear PS_SD to turn on proximity sensing
   //byte conf1 = 0b00000000; //Clear PS_SD bit to begin reading
   byte conf1 = 0b00001110; //Integrate 8T, Clear PS_SD bit to begin reading
   byte conf2 = 0b00001000; //Set PS to 16-bit
   //byte conf2 = 0b00000000; //Clear PS to 12-bit
-  writeToCommandRegister(PS_CONF1, conf1, conf2); //Command register, low byte, high byte
+  writeToCommandRegister(address, PS_CONF1, conf1, conf2); //Command register, low byte, high byte
 
   //Set the options for PS_CONF3 and PS_MS bytes
   byte conf3 = 0x00;
   //byte ms = 0b00000010; //Set IR LED current to 100mA
   //byte ms = 0b00000110; //Set IR LED current to 180mA
   byte ms = 0b00000111; //Set IR LED current to 200mA
-  writeToCommandRegister(PS_CONF3, conf3, ms);
+  writeToCommandRegister(address, PS_CONF3, conf3, ms);
 }
 
 
-void initIRSensor(int id) {
+void initIRSensor(byte address) {
 
   //  selectSensor(fingers[id].irPort);
-  I2C_in.beginTransmission(VCNL4040_ADDR);
+  I2C_in.beginTransmission(address);
   I2C_in.write(byte(0));
   int errcode = I2C_in.endTransmission();
 
-  int deviceID = readFromCommandRegister(ID);
+  int deviceID = readFromCommandRegister(address, ID);
 //  Serial.println(deviceID);
-  if (deviceID != 0x186)
+const int response_code = 0x186;
+  if (deviceID != response_code)
   {
     Serial.println("Device not found. Check wiring.");
     Serial.print("Expected: 0x186. Heard: 0x");
@@ -372,10 +333,10 @@ void initIRSensor(int id) {
     while (1); //Freeze!
   }
 //  Serial.println("VCNL4040 detected!");
-  initVCNL4040(); //Configure sensor
+  initVCNL4040(address); //Configure sensor
 
   //    delay(50);
-  I2C_in.beginTransmission(VCNL4040_ADDR);
+  I2C_in.beginTransmission(address);
   I2C_in.write(byte(0));
   I2C_in.endTransmission();
 }
@@ -384,22 +345,31 @@ void initIRSensor(int id) {
 void readIRValues() {
   int count = 0;
   for (int i = 0; i < NUM_FINGERS; i++) {
-    //    selectSensor(fingers[i].irPort);
-    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
+    const byte vcnl_address = fingers[i].irAddr;
+    proximity_value_[i] = readFromCommandRegister(vcnl_address, PS_DATA_L);
     //Serial out
-    Serial.print(proximity_value_[count]); Serial.print('\t');
+    Serial.print(proximity_value_[i]); Serial.print('\t');
 
     //I2C out
-    I2C_out.beginTransmission(8);
-    I2C_out.write(proximity_value_[count]); I2C_out.write('\t');
-    I2C_out.endTransmission();
+    #if(I2C_OUT_ENABLED)
+      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
+      int num_sent = I2C_out.write(proximity_value_[i]); 
+      if(num_sent!=2){
+        Serial.print("I2C_out write failed! ");
+        Serial.println(num_sent);
+        while(true);
+      }      
+      I2C_out.write('\t');
+      I2C_out.endTransmission();
+    #endif
     
     //bluetooth out
-     if(bleuart.available()){
-      bleuart.write(proximity_value_[count]); bleuart.write('\t');
-    }
-    
-    count += 1;
+    #if(BLUETOOTH_ENABLED)
+      if(bleuart.available()){
+        bleuart.write(proximity_value_[i]); bleuart.write('\t');
+      }
+    #endif
+
   }
 }
 
@@ -434,7 +404,7 @@ void toggleLED(void) {
 }
 
 
-void scan_i2c(void) {
+void scan_i2c_penny(void) {
   byte ct, res, devCt;
   devCt = res = 0;
   byte addList[72];
@@ -473,7 +443,7 @@ bool lookForData()
             //comment out the line 'scan_i2c()' to disable
             //and return to pure HDLC
             outCount = 0;
-            scan_i2c();
+            scan_i2c_penny();
           }
           break;
 
@@ -565,88 +535,111 @@ void send_cmmnd(byte command[4]) {
   I2C_in.endTransmission();
 }
 
+#if(BLUETOOTH_ENABLED)
+void bluetooth_init(){
+  Initialize Bluetooth:
+  Bluefruit.begin();
+  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+  Bluefruit.setTxPower(4);
+  Bluefruit.setName("RoboticMaterials_Centerboard");
+  bleuart.begin();
+
+  // Start advertising device and bleuart services
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addTxPower();
+  Bluefruit.Advertising.addService(bleuart);
+  Bluefruit.ScanResponse.addName();
+
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  // Set advertising interval (in unit of 0.625ms):
+  Bluefruit.Advertising.setInterval(32, 244);
+  // number of seconds in fast mode:
+  Bluefruit.Advertising.setFastTimeout(30);
+  Bluefruit.Advertising.start(0);  
+}
+#endif
+
+void toggle_light(){
+      last_light_switch = millis();
+    digitalWrite(LED_PIN, light_on ? LOW : HIGH);
+    light_on = !light_on;
+}
+
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID SETUP BELOW ///////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void setup() {
 
+  pinMode(LED_PIN, OUTPUT);
+  toggle_light();
+
   Serial.begin(115200);
-//  I2C_in.begin();
-  I2C_out.begin();
+  I2C_in.begin();
+  #if(I2C_OUT_ENABLED)
+    I2C_out.begin();
+  #endif
 
-  //  I2C_in.setClock(100000);
-  pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
-  newCommand = false;
   delay(1000);
+  //while(!Serial);//Wait for usb serial to wake up.
+  toggle_light();
+ 
 
-  // Initialize Bluetooth:
-//  Bluefruit.begin();
-//  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
-//  Bluefruit.setTxPower(4);
-//  Bluefruit.setName("RoboticMaterials_Centerboard");
-//  bleuart.begin();
-//
-//  // Start advertising device and bleuart services
-//  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-//  Bluefruit.Advertising.addTxPower();
-//  Bluefruit.Advertising.addService(bleuart);
-//  Bluefruit.ScanResponse.addName();
-//
-//  Bluefruit.Advertising.restartOnDisconnect(true);
-//  // Set advertising interval (in unit of 0.625ms):
-//  Bluefruit.Advertising.setInterval(32, 244);
-//  // number of seconds in fast mode:
-//  Bluefruit.Advertising.setFastTimeout(30);
-//  Bluefruit.Advertising.start(0);  
+
+  #if(BLUETOOTH_ENABLED)
+    bluetooth_init();
+  #endif
+
+  delay(1000);
+  Serial.println("Starting up...");
+
+  scan_i2c_in();
+  #if(I2C_OUT_ENABLED)
+  scan_i2c_out();
+  #endif
+
+   //  I2C_in.setClock(100000);
+  //pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
+  newCommand = false;
 
 //  initialize attached devices
-//  for (int i = 0; i < NUM_FINGERS; i++)
-//  {
-//    initIRSensor(i);
-//    initPressure(i);
-//  }
-
-
-  while (!Serial) 
-    {
-    }
-  Serial.println ();
-  Serial.println ("I2C scanner. Scanning ...");
-  byte count = 0;
-  
-  I2C_out.begin();
-  for (byte i = 8; i < 120; i++)
+  for (int i = 0; i < NUM_FINGERS; i++)
   {
-    I2C_out.beginTransmission (i);
-    if (I2C_out.endTransmission () == 0)
-      {
-      Serial.print ("Found address: ");
-      Serial.print (i, DEC);
-      Serial.print (" (0x");
-      Serial.print (i, HEX);
-      Serial.println (")");
-      count++;
-      delay (1);  // maybe unneeded?
-      } // end of good response
-  } // end of for loop
-  Serial.println ("Done.");
-  Serial.print ("Found ");
-  Serial.print (count, DEC);
-  Serial.println (" device(s).");
+    initIRSensor(fingers[i].irAddr);
+    initPressure(i);
+  }
 
   muxStatus = 0;
 
 }
 
+void transmitData(byte address){
+      I2C_in.beginTransmission(address);
+  for(int i=0;i<NUM_FINGERS;i++){
 
+    I2C_in.write(proximity_value_[i]&0xFF);
+    I2C_in.write((proximity_value_[i]>>8)&0xFF);
+  }
+  for(int i=0;i<NUM_FINGERS;i++){
+    uint32_t tmp = pressure_value_[i];
+    I2C_in.write((tmp)&0xFF);
+    I2C_in.write((tmp>>8)&0xFF);
+    I2C_in.write((tmp>>16)&0xFF);
+    I2C_in.write((tmp>>24)&0xFF);
+  }
+  I2C_in.endTransmission();
+  
+}
 
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID LOOP BELOW ///////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void loop() {
-
+  if((millis()-last_light_switch)>BLINKY_LIGHT_PERIOD_MS){
+    toggle_light();
+  }
+  
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
 //    lookForData();
@@ -655,14 +648,13 @@ void loop() {
 //      newCommand = false;
 //    }
 
-
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
-//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  
   //  readNNpredictions();
 //    readMotorEncodersValues();
 
-//  Serial.print('\n');
-
-
+  Serial.print('\n');
+  transmitData(OUTPUT_I2C_ADDRESS);
 
 }
