@@ -510,10 +510,9 @@ void readNNpredictions() {
     nn_output = nnpred(raw_data);
     elapsed = micros() - start;
 
-    //    Serial.print("nn_out/put: ");
-//    Serial.print(nn_output); Serial.print('\t');
-    //    Serial.print(", elapsed [ms]: ");
-        Serial.println(elapsed/1000.0f);
+    Serial.print(nn_output); Serial.print('\t');
+//    Serial.print(", elapsed [ms]: ");
+//    Serial.println(elapsed/1000.0f);
 //    digitalWrite(13, !digitalRead(13));
   }
   //  Serial.println("here");
@@ -728,7 +727,7 @@ void loop() {
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//  readNNpredictions();
+  readNNpredictions();
   //    readMotorEncodersValues();
 
 
