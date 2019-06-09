@@ -4,10 +4,11 @@
 
 #include <Wire.h>
 //#include "rp_testing.h"
+#include <Smoothed.h> // available @ https://github.com/MattFryer/Smoothed
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x2C  // MS5637_02BA03 I2C address is 0x76(118)
-#define VCNL4040_ADDR 0x3A //7-bit unshifted I2C address of VCNL4040
+#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is 0x76(118)
+#define VCNL4040_ADDR 0x18 //7-bit unshifted I2C address of VCNL4040
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -60,60 +61,25 @@ volatile uint16_t proximity_value_[NUM_FINGERS];
 
 int timer1_counter;
 
+bool min_flag_ir = true;
+bool min_flag_baro =  true;
+int drop_count_ir = 10;
+int drop_count_baro = 10;
+volatile float press_nrm[NUM_FINGERS];
+volatile float prox_nrm[NUM_FINGERS];
+volatile float min_pressure[NUM_FINGERS];
+volatile float min_distance[NUM_FINGERS];
 
-///////////////////////////////////////////////////////////
-//////////////// SIGENICS INIT CODE BELOW ///////////////////////
-//////////////////////////////////////////////////////////
+////////////// Exponential Avg. variables for CONTACT detection/////////////////
+// https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
+volatile float highpass_proximity_value_[NUM_FINGERS] = {0.0};
+volatile float EMA_a_ir[NUM_FINGERS] = {0.3};
+volatile float EMA_S_ir[NUM_FINGERS] = {0.0};
+//////////////////////////////////////////////////////////////////////////////////
 
-// 100ms timeout for one forward command
-// command buffer 500 bytes
-
-//FSM
-#define NUM_PBOARDS 6
-
-byte user_input;
-byte close_finger[4];
-byte open_finger[4];
-byte apply_break[4];
-byte command[4];
-int outCount = 4;
-
-byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5, 6};
-
-// the pboard addrs actually are 1,2,3,4,5 but we perfrom bitshift accrd. to manual and hence 2,4,6,8,10
-byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C};
-//byte addrs[NUM_PBOARDS] = {0x0A};
-
-#define fNONE 0
-#define fSTART 1
-#define fESCAPE 2
-#define fEND 3
-
-#define ESCAPE 0x7D
-#define HDLC 0x7E
-#define SCAN_I2C 0x2C  //break hdlc to tell the arduino to scan the i2c bus
-//and report back any ACK'd addresses
-//return format goes:
-
-//|| # of addresses || device 1 address || device 2 address || ... || device x address ||
-
-
-byte inBuf[16];
-byte i2cBuf[16];
-//byte outCount = 0;
-byte state = fNONE;
-bool newCommand = false, toggle = false, debugFlag = true;
-byte inByte;
-
-volatile uint16_t encoder_value_;
-
-typedef struct data_packet_struct {
-  int irVals[NUM_FINGERS];
-  float pressVals[NUM_FINGERS];
-  int encoders[NUM_PBOARDS];
-} DataPacket;
-DataPacket packet;
-
+// moving avg.
+Smoothed <float> smooth_ir;
+Smoothed <float> smooth_baro; 
 
 
 ///////////////////////////////////////////////////////////
@@ -248,14 +214,55 @@ int32_t getPressureReading(int id) {
 void readPressureValues() {
   int count = 0;
 
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    Wire.beginTransmission(VCNL4040_ADDR);
-  Wire.write(byte(0));
-  int errcode = Wire.endTransmission();
-    pressure_value_[count] = getPressureReading(i);
-    Serial.print(pressure_value_[count]); Serial.print('\t');
-    count += 1;
+  if (drop_count_baro > 0) {
+    // Drop first five values from all the sensors
+    drop_count_baro -= 1;
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      pressure_value_[i] = getPressureReading(i);
+    }
   }
+
+  for (int i = 0; i < NUM_FINGERS; i++) {
+
+///// ORIGINAL CODE. JUST READ RAW VALUES ////////
+//    Wire.beginTransmission(VCNL4040_ADDR);
+//    Wire.write(byte(0));
+//    int errcode = Wire.endTransmission();
+//    pressure_value_[count] = getPressureReading(i);
+//    Serial.print(pressure_value_[count]); Serial.print('\t');
+//    count += 1;
+
+
+    pressure_value_[i] = getPressureReading(i);
+//    Serial.print(pressure_value_[count]); Serial.print('\t');
+            
+    //*********** NORMALIZE BARO SENSOR VALUES ************//
+    // keep track of the running min values
+    if (min_flag_baro == true) {
+      min_pressure[i] = pressure_value_[i];
+//      Serial.print(min_pressure[i]); Serial.print('\t');
+    }
+    if (pressure_value_[i] < min_pressure[i]) {
+      if (pressure_value_[i] == 0){
+        // dicarding the anomaly
+        // do nothing
+        }
+      else{
+        min_pressure[i] = pressure_value_[i];
+        }
+    }
+    
+    press_nrm[i] = pressure_value_[i] - min_pressure[i];
+//    Serial.print(press_nrm[i], 6); Serial.print('\t');
+
+    //******** Moving avg. ********//
+      smooth_baro.add(pressure_value_[i]);
+      // Get the smoothed values
+      float smoothed_baro = smooth_baro.get();
+      Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
+  }
+  
+  min_flag_baro = false;
 
 }
 
@@ -314,13 +321,50 @@ void initIRSensor(int id) {
 
 
 void readIRValues() {
-  int count = 0;
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    //    selectSensor(fingers[i].irPort);
-    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
-    Serial.print(proximity_value_[count]); Serial.print('\t');
-    count += 1;
+
+/// ORIGINAL CODE. JUST READ RAW VALUES  
+//  int count = 0;
+//  for (int i = 0; i < NUM_FINGERS; i++) {
+//    //    selectSensor(fingers[i].irPort);
+//    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
+//    Serial.print(proximity_value_[count]); Serial.print('\t');
+//    count += 1;
+//  }
+  
+   if (drop_count_ir > 0 ) {
+    // Drop first five values from all the sensors
+    drop_count_ir -= 1;
+    //    Serial.println("dropping values");
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
+    }
   }
+
+  for (int i = 0; i < NUM_FINGERS; i++) {
+      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
+      //      Serial.print(proximity_value_[i]); Serial.print('\t');
+
+      //*********** NORMALIZE IR SENSOR VALUES ************//
+      // keep track of the running min values
+      if (min_flag_ir == true) {
+        min_distance[i] = proximity_value_[i];
+      }
+      if (proximity_value_[i] < min_distance[i]) {
+        min_distance[i] = proximity_value_[i];
+      }
+      
+      prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
+//      Serial.print(prox_nrm[i]); Serial.print('\t');
+
+      //******** Moving avg. ********//
+      smooth_ir.add(prox_nrm_[i]);
+      // Get the smoothed values
+      float smoothed_ir = smooth_ir.get();
+      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
+    }
+    
+    min_flag_ir = false;
+  
 }
 
 
@@ -339,152 +383,6 @@ void readIRValues() {
 //}
 
 
-///////////////////////////////////////////////////////////
-////////////// SIGENICS FUNCTIONS BELOW ///////////////////
-//////////////////////////////////////////////////////////
-
-void toggleLED(void) {
-  toggle = !toggle;
-  if (toggle) {
-    digitalWrite(13, HIGH);
-  }
-  else {
-    digitalWrite(13, LOW);
-  }
-}
-
-
-void scan_i2c(void) {
-  byte ct, res, devCt;
-  devCt = res = 0;
-  byte addList[72];
-  for (ct = 1; ct < 0x48; ct++) {
-    Wire.beginTransmission(ct);
-    Wire.write(0x1);
-    res = Wire.endTransmission();
-    if (!res) {
-      addList[devCt] = ct;
-      ++devCt;
-    }
-  }
-  Serial.println(devCt);
-  for (ct = 0; ct < devCt; ct++) {
-    Serial.println(addList[ct]);
-  }
-  //  Serial.print('\t');
-}
-
-
-bool lookForData()
-{
-  if (Serial.available() > 0)
-  {
-    while (Serial.available()) {
-      inByte = Serial.read();
-
-      switch (state) {
-        case fNONE:
-          if (inByte == HDLC) {
-            state = fSTART;
-            outCount = 0;
-          }
-          else if (inByte == 0x2C) { //break HDLC in this way to scan I2C bus
-            //and report addresses of present devices
-            //comment out the line 'scan_i2c()' to disable
-            //and return to pure HDLC
-            outCount = 0;
-            scan_i2c();
-          }
-          break;
-
-        case fSTART:
-          if (inByte == HDLC) {
-            state = fNONE;
-            newCommand = true;
-          }
-          else if (inByte == ESCAPE) {
-            state = fESCAPE;
-          }
-          else {
-            i2cBuf[outCount] = inByte;
-            ++outCount;
-            toggleLED();
-          }
-          break;
-
-        case fESCAPE:
-          if (inByte == 0x5E) {
-            i2cBuf[outCount] = 0x7E;
-            ++outCount;
-          }
-          else if (inByte == 0x5D) {
-            i2cBuf[outCount] = 0x7D;
-            ++outCount;
-          }
-          state = fSTART;
-          break;
-        default:
-          break;
-      }
-    }
-    //uncomment the line below to echo back to debug
-    //    Serial.write(inByte); //echo back
-    return true;  //got data
-  }
-  else
-  {
-    return false; //no data
-  }
-}
-
-
-void obey() {
-  byte inByte;
-  if (i2cBuf[0] & 0x1) {
-    //it's a read command
-    Wire.requestFrom(i2cBuf[0] >> 1, outCount - 1);
-    while (Wire.available()) {
-      inByte = Wire.read();
-      Serial.println(inByte);
-    }
-  }
-  else {
-    //it's a write command
-    //      Serial.println(i2cBuf[1]);
-    Wire.beginTransmission(i2cBuf[0] >> 1);
-    Wire.write(&i2cBuf[1], outCount - 1);
-    Wire.endTransmission();
-    //    delay(100);
-  }
-}
-
-
-unsigned int readEncoderValue(int pennyAddress) {
-  Wire.requestFrom(pennyAddress, 3);
-  int msByte = Wire.read();
-  int lsByte = Wire.read();
-  int pAddr = Wire.read();
-  unsigned int value = lsByte | (msByte << 8);  //switched msByte and lsByte
-  return value;
-}
-
-void readMotorEncodersValues() {
-  int count = 0;
-  for (int i = 0; i < NUM_PBOARDS; i++) { // loop over penny boards
-    encoder_value_ = readEncoderValue(pBoardAddresses[i]); //read encoder return 2bytes
-    Serial.print(encoder_value_); Serial.print('\t');
-    //    packet.encoders[count] = encoder_value_;
-    count += 1;
-  }
-}
-
-
-void send_cmmnd(byte command[4]) {
-  Wire.beginTransmission(command[0] >> 1);
-  Wire.write(&command[1], outCount - 1);
-  Wire.endTransmission();
-}
-
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID SETUP BELOW ///////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -495,7 +393,6 @@ void setup() {
   Wire.begin();
   //  Wire.setClock(100000);
   pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
-  newCommand = false;
   delay(1000);
 
   //initialize attached devices
@@ -513,35 +410,37 @@ void setup() {
   //    packet.encoders[i] = 0;
   //  }
 
-  while (!Serial) 
-    {
-    }
+//  while (!Serial) 
+//    {
+//    }
+//
+//  Serial.println ();
+//  Serial.println ("I2C scanner. Scanning ...");
+//  byte count = 0;
+//  
+//  Wire.begin();
+//  for (byte i = 8; i < 120; i++)
+//  {
+//    Wire.beginTransmission (i);
+//    if (Wire.endTransmission () == 0)
+//      {
+//      Serial.print ("Found address: ");
+//      Serial.print (i, DEC);
+//      Serial.print (" (0x");
+//      Serial.print (i, HEX);
+//      Serial.println (")");
+//      count++;
+//      delay (1);  // maybe unneeded?
+//      } // end of good response
+//  } // end of for loop
+//  Serial.println ("Done.");
+//  Serial.print ("Found ");
+//  Serial.print (count, DEC);
+//  Serial.println (" device(s).");
 
-  Serial.println ();
-  Serial.println ("I2C scanner. Scanning ...");
-  byte count = 0;
-  
-  Wire.begin();
-  for (byte i = 8; i < 120; i++)
-  {
-    Wire.beginTransmission (i);
-    if (Wire.endTransmission () == 0)
-      {
-      Serial.print ("Found address: ");
-      Serial.print (i, DEC);
-      Serial.print (" (0x");
-      Serial.print (i, HEX);
-      Serial.println (")");
-      count++;
-      delay (1);  // maybe unneeded?
-      } // end of good response
-  } // end of for loop
-  Serial.println ("Done.");
-  Serial.print ("Found ");
-  Serial.print (count, DEC);
-  Serial.println (" device(s).");
-
-  muxStatus = 0;
+  // moving avg. initalization  
+  smooth_ir.begin(SMOOTHED_AVERAGE, 100); 
+  smooth_baro.begin(SMOOTHED_AVERAGE, 50); 
 
 }
 
