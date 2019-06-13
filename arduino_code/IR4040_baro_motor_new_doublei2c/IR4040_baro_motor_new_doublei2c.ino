@@ -18,7 +18,7 @@ BLEUart bleuart; // uart over ble
 
 #define OUTPUT_I2C_ADDRESS 0x08
 
-#define I2C_OUT_ENABLED false
+#define I2C_OUT_ENABLED true
 #define BLUETOOTH_ENABLED false
 
 // TwoWire definition from the Wire_nrf52.cpp file
@@ -44,7 +44,7 @@ TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 2 // number of fingers connected
+#define NUM_FINGERS 1 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -53,8 +53,8 @@ typedef struct {
 } Digit;
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
-//first number is the ir port, second number is the pressure port (ie, barPort).
-Digit fingers[NUM_FINGERS] = {{0x5A,0x4C},{0x1C,0x0A}};
+//first number is the ir port, second number is the pressure port (ir, barPort).
+Digit fingers[NUM_FINGERS] = {{0x5C,0x4A}};
 
 int muxStatus;
 
@@ -257,11 +257,11 @@ void readPressureValues() {
     pressure_value_[i] = getPressureReading(baro_address);
     Serial.print(pressure_value_[i]); Serial.print('\t');
 
-    #if(I2C_OUT_ENABLED)
-      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
-      I2C_out.write(pressure_value_[i]); I2C_out.write('\t');
-      I2C_out.endTransmission();
-    #endif
+//    #if(I2C_OUT_ENABLED)
+//      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
+//      I2C_out.write(pressure_value_[i]); I2C_out.write('\t');
+//      I2C_out.endTransmission();
+//    #endif
     
 
     #if(BLUETOOTH_ENABLED)
@@ -351,17 +351,17 @@ void readIRValues() {
     Serial.print(proximity_value_[i]); Serial.print('\t');
 
     //I2C out
-    #if(I2C_OUT_ENABLED)
-      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
-      int num_sent = I2C_out.write(proximity_value_[i]); 
-      if(num_sent!=2){
-        Serial.print("I2C_out write failed! ");
-        Serial.println(num_sent);
-        while(true);
-      }      
-      I2C_out.write('\t');
-      I2C_out.endTransmission();
-    #endif
+//    #if(I2C_OUT_ENABLED)
+//      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
+//      int num_sent = I2C_out.write(proximity_value_[i]); 
+//      if(num_sent!=2){
+//        Serial.print("I2C_out write failed! ");
+//        Serial.println(num_sent);
+//        while(true);
+//      }      
+//      I2C_out.write('\t');
+//      I2C_out.endTransmission();
+//    #endif
     
     //bluetooth out
     #if(BLUETOOTH_ENABLED)
@@ -583,8 +583,6 @@ void setup() {
   delay(1000);
   //while(!Serial);//Wait for usb serial to wake up.
   toggle_light();
- 
-
 
   #if(BLUETOOTH_ENABLED)
     bluetooth_init();
@@ -614,21 +612,20 @@ void setup() {
 }
 
 void transmitData(byte address){
-      I2C_in.beginTransmission(address);
+      I2C_out.beginTransmission(address);
   for(int i=0;i<NUM_FINGERS;i++){
 
-    I2C_in.write(proximity_value_[i]&0xFF);
-    I2C_in.write((proximity_value_[i]>>8)&0xFF);
+    I2C_out.write(proximity_value_[i]&0xFF);
+    I2C_out.write((proximity_value_[i]>>8)&0xFF);
   }
   for(int i=0;i<NUM_FINGERS;i++){
     uint32_t tmp = pressure_value_[i];
-    I2C_in.write((tmp)&0xFF);
-    I2C_in.write((tmp>>8)&0xFF);
-    I2C_in.write((tmp>>16)&0xFF);
-    I2C_in.write((tmp>>24)&0xFF);
+    I2C_out.write((tmp)&0xFF);
+    I2C_out.write((tmp>>8)&0xFF);
+    I2C_out.write((tmp>>16)&0xFF);
+    I2C_out.write((tmp>>24)&0xFF);
   }
-  I2C_in.endTransmission();
-  
+  I2C_out.endTransmission();
 }
 
 //////////////////////////////////////////////////////////////////////

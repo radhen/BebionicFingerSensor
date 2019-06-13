@@ -234,7 +234,7 @@ void readPressureValues() {
 
 
     pressure_value_[i] = getPressureReading(i);
-//    Serial.print(pressure_value_[count]); Serial.print('\t');
+    Serial.print(pressure_value_[count]); Serial.print('\t');
             
     //*********** NORMALIZE BARO SENSOR VALUES ************//
     // keep track of the running min values
@@ -259,7 +259,7 @@ void readPressureValues() {
       smooth_baro.add(pressure_value_[i]);
       // Get the smoothed values
       float smoothed_baro = smooth_baro.get();
-      Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
+//      Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
   }
   
   min_flag_baro = false;
@@ -342,7 +342,7 @@ void readIRValues() {
 
   for (int i = 0; i < NUM_FINGERS; i++) {
       proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
-      //      Serial.print(proximity_value_[i]); Serial.print('\t');
+      Serial.print(proximity_value_[i]); Serial.print('\t');
 
       //*********** NORMALIZE IR SENSOR VALUES ************//
       // keep track of the running min values
@@ -357,14 +357,13 @@ void readIRValues() {
 //      Serial.print(prox_nrm[i]); Serial.print('\t');
 
       //******** Moving avg. ********//
-      smooth_ir.add(prox_nrm_[i]);
+      smooth_ir.add(prox_nrm[i]);
       // Get the smoothed values
       float smoothed_ir = smooth_ir.get();
-      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
+//      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
     }
     
     min_flag_ir = false;
-  
 }
 
 
@@ -463,6 +462,7 @@ void loop() {
 
   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  
   //  readNNpredictions();
   //  readMotorEncodersValues();
 
