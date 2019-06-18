@@ -12,7 +12,7 @@
 
 #include <Wire.h>
 
-#define NUM_FINGERS 1
+#define NUM_FINGERS 2
 
 
 void setup() {

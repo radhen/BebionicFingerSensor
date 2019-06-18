@@ -7,8 +7,8 @@
 #include <Smoothed.h> // available @ https://github.com/MattFryer/Smoothed
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is 0x76(118)
-#define VCNL4040_ADDR 0x18 //7-bit unshifted I2C address of VCNL4040
+#define BARO_ADDRESS 0x65  // MS5637_02BA03 I2C address is 0x76(118)
+#define VCNL4040_ADDR 0x73 //7-bit unshifted I2C address of VCNL4040
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03

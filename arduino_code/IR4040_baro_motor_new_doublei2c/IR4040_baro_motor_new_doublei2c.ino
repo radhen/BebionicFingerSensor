@@ -18,7 +18,7 @@ BLEUart bleuart; // uart over ble
 
 #define OUTPUT_I2C_ADDRESS 0x08
 
-#define I2C_OUT_ENABLED true
+#define I2C_OUT_ENABLED false
 #define BLUETOOTH_ENABLED false
 
 // TwoWire definition from the Wire_nrf52.cpp file
@@ -44,7 +44,7 @@ TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 1 // number of fingers connected
+#define NUM_FINGERS 5 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -54,7 +54,7 @@ typedef struct {
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ir, barPort).
-Digit fingers[NUM_FINGERS] = {{0x5C,0x4A}};
+Digit fingers[NUM_FINGERS] = {{0x73,0x65},{0X75,0X63},{0X76,0X60},{0X58,0X4E},{0X5A,0X4C}};
 
 int muxStatus;
 
@@ -591,42 +591,45 @@ void setup() {
   delay(1000);
   Serial.println("Starting up...");
 
+/*************************/
+/*** SCAN I2c CHANNELS ***/
+/*************************/
   scan_i2c_in();
-  #if(I2C_OUT_ENABLED)
-  scan_i2c_out();
-  #endif
+//  #if(I2C_OUT_ENABLED)
+//  scan_i2c_out();
+//  #endif
 
    //  I2C_in.setClock(100000);
   //pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
   newCommand = false;
 
 //  initialize attached devices
-  for (int i = 0; i < NUM_FINGERS; i++)
-  {
-    initIRSensor(fingers[i].irAddr);
-    initPressure(i);
-  }
+//  for (int i = 0; i < NUM_FINGERS; i++)
+//  {
+//    initIRSensor(fingers[i].irAddr);
+//    initPressure(i);
+//  }
 
   muxStatus = 0;
 
 }
 
-void transmitData(byte address){
-      I2C_out.beginTransmission(address);
-  for(int i=0;i<NUM_FINGERS;i++){
-
-    I2C_out.write(proximity_value_[i]&0xFF);
-    I2C_out.write((proximity_value_[i]>>8)&0xFF);
-  }
-  for(int i=0;i<NUM_FINGERS;i++){
-    uint32_t tmp = pressure_value_[i];
-    I2C_out.write((tmp)&0xFF);
-    I2C_out.write((tmp>>8)&0xFF);
-    I2C_out.write((tmp>>16)&0xFF);
-    I2C_out.write((tmp>>24)&0xFF);
-  }
-  I2C_out.endTransmission();
-}
+//void transmitData(byte address){
+//      I2C_out.beginTransmission(address);
+//  for(int i=0;i<NUM_FINGERS;i++){
+//
+//    I2C_out.write(proximity_value_[i]&0xFF);
+//    I2C_out.write((proximity_value_[i]>>8)&0xFF);
+//  }
+//  for(int i=0;i<NUM_FINGERS;i++){
+//    uint32_t tmp = pressure_value_[i];
+//    I2C_out.write((tmp)&0xFF);
+//    I2C_out.write((tmp>>8)&0xFF);
+//    I2C_out.write((tmp>>16)&0xFF);
+//    I2C_out.write((tmp>>24)&0xFF);
+//  }
+//  I2C_out.endTransmission();
+//}
 
 //////////////////////////////////////////////////////////////////////
 /////////////////////////// VOID LOOP BELOW ///////////////////////
@@ -645,13 +648,13 @@ void loop() {
 //      newCommand = false;
 //    }
 
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
-  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   
   //  readNNpredictions();
 //    readMotorEncodersValues();
 
-  Serial.print('\n');
-  transmitData(OUTPUT_I2C_ADDRESS);
+//  Serial.print('\n');
+//  transmitData(OUTPUT_I2C_ADDRESS);
 
 }
