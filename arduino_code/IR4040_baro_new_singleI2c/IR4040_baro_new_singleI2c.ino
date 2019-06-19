@@ -6,9 +6,13 @@
 //#include "rp_testing.h"
 #include <Smoothed.h> // available @ https://github.com/MattFryer/Smoothed
 
+#include "arduinoFFT.h"
+#define SAMPLES 128             //Must be a power of 2
+#define SAMPLING_FREQUENCY 512 //Hz, must be less than 10000 due to ADC
+
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x65  // MS5637_02BA03 I2C address is 0x76(118)
-#define VCNL4040_ADDR 0x73 //7-bit unshifted I2C address of VCNL4040
+#define BARO_ADDRESS 0x20  // MS5637_02BA03 I2C address is 0x76(118)
+#define VCNL4040_ADDR 0x36 //7-bit unshifted I2C address of VCNL4040
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -77,9 +81,21 @@ volatile float EMA_a_ir[NUM_FINGERS] = {0.3};
 volatile float EMA_S_ir[NUM_FINGERS] = {0.0};
 //////////////////////////////////////////////////////////////////////////////////
 
-// moving avg.
+/////////// moving avg. ////////////////
 Smoothed <float> smooth_ir;
 Smoothed <float> smooth_baro; 
+
+/////////// FFT ///////////////
+arduinoFFT FFT = arduinoFFT();
+ 
+unsigned int sampling_period_us;
+unsigned long microseconds;
+ 
+double vReal[SAMPLES];
+double vImag[SAMPLES];
+
+
+
 
 
 ///////////////////////////////////////////////////////////
@@ -234,7 +250,7 @@ void readPressureValues() {
 
 
     pressure_value_[i] = getPressureReading(i);
-    Serial.print(pressure_value_[count]); Serial.print('\t');
+    Serial.print(pressure_value_[i]); Serial.print('\t');
             
     //*********** NORMALIZE BARO SENSOR VALUES ************//
     // keep track of the running min values
@@ -256,9 +272,10 @@ void readPressureValues() {
 //    Serial.print(press_nrm[i], 6); Serial.print('\t');
 
     //******** Moving avg. ********//
-      smooth_baro.add(pressure_value_[i]);
+      smooth_baro.add(press_nrm[i]);
       // Get the smoothed values
       float smoothed_baro = smooth_baro.get();
+      Serial.print(smoothed_baro); Serial.print('\t');
 //      Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
   }
   
@@ -360,6 +377,7 @@ void readIRValues() {
       smooth_ir.add(prox_nrm[i]);
       // Get the smoothed values
       float smoothed_ir = smooth_ir.get();
+      Serial.print(smoothed_ir); Serial.print('\t');
 //      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
     }
     
@@ -441,6 +459,7 @@ void setup() {
   smooth_ir.begin(SMOOTHED_AVERAGE, 100); 
   smooth_baro.begin(SMOOTHED_AVERAGE, 50); 
 
+  sampling_period_us = round(1000000*(1.0/SAMPLING_FREQUENCY));
 }
 
 
@@ -453,18 +472,61 @@ void loop() {
 
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
+//  unsigned long start, elapsed;
+
 //    lookForData();
 //    if (newCommand == true) {
 //      obey();
 //      newCommand = false;
 //    }
 
-
-  readIRValues(); //-> array of IR values (2 bytes per sensor)
+//  start = micros();
+  
+//  readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  
+//  elapsed = micros() - start; // find elastime time to read sensor data
+//  Serial.println(1000000.0/float(elapsed)); // print sampling frequency
   
   //  readNNpredictions();
   //  readMotorEncodersValues();
+
+//  Serial.println(pressure_value_[0]);
+
+  
+
+//  /*SAMPLING*/
+//    for(int i=0; i<SAMPLES; i++)
+//    {
+//        microseconds = micros();    //Overflows after around 70 minutes!
+//     
+//        vReal[i] = pressure_value_[0];
+//        vImag[i] = 0;
+//     
+//        while(micros() < (microseconds + sampling_period_us)){
+//        }
+//    }
+// 
+//    /*FFT*/
+//    FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+//    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
+//    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
+//    double peak = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
+// 
+//    /*PRINT RESULTS*/
+////    Serial.println(peak);     //Print out what frequency is the most dominant.
+// 
+//    for(int i=0; i<(SAMPLES/2); i++)
+//    {
+//        /*View all these three lines in serial terminal to see which frequencies has which amplitudes*/
+//         
+//        Serial.print((i * 1.0 * SAMPLING_FREQUENCY) / SAMPLES, 1);
+//        Serial.print(" ");
+//        Serial.println(vReal[i], 1);    //View only this line in serial plotter to visualize the bins
+//    }
+//    
+//    delay(100);  //Repeat the process every second OR:
+////    while(1);       //Run code once
 
 
  Serial.print('\n');
