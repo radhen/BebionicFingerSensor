@@ -5,14 +5,13 @@
 #include <Wire.h>
 //#include "rp_testing.h"
 #include <Smoothed.h> // available @ https://github.com/MattFryer/Smoothed
-
-#include "arduinoFFT.h"
-#define SAMPLES 128             //Must be a power of 2
-#define SAMPLING_FREQUENCY 512 //Hz, must be less than 10000 due to ADC
+#include <Filters.h> // available @ https://github.com/JonHub/Filters
+#include <MedianFilter.h> //available @ https://github.com/daPhoosa/MedianFilter
+#include <QueueArray.h> // available @ https://playground.arduino.cc/Code/QueueArray/
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x20  // MS5637_02BA03 I2C address is 0x76(118)
-#define VCNL4040_ADDR 0x36 //7-bit unshifted I2C address of VCNL4040
+#define BARO_ADDRESS 0x63  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x75 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -27,35 +26,16 @@
 #define NUM_FINGERS 1 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
-#define MUX0_ADDR 112
-
 
 /***** USER PARAMETERS *****/
-int i2c_ids_[2] = {112, 113}; //muxAddresses
-//int sensor_ports[NUM_FINGERS] = {0, 2, 4, 6}; // Mux board ports for each Barometer sensor {0,2,4,6}
-
-typedef struct {
-  byte irPort;
-  byte barPort;
-} Digit;
-
-//Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
-//first number is the ir port, second number is the pressure port (ie, barPort).
-//Digit fingers[NUM_FINGERS] = {{6, 6},  //index finger
-//  {4, 4},  //middle finger
-//  {2, 2},  //ring finger
-//  {0, 0},  //pinky finger
-//  {8, 8}
-//}; //thumb
-
-int muxStatus;
-
 int num_devices_;
 unsigned int ambient_value_;
 byte serialByte;
-uint16_t Coff[6][NUM_FINGERS];
-int32_t Ti = 0, offi = 0, sensi = 0;
-int32_t data[3];
+//uint16_t Coff[6][NUM_FINGERS];
+//uint16_t Ti = 0, offi = 0, sensi = 0;
+//int32_t data[3];
+unsigned long Coff[6][NUM_FINGERS], Ti = 0, offi = 0, sensi = 0;
+unsigned int data[3];
 
 volatile int32_t pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
@@ -67,12 +47,19 @@ int timer1_counter;
 
 bool min_flag_ir = true;
 bool min_flag_baro =  true;
-int drop_count_ir = 10;
-int drop_count_baro = 10;
+int drop_count_ir = 50;
+int drop_count_baro = 50;
+volatile float smoothed_baro[NUM_FINGERS];
+volatile float smoothed_baro_2[NUM_FINGERS];
 volatile float press_nrm[NUM_FINGERS];
 volatile float prox_nrm[NUM_FINGERS];
 volatile float min_pressure[NUM_FINGERS];
 volatile float min_distance[NUM_FINGERS];
+
+volatile float prev_smoothed_baro[NUM_FINGERS];
+volatile float next_smoothed_baro[NUM_FINGERS];
+volatile float second_der;
+
 
 ////////////// Exponential Avg. variables for CONTACT detection/////////////////
 // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
@@ -81,20 +68,34 @@ volatile float EMA_a_ir[NUM_FINGERS] = {0.3};
 volatile float EMA_S_ir[NUM_FINGERS] = {0.0};
 //////////////////////////////////////////////////////////////////////////////////
 
-/////////// moving avg. ////////////////
+/////////// moving avg. for smoothing ////////////////
 Smoothed <float> smooth_ir;
-Smoothed <float> smooth_baro; 
+Smoothed <float> smooth_baro;
 
-/////////// FFT ///////////////
-arduinoFFT FFT = arduinoFFT();
- 
-unsigned int sampling_period_us;
-unsigned long microseconds;
- 
-double vReal[SAMPLES];
-double vImag[SAMPLES];
+RunningStatistics inputStats; // create statistics to look at the raw test signal
+FilterOnePole filterOneHighpass( HIGHPASS, 30 );  // create a one pole (RC) highpass filter
+//RunningStatistics filterOneLowpassStats; // create running statistics to smooth these values
+
+MedianFilter median_filter(10, 0);
 
 
+float EMA_a_low = 0.1;     //initialization of EMA alpha (cutoff-frequency)
+float EMA_a_high = 1;
+
+int EMA_S_low = 0;          //initialization of EMA S
+int EMA_S_high = 0;
+
+int highpass = 0;
+int bandpass = 0;
+int bandstop = 0;
+
+//Queue<char> queue = Queue<char>(5); // Max 5 chars!
+// create a queue of characters.
+QueueArray <float> queue;
+
+volatile float highpass_pressure_value[NUM_FINGERS] = {0.0};
+volatile float EMA_a_baro[NUM_FINGERS] = {0.001};
+volatile float EMA_S_baro[NUM_FINGERS] = {0.0};
 
 
 
@@ -108,44 +109,13 @@ unsigned int readFromCommandRegister(byte commandCode)
   Wire.beginTransmission(VCNL4040_ADDR);
   Wire.write(commandCode);
   int err = Wire.endTransmission(false); //Send a restart command. Do not release bus.
-//  Serial.println(err);
+  //  Serial.println(err);
   Wire.requestFrom(VCNL4040_ADDR, 2); //Command codes have two bytes stored in them
 
   unsigned int data = Wire.read();
   data |= Wire.read() << 8;
 
   return (data);
-}
-
-
-//void selectSensor(int muxID, int i) {
-//  Wire.beginTransmission(muxID);
-//  Wire.write(1 << i);
-//  int errcode = Wire.endTransmission();
-////  Serial.println(errcode);
-//}
-
-/*
-   Each individual mux allows selection between 8 different channels, the 8 bits of a single byte being used to set the on/off status of a given channel.
-   We are going to keep track of the status of the two muxes the same way, using the 16 bits of a two-byte int.
-
-*/
-void selectSensor(int port) {
-  int muxStatusGoal = 1 << port;
-  //  Serial.print("Port: "); Serial.print(port);
-  if ( (muxStatus & 0xFF) != (muxStatusGoal & 0xFF) ) { //We only need update mux0 if the desired state for mux0 is not its current state.
-    Wire.beginTransmission(MUX0_ADDR); //Talk to mux0.
-    Wire.write( (byte)(muxStatusGoal & 0xFF)); //Update mux0 to desired status.
-    int errcode = Wire.endTransmission(); //Release i2c line.
-    //    Serial.print("112"); Serial.print('\t'); Serial.println(errcode);
-  }
-  if ( (muxStatus & 0xFF00) != (muxStatusGoal & 0xFF00) ) { //We only need update mux1 if the desired state for mux1 is not its current state.
-    Wire.beginTransmission(MUX0_ADDR + 1); //Talk to mux1.
-    Wire.write( (byte)((muxStatusGoal & 0xFF00) >> 8)); //Update mux1 to desired status.
-    int errcode = Wire.endTransmission(); //Release i2c line.
-    //    Serial.print("113"); Serial.print('\t'); Serial.println(errcode);
-  }
-  muxStatus = muxStatusGoal;
 }
 
 
@@ -158,7 +128,7 @@ void writeByte(byte addr, byte val) {
 
 
 void initPressure(int id) {
-  byte dataLo, dataHi;
+  //  byte dataLo, dataHi;
 
   //  selectSensor(fingers[id].barPort);
   Wire.beginTransmission(BARO_ADDRESS);
@@ -175,22 +145,24 @@ void initPressure(int id) {
 
     if (Wire.available() == 2) {
       //        Serial.println("got data");
-      dataHi = Wire.read();
-      dataLo = Wire.read();
+      //      dataHi = Wire.read();
+      //      dataLo = Wire.read();
+      data[0] = Wire.read();
+      data[1] = Wire.read();
     }
     //      Coff[i][id] = ((dataHi << 8) | dataLo);
-    Coff[i][id] = ((dataHi * 256) + dataLo);
-//    Serial.print(Coff[i][id]); Serial.print('\t');
+    Coff[i][id] = ((data[0] * 256) + data[1]);
+    //    Serial.print(Coff[i][id]); Serial.print('\t');
   }
-//  Serial.print('\n');
+  //  Serial.print('\n');
   delay(300);
   Wire.beginTransmission(BARO_ADDRESS);
   Wire.write(byte(0));
   Wire.endTransmission();
-
 }
 
-int32_t getPressureReading(int id) {
+
+unsigned long getPressureReading(int id) {
   //  selectSensor(muxAddr, sensor);
   //  selectSensor(fingers[id].barPort);
 
@@ -222,63 +194,186 @@ int32_t getPressureReading(int id) {
     data[1] = Wire.read();
     data[2] = Wire.read();
   }
-
   return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
 }
 
 
+unsigned long getTemperatureReading(int id) {
+
+  Wire.beginTransmission(BARO_ADDRESS);   // Start I2C Transmission
+  Wire.write(0x50); // Refresh temperature with the OSR = 256
+  Wire.endTransmission(); // Stop I2C Transmission
+  delay(1);
+
+  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
+  Wire.write(byte(0x00)); // Select data register
+  Wire.endTransmission(); // Stop I2C Transmission
+
+  // Request 3 bytes of data
+  Wire.requestFrom(BARO_ADDRESS, 3);
+
+  // Read 3 bytes of data
+  // temp_msb1, temp_msb, temp_lsb
+  if (Wire.available() == 3)
+  {
+    data[0] = Wire.read();
+    data[1] = Wire.read();
+    data[2] = Wire.read();
+  }
+  // Convert the data
+  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
+}
+
+void press_temp_compensation(){
+  /* This is recommended by the baro chip datasheet.
+  Example code can be found here https://github.com/freetronics/BaroSensor/blob/master/BaroSensor.cpp 
+  and here https://github.com/ControlEverythingCommunity/MS5637-02BA03/blob/master/Arduino/MS5637_02BA03.ino 
+  For some reason the math below works for some sensors and for some gives the final pressure value as ZERO. 
+  This compensated pressure still has drift and hence I am back to using the raw sensor values.
+  */
+
+  for (int i = 0; i < NUM_FINGERS; i++) {
+    unsigned long ptemp = getPressureReading(i);
+    unsigned long temp = getTemperatureReading(i);
+
+    // Pressure and Temperature Calculations
+    // 1st order temperature and pressure compensation
+    // Difference between actual and reference temperature
+    unsigned long dT = temp - ((Coff[4][i] * 256.0));
+    temp = 2000.0 + (dT * (Coff[5][i] / pow(2, 23)));
+
+    // Offset and Sensitivity calculation
+    unsigned long long off = Coff[1][i] * 131072.0 + (Coff[3][i] * dT) / 64.0;
+    unsigned long long sens = Coff[0][i] * 65536.0 + (Coff[2][i] * dT) / 128.0;
+
+    // 2nd order temperature and pressure compensation
+    if (temp < 2000)
+    {
+      Ti = (dT * dT) / (pow(2, 31));
+      offi = 5 * ((pow((temp - 2000), 2))) / 2;
+      sensi =  offi / 2;
+      if (temp < - 1500)
+      {
+        offi = offi + 7 * ((pow((temp + 1500), 2)));
+        sensi = sensi + 11 * ((pow((temp + 1500), 2)));
+      }
+    }
+    else if (temp >= 2000)
+    {
+      Ti = 0;
+      offi = 0;
+      sensi = 0;
+    }
+
+    // Adjust temp, off, sens based on 2nd order compensation
+    temp -= Ti;
+    off -= offi;
+    sens -= sensi;
+//    Serial.print(float(off)); Serial.print('\t');
+  
+    // Convert the final data
+//    Serial.print(ptemp); Serial.print('\t');
+    ptemp =  ((float(ptemp) * sens) / (2097152.0)) - off ;
+    ptemp /= 32768.0;
+//    pressure_value_[i] = ptemp / 100.0;
+    float ctemp = temp / 100.0;
+    float fTemp = ctemp * 1.8 + 32.0;
+  }
+  }
+
 void readPressureValues() {
-  int count = 0;
 
   if (drop_count_baro > 0) {
     // Drop first five values from all the sensors
     drop_count_baro -= 1;
     for (int i = 0; i < NUM_FINGERS; i++) {
       pressure_value_[i] = getPressureReading(i);
+      EMA_S_low = pressure_value_[i];        //set EMA S for t=1
+      EMA_S_high = pressure_value_[i];
+      prev_smoothed_baro[i] = pressure_value_[i];
+      next_smoothed_baro[i] = pressure_value_[i];
+      queue.enqueue(pressure_value_[i]);
     }
   }
 
   for (int i = 0; i < NUM_FINGERS; i++) {
 
-///// ORIGINAL CODE. JUST READ RAW VALUES ////////
-//    Wire.beginTransmission(VCNL4040_ADDR);
-//    Wire.write(byte(0));
-//    int errcode = Wire.endTransmission();
-//    pressure_value_[count] = getPressureReading(i);
-//    Serial.print(pressure_value_[count]); Serial.print('\t');
-//    count += 1;
+    pressure_value_[i] = getPressureReading(i); // get just the 24-bit raw pressure values
+
+    //********* Median filter to remove the noise ************//
+    median_filter.in(int(pressure_value_[i]));
+    pressure_value_[i] = float(median_filter.out());
+//    Serial.print(pressure_value_[i]); Serial.print('\t');    
+ 
+
+    //******** Moving avg. to smooth the signal ********//
+    smooth_baro.add(pressure_value_[i]);
+    smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
+    //    Serial.print(smoothed_baro[i]); Serial.print('\t');
+    // Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
 
 
-    pressure_value_[i] = getPressureReading(i);
-    Serial.print(pressure_value_[i]); Serial.print('\t');
-            
-    //*********** NORMALIZE BARO SENSOR VALUES ************//
+    queue.enqueue(smoothed_baro[i]);
+    float y0 = queue.dequeue();
+    Serial.println(atan2((abs(smoothed_baro[i] - y0)),10));
+//    Serial.println(tan((smoothed_baro[i] - y0) / 0.166));
+
+
+    //*********** calculating second derivative *************//
+    second_der = float(smoothed_baro[i] + next_smoothed_baro[i] - 2.0 * prev_smoothed_baro[i]) / float(0.01);
+    //    Serial.println(second_der);
+    next_smoothed_baro[i] = prev_smoothed_baro[i];
+    prev_smoothed_baro[i] = smoothed_baro[i];
+
+
+    //******** Running statistics. Calc mean var stddev ********//
+    inputStats.input(smoothed_baro[i]);
+    //    Serial.print(inputStats.mean());
+    //    Serial.println(inputStats.variance());
+    //    Serial.println();
+
+
+    //************ low pass filter ****************//
+//        filterOneHighpass.input( smoothed_baro[i] );
+//        Serial.print(filterOneHighpass.output()); Serial.println('\t');
+
+
+      //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
+//      EMA_S_baro[i] = (EMA_a_baro[i] * pressure_value_[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
+//      highpass_pressure_value[i] = pressure_value_[i] - EMA_S_baro[i];
+//      Serial.print(EMA_S_baro[i]); Serial.print('\t');
+
+
+    //**************** band stop filter ***************//
+    EMA_S_low = (EMA_a_low * smoothed_baro[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
+    EMA_S_high = (EMA_a_high * smoothed_baro[i]) + ((1 - EMA_a_high) * EMA_S_high);
+    bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
+    bandstop = smoothed_baro[i] - bandpass;        //find the band-stop signal
+    //    Serial.print(bandstop); Serial.print('\t');
+
+
+    //*********** NORMALIZE BARO SENSOR VALUES ??? NOTHING WORKS ************//
     // keep track of the running min values
     if (min_flag_baro == true) {
-      min_pressure[i] = pressure_value_[i];
-//      Serial.print(min_pressure[i]); Serial.print('\t');
+      min_pressure[i] = smoothed_baro[i];
+      //      Serial.print(min_pressure[i]); Serial.print('\t');
     }
-    if (pressure_value_[i] < min_pressure[i]) {
-      if (pressure_value_[i] == 0){
+    if (smoothed_baro[i] < min_pressure[i]) {
+      if (smoothed_baro[i] == 0) {
         // dicarding the anomaly
         // do nothing
-        }
-      else{
-        min_pressure[i] = pressure_value_[i];
-        }
+      }
+      else {
+        min_pressure[i] = smoothed_baro[i];
+      }
     }
-    
-    press_nrm[i] = pressure_value_[i] - min_pressure[i];
-//    Serial.print(press_nrm[i], 6); Serial.print('\t');
 
-    //******** Moving avg. ********//
-      smooth_baro.add(press_nrm[i]);
-      // Get the smoothed values
-      float smoothed_baro = smooth_baro.get();
-      Serial.print(smoothed_baro); Serial.print('\t');
-//      Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
+    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
+    //Serial.print(press_nrm[i], 6); Serial.print('\t');
+
+
   }
-  
+
   min_flag_baro = false;
 
 }
@@ -319,7 +414,7 @@ void initIRSensor(int id) {
   int errcode = Wire.endTransmission();
 
   int deviceID = readFromCommandRegister(ID);
-//  Serial.println(deviceID);
+  //  Serial.println(deviceID);
   if (deviceID != 0x186)
   {
     Serial.println("Device not found. Check wiring.");
@@ -327,7 +422,7 @@ void initIRSensor(int id) {
     Serial.println(deviceID, HEX);
     while (1); //Freeze!
   }
-//  Serial.println("VCNL4040 detected!");
+  //  Serial.println("VCNL4040 detected!");
   initVCNL4040(); //Configure sensor
 
   //    delay(50);
@@ -339,16 +434,16 @@ void initIRSensor(int id) {
 
 void readIRValues() {
 
-/// ORIGINAL CODE. JUST READ RAW VALUES  
-//  int count = 0;
-//  for (int i = 0; i < NUM_FINGERS; i++) {
-//    //    selectSensor(fingers[i].irPort);
-//    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
-//    Serial.print(proximity_value_[count]); Serial.print('\t');
-//    count += 1;
-//  }
-  
-   if (drop_count_ir > 0 ) {
+  /// ORIGINAL CODE. JUST READ RAW VALUES
+  //  int count = 0;
+  //  for (int i = 0; i < NUM_FINGERS; i++) {
+  //    //    selectSensor(fingers[i].irPort);
+  //    proximity_value_[count] = readFromCommandRegister(PS_DATA_L);
+  //    Serial.print(proximity_value_[count]); Serial.print('\t');
+  //    count += 1;
+  //  }
+
+  if (drop_count_ir > 0 ) {
     // Drop first five values from all the sensors
     drop_count_ir -= 1;
     //    Serial.println("dropping values");
@@ -358,30 +453,30 @@ void readIRValues() {
   }
 
   for (int i = 0; i < NUM_FINGERS; i++) {
-      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
-      Serial.print(proximity_value_[i]); Serial.print('\t');
+    proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
+    Serial.print(proximity_value_[i]); Serial.print('\t');
 
-      //*********** NORMALIZE IR SENSOR VALUES ************//
-      // keep track of the running min values
-      if (min_flag_ir == true) {
-        min_distance[i] = proximity_value_[i];
-      }
-      if (proximity_value_[i] < min_distance[i]) {
-        min_distance[i] = proximity_value_[i];
-      }
-      
-      prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
-//      Serial.print(prox_nrm[i]); Serial.print('\t');
-
-      //******** Moving avg. ********//
-      smooth_ir.add(prox_nrm[i]);
-      // Get the smoothed values
-      float smoothed_ir = smooth_ir.get();
-      Serial.print(smoothed_ir); Serial.print('\t');
-//      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
+    //*********** NORMALIZE IR SENSOR VALUES ************//
+    // keep track of the running min values
+    if (min_flag_ir == true) {
+      min_distance[i] = proximity_value_[i];
     }
-    
-    min_flag_ir = false;
+    if (proximity_value_[i] < min_distance[i]) {
+      min_distance[i] = proximity_value_[i];
+    }
+
+    prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
+    //      Serial.print(prox_nrm[i]); Serial.print('\t');
+
+    //******** Moving avg. ********//
+    smooth_ir.add(proximity_value_[i]);
+    // Get the smoothed values
+    float smoothed_ir = smooth_ir.get();
+    Serial.print(smoothed_ir); Serial.print('\t');
+    //      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
+  }
+
+  min_flag_ir = false;
 }
 
 
@@ -427,39 +522,42 @@ void setup() {
   //    packet.encoders[i] = 0;
   //  }
 
-//  while (!Serial) 
-//    {
-//    }
-//
-//  Serial.println ();
-//  Serial.println ("I2C scanner. Scanning ...");
-//  byte count = 0;
-//  
-//  Wire.begin();
-//  for (byte i = 8; i < 120; i++)
-//  {
-//    Wire.beginTransmission (i);
-//    if (Wire.endTransmission () == 0)
-//      {
-//      Serial.print ("Found address: ");
-//      Serial.print (i, DEC);
-//      Serial.print (" (0x");
-//      Serial.print (i, HEX);
-//      Serial.println (")");
-//      count++;
-//      delay (1);  // maybe unneeded?
-//      } // end of good response
-//  } // end of for loop
-//  Serial.println ("Done.");
-//  Serial.print ("Found ");
-//  Serial.print (count, DEC);
-//  Serial.println (" device(s).");
+  //  while (!Serial)
+  //    {
+  //    }
+  //
+  //  Serial.println ();
+  //  Serial.println ("I2C scanner. Scanning ...");
+  //  byte count = 0;
+  //
+  //  Wire.begin();
+  //  for (byte i = 8; i < 120; i++)
+  //  {
+  //    Wire.beginTransmission (i);
+  //    if (Wire.endTransmission () == 0)
+  //      {
+  //      Serial.print ("Found address: ");
+  //      Serial.print (i, DEC);
+  //      Serial.print (" (0x");
+  //      Serial.print (i, HEX);
+  //      Serial.println (")");
+  //      count++;
+  //      delay (1);  // maybe unneeded?
+  //      } // end of good response
+  //  } // end of for loop
+  //  Serial.println ("Done.");
+  //  Serial.print ("Found ");
+  //  Serial.print (count, DEC);
+  //  Serial.println (" device(s).");
 
-  // moving avg. initalization  
-  smooth_ir.begin(SMOOTHED_AVERAGE, 100); 
-  smooth_baro.begin(SMOOTHED_AVERAGE, 50); 
+  // moving avg. initalization
+  smooth_ir.begin(SMOOTHED_AVERAGE, 50);
+  smooth_baro.begin(SMOOTHED_AVERAGE, 90);
 
-  sampling_period_us = round(1000000*(1.0/SAMPLING_FREQUENCY));
+  inputStats.setWindowSecs( 0.05 );
+  //  filterOneLowpass.setWindowSecs( 0.1 );
+
+  
 }
 
 
@@ -472,63 +570,25 @@ void loop() {
 
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-//  unsigned long start, elapsed;
+  //    unsigned long start, elapsed;
 
-//    lookForData();
-//    if (newCommand == true) {
-//      obey();
-//      newCommand = false;
-//    }
+  //    lookForData();
+  //    if (newCommand == true) {
+  //      obey();
+  //      newCommand = false;
+  //    }
 
-//  start = micros();
-  
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  //  start = micros();
+
+  //   readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-  
-//  elapsed = micros() - start; // find elastime time to read sensor data
-//  Serial.println(1000000.0/float(elapsed)); // print sampling frequency
-  
+
+  //  elapsed = micros() - start; // find elastime time to read sensor data
+  //  Serial.println(1000000.0 / float(elapsed)); // print sampling frequency
+
   //  readNNpredictions();
-  //  readMotorEncodersValues();
-
-//  Serial.println(pressure_value_[0]);
-
-  
-
-//  /*SAMPLING*/
-//    for(int i=0; i<SAMPLES; i++)
-//    {
-//        microseconds = micros();    //Overflows after around 70 minutes!
-//     
-//        vReal[i] = pressure_value_[0];
-//        vImag[i] = 0;
-//     
-//        while(micros() < (microseconds + sampling_period_us)){
-//        }
-//    }
-// 
-//    /*FFT*/
-//    FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-//    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-//    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
-//    double peak = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
-// 
-//    /*PRINT RESULTS*/
-////    Serial.println(peak);     //Print out what frequency is the most dominant.
-// 
-//    for(int i=0; i<(SAMPLES/2); i++)
-//    {
-//        /*View all these three lines in serial terminal to see which frequencies has which amplitudes*/
-//         
-//        Serial.print((i * 1.0 * SAMPLING_FREQUENCY) / SAMPLES, 1);
-//        Serial.print(" ");
-//        Serial.println(vReal[i], 1);    //View only this line in serial plotter to visualize the bins
-//    }
-//    
-//    delay(100);  //Repeat the process every second OR:
-////    while(1);       //Run code once
 
 
- Serial.print('\n');
+  Serial.print('\n');
 
 }
