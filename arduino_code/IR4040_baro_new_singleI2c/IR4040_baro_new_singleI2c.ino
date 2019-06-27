@@ -48,7 +48,7 @@ int timer1_counter;
 bool min_flag_ir = true;
 bool min_flag_baro =  true;
 int drop_count_ir = 50;
-int drop_count_baro = 50;
+int drop_count_baro = 75;
 volatile float smoothed_baro[NUM_FINGERS];
 volatile float smoothed_baro_2[NUM_FINGERS];
 volatile float press_nrm[NUM_FINGERS];
@@ -64,7 +64,7 @@ volatile float second_der;
 ////////////// Exponential Avg. variables for CONTACT detection/////////////////
 // https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
 volatile float highpass_proximity_value_[NUM_FINGERS] = {0.0};
-volatile float EMA_a_ir[NUM_FINGERS] = {0.3};
+volatile float EMA_a_ir[NUM_FINGERS] = {0.1};
 volatile float EMA_S_ir[NUM_FINGERS] = {0.0};
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -94,8 +94,11 @@ int bandstop = 0;
 QueueArray <float> queue;
 
 volatile float highpass_pressure_value[NUM_FINGERS] = {0.0};
-volatile float EMA_a_baro[NUM_FINGERS] = {0.001};
+volatile float EMA_a_baro[NUM_FINGERS] = {0.03};
 volatile float EMA_S_baro[NUM_FINGERS] = {0.0};
+
+bool first_slop_flag = true;
+float first_min_value; 
 
 
 
@@ -309,14 +312,8 @@ void readPressureValues() {
     //******** Moving avg. to smooth the signal ********//
     smooth_baro.add(pressure_value_[i]);
     smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
-    //    Serial.print(smoothed_baro[i]); Serial.print('\t');
+//    Serial.print(smoothed_baro[i]); Serial.print('\t');
     // Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
-
-
-    queue.enqueue(smoothed_baro[i]);
-    float y0 = queue.dequeue();
-    Serial.println(atan2((abs(smoothed_baro[i] - y0)),10));
-//    Serial.println(tan((smoothed_baro[i] - y0) / 0.166));
 
 
     //*********** calculating second derivative *************//
@@ -339,36 +336,69 @@ void readPressureValues() {
 
 
       //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
-//      EMA_S_baro[i] = (EMA_a_baro[i] * pressure_value_[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
+      EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
 //      highpass_pressure_value[i] = pressure_value_[i] - EMA_S_baro[i];
 //      Serial.print(EMA_S_baro[i]); Serial.print('\t');
 
 
+    queue.enqueue(smoothed_baro[i]);
+    float y0 = queue.dequeue();
+    float slope = atan2((EMA_S_baro[i] - y0),750); // in radians. 100 in the denominator is delta x which is set experimentally
+   
+//    Serial.println(tan((smoothed_baro[i] - y0) / 0.166));
+
+    Serial.print(1.57);  // To freeze the lower limit
+    Serial.print(" ");
+    Serial.print(0.349066);  // To freeze the lower limit
+    Serial.print(" ");
+    Serial.print(-1.57);  // To freeze the upper limit
+    Serial.print(" ");
+    Serial.print(-0.349066);  // To freeze the lower limit
+    Serial.print(" ");
+    Serial.println(slope);
+    
+//    if(slope >= 0.349066){
+////      Serial.print(smoothed_baro[i]); Serial.print('\t');  
+//      if (first_slop_flag == true){
+//        first_min_value = smoothed_baro[i];
+////        Serial.println(first_min_value);
+//        first_slop_flag = false;
+//        }
+////      press_nrm[i] = map(smoothed_baro[i], first_min_value, first_min_value+17000.0, 0.0, 1.0);
+//      press_nrm[i] = (abs(smoothed_baro[i] - first_min_value))/(17000.0);      
+//      Serial.println(press_nrm[i]);
+//      }
+//    else{
+//      Serial.print(0.0); Serial.print('\t');
+//      first_slop_flag = true;
+//      }
+
+
     //**************** band stop filter ***************//
-    EMA_S_low = (EMA_a_low * smoothed_baro[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
-    EMA_S_high = (EMA_a_high * smoothed_baro[i]) + ((1 - EMA_a_high) * EMA_S_high);
-    bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
-    bandstop = smoothed_baro[i] - bandpass;        //find the band-stop signal
+//    EMA_S_low = (EMA_a_low * smoothed_baro[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
+//    EMA_S_high = (EMA_a_high * smoothed_baro[i]) + ((1 - EMA_a_high) * EMA_S_high);
+//    bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
+//    bandstop = smoothed_baro[i] - bandpass;        //find the band-stop signal
     //    Serial.print(bandstop); Serial.print('\t');
 
 
     //*********** NORMALIZE BARO SENSOR VALUES ??? NOTHING WORKS ************//
     // keep track of the running min values
-    if (min_flag_baro == true) {
-      min_pressure[i] = smoothed_baro[i];
-      //      Serial.print(min_pressure[i]); Serial.print('\t');
-    }
-    if (smoothed_baro[i] < min_pressure[i]) {
-      if (smoothed_baro[i] == 0) {
-        // dicarding the anomaly
-        // do nothing
-      }
-      else {
-        min_pressure[i] = smoothed_baro[i];
-      }
-    }
+//    if (min_flag_baro == true) {
+//      min_pressure[i] = smoothed_baro[i];
+//      //      Serial.print(min_pressure[i]); Serial.print('\t');
+//    }
+//    if (smoothed_baro[i] < min_pressure[i]) {
+//      if (smoothed_baro[i] == 0) {
+//        // dicarding the anomaly
+//        // do nothing
+//      }
+//      else {
+//        min_pressure[i] = smoothed_baro[i];
+//      }
+//    }
 
-    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
+//    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
     //Serial.print(press_nrm[i], 6); Serial.print('\t');
 
 
@@ -552,7 +582,7 @@ void setup() {
 
   // moving avg. initalization
   smooth_ir.begin(SMOOTHED_AVERAGE, 50);
-  smooth_baro.begin(SMOOTHED_AVERAGE, 90);
+  smooth_baro.begin(SMOOTHED_AVERAGE, 75);
 
   inputStats.setWindowSecs( 0.05 );
   //  filterOneLowpass.setWindowSecs( 0.1 );
@@ -589,6 +619,6 @@ void loop() {
   //  readNNpredictions();
 
 
-  Serial.print('\n');
+//  Serial.print('\n');
 
 }
