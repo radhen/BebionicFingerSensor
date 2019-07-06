@@ -8,6 +8,7 @@
 #include <Filters.h> // available @ https://github.com/JonHub/Filters
 #include <MedianFilter.h> //available @ https://github.com/daPhoosa/MedianFilter
 #include <QueueArray.h> // available @ https://playground.arduino.cc/Code/QueueArray/
+#include "BaroSensor.h" // available @ https://github.com/freetronics/BaroSensor
 
 /***** GLOBAL CONSTANTS *****/
 #define BARO_ADDRESS 0x0C  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
@@ -37,7 +38,7 @@ byte serialByte;
 unsigned long Coff[6][NUM_FINGERS], Ti = 0, offi = 0, sensi = 0;
 unsigned int data[3];
 
-volatile int32_t pressure_value_[NUM_FINGERS];
+float pressure_value_[NUM_FINGERS];
 volatile uint16_t proximity_value_[NUM_FINGERS];
 
 //int32_t max_pressure[NUM_FINGERS] = {7800000.0, 6115000.0, 5950000.0, 6653000.0, 7000000.0};
@@ -122,175 +123,10 @@ unsigned int readFromCommandRegister(byte commandCode)
 }
 
 
-void writeByte(byte addr, byte val) {
-  Wire.beginTransmission(VCNL4040_ADDR);
-  Wire.write(addr);
-  Wire.write(val);
-  Wire.endTransmission(); //Release bus
-}
-
-
 void initPressure(int id) {
-  //  byte dataLo, dataHi;
-
-  //  selectSensor(fingers[id].barPort);
-  Wire.beginTransmission(BARO_ADDRESS);
-  Wire.write(byte(0));
-  int errcode = Wire.endTransmission();
-
-  for (int i = 0; i < 6; i++) { //loop over Coefficient elements
-    Wire.beginTransmission(BARO_ADDRESS);
-    Wire.write(0xA2 + (i << 1));
-    Wire.endTransmission();
-    //      Serial.print(err); Serial.print('\t');
-
-    Wire.requestFrom(BARO_ADDRESS, 2); // Request 2 bytes of data
-
-    if (Wire.available() == 2) {
-      //        Serial.println("got data");
-      //      dataHi = Wire.read();
-      //      dataLo = Wire.read();
-      data[0] = Wire.read();
-      data[1] = Wire.read();
-    }
-    //      Coff[i][id] = ((dataHi << 8) | dataLo);
-    Coff[i][id] = ((data[0] * 256) + data[1]);
-    //    Serial.print(Coff[i][id]); Serial.print('\t');
-  }
-  //  Serial.print('\n');
-  delay(300);
-  Wire.beginTransmission(BARO_ADDRESS);
-  Wire.write(byte(0));
-  Wire.endTransmission();
+      BaroSensor.begin(BARO_ADDRESS);
 }
 
-
-unsigned long getPressureReading(int id) {
-  //  selectSensor(muxAddr, sensor);
-  //  selectSensor(fingers[id].barPort);
-
-//  Wire.beginTransmission(BARO_ADDRESS);
-//  Wire.write(byte(0));
-//  int errcode = Wire.endTransmission();
-
-  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-  Wire.write(0x1E); // Send reset command
-  Wire.endTransmission(); // Stop I2C Transmission
-
-  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-  Wire.write(0x40); // Refresh pressure with the OSR = 256
-  Wire.endTransmission(); // Stop I2C Transmission
-
-//  delayMicroseconds(800); // 800 is optimal
-  delay(500); // recommended by the example code
-
-  //  selectSensor(fingers[id].barPort);
-
-  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-  Wire.write(byte(0x00));  // Select data register
-  Wire.endTransmission(); // Stop I2C Transmission
-
-  Wire.requestFrom(BARO_ADDRESS, 3); // Request 3 bytes of data
-
-  if (Wire.available() == 3)
-  {
-    data[0] = Wire.read();
-    data[1] = Wire.read();
-    data[2] = Wire.read();
-  }
-  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
-}
-
-
-unsigned long getTemperatureReading(int id) {
-
-  Wire.beginTransmission(BARO_ADDRESS);   // Start I2C Transmission
-  Wire.write(0x50); // Refresh temperature with the OSR = 256
-  Wire.endTransmission(); // Stop I2C Transmission
-
-//  delayMicroseconds(800); // use this for speedy sampling
-  delay(500); // 500ms delay recommended by the example code
-
-  Wire.beginTransmission(BARO_ADDRESS); // Start I2C Transmission
-  Wire.write(byte(0x00)); // Select data register
-  Wire.endTransmission(); // Stop I2C Transmission
-
-  // Request 3 bytes of data
-  Wire.requestFrom(BARO_ADDRESS, 3);
-
-  // Read 3 bytes of data
-  // temp_msb1, temp_msb, temp_lsb
-  if (Wire.available() == 3)
-  {
-    data[0] = Wire.read();
-    data[1] = Wire.read();
-    data[2] = Wire.read();
-  }
-  // Convert the data
-  return ((data[0] * 65536.0) + (data[1] * 256.0) + data[2]);
-}
-
-void press_temp_compensation() {
-  /* This is recommended by the baro chip datasheet.
-    Example code can be found here https://github.com/freetronics/BaroSensor/blob/master/BaroSensor.cpp
-    and here https://github.com/ControlEverythingCommunity/MS5637-02BA03/blob/master/Arduino/MS5637_02BA03.ino
-    For some reason the math below works for some sensors and for some gives the final pressure value as ZERO.
-    This compensated pressure still has drift and hence I am back to using the raw sensor values.
-  */
-
-  for (int i = 0; i < NUM_FINGERS; i++) {
-    unsigned long ptemp = getPressureReading(i);
-//    Serial.print(ptemp); Serial.print('\t');
-    unsigned long temp = getTemperatureReading(i);
-    //    Serial.print(ptemp); Serial.print('\t'); Serial.println(temp);
-
-    // Pressure and Temperature Calculations
-    // 1st order temperature and pressure compensation
-    // Difference between actual and reference temperature
-    unsigned long long dT = temp - ((Coff[4][i] * 256.0));
-    temp = 2000.0 + (dT * (Coff[5][i] / pow(2, 23)));
-
-    // Offset and Sensitivity calculation
-    unsigned long long off = Coff[1][i] * 131072.0 + (Coff[3][i] * dT) / 64.0;
-    unsigned long long sens = Coff[0][i] * 65536.0 + (Coff[2][i] * dT) / 128.0;
-
-    // 2nd order temperature and pressure compensation
-    if (temp < 2000)
-    {
-      Ti = (dT * dT) / (pow(2, 31));
-      offi = 5 * ((pow((temp - 2000), 2))) / 2;
-      sensi =  offi / 2;
-      if (temp < - 1500)
-      {
-        offi = offi + 7 * ((pow((temp + 1500), 2)));
-        sensi = sensi + 11 * ((pow((temp + 1500), 2)));
-      }
-    }
-    else if (temp >= 2000)
-    {
-      Ti = 0;
-      offi = 0;
-      sensi = 0;
-    }
-
-    // Adjust temp, off, sens based on 2nd order compensation
-    temp -= Ti;
-    off -= offi;
-    sens -= sensi;
-//    Serial.print(float(off)); Serial.print('\t');
-
-    // Convert the final data
-    //    Serial.print(ptemp); Serial.print('\t');
-    ptemp =  (((ptemp * sens) / 2097152) - off) ;
-//    Serial.print(ptemp);
-    ptemp /= 32768.0;
-    float pressure = ptemp / 100.0;
-    float ctemp = temp / 100.0;
-    float fTemp = ctemp * 1.8 + 32.0;
-
-    Serial.println(pressure, 6);
-  }
-}
 
 void readPressureValues() {
 
@@ -298,7 +134,7 @@ void readPressureValues() {
     // Drop first five values from all the sensors
     drop_count_baro -= 1;
     for (int i = 0; i < NUM_FINGERS; i++) {
-      pressure_value_[i] = getPressureReading(i);
+      pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
       EMA_S_low = pressure_value_[i];        //set EMA S for t=1
       EMA_S_high = pressure_value_[i];
       prev_smoothed_baro[i] = pressure_value_[i];
@@ -307,15 +143,15 @@ void readPressureValues() {
     }
   }
 
-//  for (int i = 0; i < NUM_FINGERS; i++) {
+  for (int i = 0; i < NUM_FINGERS; i++) {
 //
-//    pressure_value_[i] = getPressureReading(i); // get just the 24-bit raw pressure values
+    pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
 //
 //
 //    //********* Median filter to remove the noise ************//
 //    median_filter.in(int(pressure_value_[i]));
 //    pressure_value_[i] = float(median_filter.out());
-//    Serial.print(pressure_value_[i]/5950000.0, 6); Serial.print('\t');
+    Serial.print(pressure_value_[0]); Serial.print('\t');
 //
 //
 //    //******** Moving avg. to smooth the signal ********//
@@ -410,11 +246,9 @@ void readPressureValues() {
 //    //    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
 //    //Serial.print(press_nrm[i], 6); Serial.print('\t');
 //
-//  }
+  }
 
   min_flag_baro = false;
-
-    press_temp_compensation();
 
 }
 
