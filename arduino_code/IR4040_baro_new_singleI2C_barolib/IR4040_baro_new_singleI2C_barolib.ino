@@ -101,6 +101,10 @@ volatile float EMA_S_baro[NUM_FINGERS] = {0.0};
 bool first_slop_flag = true;
 float first_min_value;
 
+float current_mean = 0.0;
+bool ideal_flag = true;
+bool contact_flag = false;
+
 
 
 ///////////////////////////////////////////////////////////
@@ -140,67 +144,86 @@ void readPressureValues() {
       prev_smoothed_baro[i] = pressure_value_[i];
       next_smoothed_baro[i] = pressure_value_[i];
       queue.enqueue(pressure_value_[i]);
+      smooth_baro.add(pressure_value_[i]);
+      smoothed_baro[i] = smooth_baro.get();
+      inputStats.input(smoothed_baro[i]);
+      current_mean = inputStats.mean();
     }
   }
 
   for (int i = 0; i < NUM_FINGERS; i++) {
-//
+
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-//
-//
-//    //********* Median filter to remove the noise ************//
-//    median_filter.in(int(pressure_value_[i]));
-//    pressure_value_[i] = float(median_filter.out());
-    Serial.print(pressure_value_[0]); Serial.print('\t');
-//
-//
-//    //******** Moving avg. to smooth the signal ********//
-//    smooth_baro.add(pressure_value_[i]);
-//    smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
-////    Serial.print(smoothed_baro[i]); Serial.print('\t');
-//    // Serial.print(smoothed_baro/50000.0, 6); Serial.print('\t'); //Found the max value 50000.0 by manually pressing the sensor
-//
+//    Serial.print(pressure_value_[i]); Serial.print('\t');
+
+    //********* Median filter to remove the noise ************//
+    median_filter.in(int(pressure_value_[i]));
+    pressure_value_[i] = float(median_filter.out());
+//    Serial.print(pressure_value_[i]); Serial.print('\t');
+
+
+    //******** Moving avg. to smooth the signal ********//
+    smooth_baro.add(pressure_value_[i]);
+    smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
+    Serial.print(smoothed_baro[i]); Serial.print('\t');
+
 //    //*********** calculating second derivative *************//
 //    second_der = float(smoothed_baro[i] + next_smoothed_baro[i] - 2.0 * prev_smoothed_baro[i]) / float(0.01);
 //    //    Serial.println(second_der);
 //    next_smoothed_baro[i] = prev_smoothed_baro[i];
 //    prev_smoothed_baro[i] = smoothed_baro[i];
+
+    //******** Running statistics. Calc mean var stddev ********//
+    inputStats.input(smoothed_baro[i]);
+//    Serial.print(inputStats.mean());
+//        Serial.println(inputStats.variance());
+
+//    if(smoothed_baro[i] < 1.01*(current_mean+8.0)){
+//      ideal_flag = true;
+//      contact_flag = false;
+//      Serial.println(0.0);
+//      current_mean = inputStats.mean();
+//      }
+//    else{
+//      ideal_flag = false;
+//      contact_flag = true;
+//      }
 //
-//    //******** Running statistics. Calc mean var stddev ********//
-//    inputStats.input(smoothed_baro[i]);
-////        Serial.print(inputStats.mean());
-////        Serial.println(inputStats.variance());
-//    //    Serial.println();
-//
+//    if(contact_flag == true){
+//      Serial.println(smoothed_baro[i] - current_mean);  
+//      }  
+
+      
+    
 //    //************ low pass filter ****************//
 //    filterOneLowpass.input( smoothed_baro[i] );
 ////    Serial.print(filterOneLowpass.output()); Serial.println('\t');
-//
-//    //******** Exponential average for more smoothing ********//
+
+    //******** Exponential average for more smoothing ********//
 //    EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
-//    //      highpass_pressure_value[i] = pressure_value_[i] - EMA_S_baro[i];
-//    //      Serial.print(EMA_S_baro[i]); Serial.println('\t');
-//
+    //      highpass_pressure_value[i] = pressure_value_[i] - EMA_S_baro[i];
+    //      Serial.print(EMA_S_baro[i]); Serial.println('\t');
+
 //    queue.enqueue(EMA_S_baro[i]);
 //    float y0 = queue.dequeue();
-//    //    Serial.println(queue.count());  \\check the size of the queue. Should be equal to drop_baro_count variable
-//
-//    //****** calculate the dy/dx on the smoothed signal ******//
+    //    Serial.println(queue.count());  \\check the size of the queue. Should be equal to drop_baro_count variable
+
+    //****** calculate the dy/dx on the smoothed signal ******//
 //    float slope = atan2((EMA_S_baro[i] - y0),900); // in radians. 100 in the denominator is delta x which is set experimentally
-//
+
 //    //****** integrate the signal ******//
 //    float y1 = 75.0 * ((EMA_S_baro[i] + y0) / 2.0); // seems like another smoothing filter to me
-////    Serial.println(y1);
-//
-////        Serial.print(1.57);  // To freeze the lower limit
-////        Serial.print(" ");
-////        Serial.print(0.349066);  // To freeze the lower limit
-////        Serial.print(" ");
-////        Serial.print(-1.57);  // To freeze the upper limit
-////        Serial.print(" ");
-////        Serial.print(-0.349066);  // To freeze the lower limit
-////        Serial.print(" ");
-////        Serial.println(slope);
+//    Serial.println(y1);
+
+//        Serial.print(1.57);  // To freeze the lower limit
+//        Serial.print(" ");
+//        Serial.print(0.349066);  // To freeze the lower limit
+//        Serial.print(" ");
+//        Serial.print(-1.57);  // To freeze the upper limit
+//        Serial.print(" ");
+//        Serial.print(-0.349066);  // To freeze the lower limit
+//        Serial.print(" ");
+//        Serial.println(slope);
 //    
 ////        if(slope >= 0.349066){
 ////    //      Serial.print(smoothed_baro[i]); Serial.print('\t');
@@ -227,25 +250,18 @@ void readPressureValues() {
 //    //    Serial.print(bandstop); Serial.print('\t');
 //
 //
-//    //*********** NORMALIZE BARO SENSOR VALUES ??? NOTHING WORKS ************//
-//    // keep track of the running min values
-//    //    if (min_flag_baro == true) {
-//    //      min_pressure[i] = smoothed_baro[i];
-//    //      //      Serial.print(min_pressure[i]); Serial.print('\t');
-//    //    }
-//    //    if (smoothed_baro[i] < min_pressure[i]) {
-//    //      if (smoothed_baro[i] == 0) {
-//    //        // dicarding the anomaly
-//    //        // do nothing
-//    //      }
-//    //      else {
-//    //        min_pressure[i] = smoothed_baro[i];
-//    //      }
-//    //    }
-//
-//    //    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
-//    //Serial.print(press_nrm[i], 6); Serial.print('\t');
-//
+    //*********** NORMALIZE BARO SENSOR VALUES ??? NOTHING WORKS ************//
+  // keep track of the running min values
+//      if (min_flag_baro == true) {
+//        min_pressure[i] = smoothed_baro[i];
+//        //      Serial.print(min_pressure[i]); Serial.print('\t');
+//      }
+//      if (smoothed_baro[i] < min_pressure[i]) {
+//          min_pressure[i] = smoothed_baro[i];
+//      }
+//    press_nrm[i] = smoothed_baro[i] - min_pressure[i];
+//    Serial.print(press_nrm[i], 6); Serial.print('\t');
+
   }
 
   min_flag_baro = false;
@@ -459,7 +475,7 @@ void loop() {
 
 //    start = micros();
 
-//     readIRValues(); //-> array of IR values (2 bytes per sensor)
+     readIRValues(); //-> array of IR values (2 bytes per sensor)
   readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
 //    elapsed = micros() - start; // find elastime time to read sensor data
