@@ -13,8 +13,8 @@
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x63  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
-#define VCNL4040_ADDR 0x75 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
+#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x18 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -51,7 +51,7 @@ int timer1_counter;
 bool min_flag_ir = true;
 bool min_flag_baro =  true;
 int drop_count_ir = 50;
-int drop_count_baro = 25;
+
 volatile float smoothed_baro[NUM_FINGERS];
 volatile float smoothed_baro_2[NUM_FINGERS];
 volatile float press_nrm[NUM_FINGERS];
@@ -81,6 +81,8 @@ FilterOnePole filterOneLowpass( HIGHPASS, 0.001 );  // create a one pole (RC) hi
 
 MedianFilter median_filter(10, 0);
 
+float integrate = 0.0;
+
 
 float EMA_a_low = 0.1;     //initialization of EMA alpha (cutoff-frequency)
 float EMA_a_high = 1;
@@ -109,6 +111,7 @@ bool contact_flag = false;
 
 // CURVE FITTING VARIABLES
 const int POLY_LEN = 10;
+int drop_count_baro = 2;
 CircularBuffer<float, POLY_LEN> baro_buffer;
 float baro_arr[POLY_LEN];
 int xpower = 3;
@@ -116,6 +119,8 @@ const int ORDER = 1;
 double x[POLY_LEN];
 double t[POLY_LEN];
 double coeffs[ORDER + 1];
+
+const float THRESHOLD = 50.0 ;
 
 
 ///////////////////////////////////////////////////////////
@@ -159,7 +164,7 @@ void readPressureValues() {
       smoothed_baro[i] = smooth_baro.get();
       inputStats.input(smoothed_baro[i]);
       current_mean = inputStats.mean();
-      baro_buffer.push(smoothed_baro[i]);
+//      baro_buffer.push(smoothed_baro[i]);
     }
   }
 
@@ -178,24 +183,24 @@ void readPressureValues() {
     //******** Moving avg. to smooth the signal ********//
     smooth_baro.add(pressure_value_[i]);
     smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
-    Serial.print(smoothed_baro[i]); Serial.print('\t');
+//  Serial.print(smoothed_baro[i]); Serial.print('\t');
 
 
     //************* CURVE FITTING *************//
 //    Serial.print(baro_buffer.shift()); Serial.print('\t');
-    baro_buffer.shift();
-    baro_buffer.push(smoothed_baro[i]);
-    for(int i=0; i<=POLY_LEN; i++){
-    x[i] = baro_buffer[i];}
-    for (int i = 0; i < sizeof(x)/sizeof(double); i++){
-    t[i] = i;}
-    int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
-    if (ret == 0){ //Returned value is 0 if no error  
-    uint8_t c = 'a';
+//    baro_buffer.shift();
+//    baro_buffer.push(smoothed_baro[i]);
+//    for(int i=0; i<=POLY_LEN; i++){
+//    x[i] = baro_buffer[i];}
+//    for (int i = 0; i < sizeof(x)/sizeof(double); i++){
+//    t[i] = i;}
+//    int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
+//    if (ret == 0){ //Returned value is 0 if no error  
+//    uint8_t c = 'a';
 //    Serial.println("Coefficients are");
 //    for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
 //      Serial.printf("%c=%f\t ",c++, coeffs[i]);}
-  }
+//  }
   
 //    Serial.print(abs(smoothed_baro[i] - coeffs[1])); Serial.print('\t');
 
@@ -235,11 +240,7 @@ void readPressureValues() {
 //    Serial.print(filterOneLowpass.output()); Serial.println('\t');
 
 
-    //************** DC BLOCKER. Similar to HIGH PASS FILTER: https://ccrma.stanford.edu/~jos/fp/DC_Blocker.html ****************//
-    //************** Available here https://ccrma.stanford.edu/~jos/fp/DC_Blocker.html and here https://www.dsprelated.com/freebooks/filters/DC_Blocker.html****************//
-//    EMA_S_baro[i] = smoothed_baro[i] - prev_smoothed_baro[i] + 0.998 * EMA_S_baro[i];
-//    Serial.print(EMA_S_baro[i]); Serial.println('\t');
-//    prev_smoothed_baro[i] = smoothed_baro[i];
+
 
 
     //******** Exponential average for more smoothing and the sub to get highpass response ********//
@@ -271,29 +272,42 @@ void readPressureValues() {
 //      }
 
 
-//    queue.enqueue(smoothed_baro[i]);
-//    float y0 = queue.dequeue();
-    //    Serial.println(queue.count());  \\check the size of the queue. Should be equal to drop_baro_count variable
+    queue.enqueue(smoothed_baro[i]);
+    float y0 = queue.dequeue();
+//        Serial.println(queue.count());  \\check the size of the queue. Should be equal to drop_baro_count variable
 
+//    Serial.print(smoothed_baro[i] - y0 / 2.0);
 
     //****** calculate the dy/dx on the smoothed signal ******//
-//    float slope = atan2((smoothed_baro[i] - y0),1000000); // in radians. 100 in the denominator is delta x which is set experimentally
-//    Serial.print(slope);
+//    float slope = atan2((smoothed_baro[i] - y0),50.0); // in radians. 100 in the denominator is delta x which is set experimentally
+   float der = (smoothed_baro[i] - y0)/(0.00714285714*POLY_LEN);
+   Serial.print(der); Serial.print('\t');
 
 
 //    //****** integrate the signal ******//
-//    float y1 = 75.0 * ((EMA_S_baro[i] + y0) / 2.0); // seems like another smoothing filter to me
-//    Serial.println(y1);
+    baro_buffer.shift();
+    baro_buffer.push(der);
+    integrate += 0.00714285714*POLY_LEN*((baro_buffer[0] + baro_buffer[POLY_LEN]) / 2.0); // seems like another smoothing filter to me
+    Serial.print(integrate); Serial.print('\t');
+
+//        if( integrate < THRESHOLD){
+//      Serial.print(0.0); Serial.print('\t');
+//      }
+//    else{
+//      Serial.print(integrate - THRESHOLD); Serial.print('\t');
+//      }
 
 //        Serial.print(1.57);  // To freeze the lower limit
 //        Serial.print(" ");
 //        Serial.print(0.349066);  // To freeze the lower limit
 //        Serial.print(" ");
-//        Serial.print(-1.57);  // To freeze the upper limit
+
+//        Serial.print(0);  // To freeze the upper limit
 //        Serial.print(" ");
-//        Serial.print(-0.349066);  // To freeze the lower limit
+//        Serial.print(10);  // To freeze the lower limit
 //        Serial.print(" ");
-//        Serial.println(slope);
+        
+//        Serial.println(integrate);
 //    
 ////        if(slope >= 0.349066){
 ////    //      Serial.print(smoothed_baro[i]); Serial.print('\t');
@@ -311,6 +325,12 @@ void readPressureValues() {
 ////          first_slop_flag = true;
 ////          }
 
+
+    //************** DC BLOCKER. Similar to HIGH PASS FILTER: https://ccrma.stanford.edu/~jos/fp/DC_Blocker.html ****************//
+    //************** Available here https://ccrma.stanford.edu/~jos/fp/DC_Blocker.html and here https://www.dsprelated.com/freebooks/filters/DC_Blocker.html****************//
+    EMA_S_baro[i] = integrate - prev_smoothed_baro[i] + 0.998 * EMA_S_baro[i];
+//    Serial.print(EMA_S_baro[i]); Serial.println('\t');
+    prev_smoothed_baro[i] = integrate;
 
        //**************** band stop filter ***************//
 //        EMA_S_low = (EMA_a_low * smoothed_baro[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -516,8 +536,8 @@ void setup() {
   //  Serial.println (" device(s).");
 
   // moving avg. initalization
-  smooth_ir.begin(SMOOTHED_AVERAGE, 50);
-  smooth_baro.begin(SMOOTHED_AVERAGE, 14);
+  smooth_ir.begin(SMOOTHED_AVERAGE, 100);
+  smooth_baro.begin(SMOOTHED_AVERAGE, 50);
 
   inputStats.setWindowSecs( 0.1 );
   //  filterOneLowpass.setWindowSecs( 0.1 );
@@ -535,7 +555,7 @@ void loop() {
 
   //  digitalWrite(13, !digitalRead(13)); // to measure samp. frq. using oscilloscope
 
-//      unsigned long start, elapsed;
+      unsigned long start, elapsed;
 
   //    lookForData();
   //    if (newCommand == true) {
