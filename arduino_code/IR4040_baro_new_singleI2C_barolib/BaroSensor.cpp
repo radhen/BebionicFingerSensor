@@ -130,7 +130,7 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
     int32_t d1 = takeReading(CMD_START_D1(level), level, byte(address));
     if(d1 == 0)
       return false;
-//    Serial.print(d1/3000.0); Serial.print('\t');
+//    Serial.print(d1>>16); Serial.print('\t');
 
     int64_t off = c2 * (1LL<<17) + (c4 * dt) / (1LL<<6);
     int64_t sens = c1 * (1LL<<16) + (c3 * dt) / (1LL<<7);
@@ -156,8 +156,8 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
     int32_t p = ((int64_t)d1 * sens/(1LL<<21) - off) / (1LL << 15);
 //    Serial.print(p); Serial.print('\t');
 //    *pressure = (float)p / 100;
-//    Serial.print(*pressure); Serial.print('\t');
-      *pressure = d1/10000.0;
+      *pressure = d1;
+//      Serial.print(*pressure); Serial.print('\t');
   }
   return true;
 }

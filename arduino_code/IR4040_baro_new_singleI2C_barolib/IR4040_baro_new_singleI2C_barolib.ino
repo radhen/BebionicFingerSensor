@@ -56,7 +56,7 @@ int timer1_counter;
 bool min_flag_ir = true;
 bool min_flag_baro =  true;
 int drop_count_ir = 50;
-int drop_count_baro = 5;
+int drop_count_baro = 500;
 
 volatile float smoothed_baro[NUM_FINGERS];
 volatile float smoothed_baro_2[NUM_FINGERS];
@@ -82,7 +82,7 @@ Smoothed <float> smooth_ir;
 Smoothed <float> smooth_baro;
 
 RunningStatistics inputStats; // create statistics to look at the raw test signal
-FilterOnePole filterOneLowpass( HIGHPASS, 0.001 );  // create a one pole (RC) highpass filter
+FilterOnePole filterOneLowpass( LOWPASS, 1.1 );  // create a one pole (RC) highpass filter
 //RunningStatistics filterOneLowpassStats; // create running statistics to smooth these values
 
 MedianFilter median_filter(10, 0);
@@ -116,24 +116,22 @@ bool ideal_flag = true;
 bool contact_flag = false;
 
 // Derivate and Integrate variables
-const int DERI_LEN = 5;
-const int INTE_LEN = 2;
+const int DERI_LEN = 30;
+const int INTE_LEN = 10;
 float deri;
-float inte;
+float inte = 0;
 
 CircularBuffer<float, DERI_LEN> deri_buffer;
 CircularBuffer<float, INTE_LEN> inte_buffer;
 
 // CURVE FITTING VARIABLES
-const int POLY_LEN = 10;
-float baro_arr[POLY_LEN];
-int xpower = 3;
-const int ORDER = 1;
+const int POLY_LEN = 30;
+const int ORDER = 2;
 double x[POLY_LEN];
 double t[POLY_LEN];
 double coeffs[ORDER + 1];
 
-const float THRESHOLD = 1.0 ;
+const float THRESHOLD = 250.0 ;
 
 
 ///////////////////////////////////////////////////////////
@@ -163,23 +161,25 @@ void initPressure(int id) {
 
 void readPressureValues() {
 
-//  if (drop_count_baro > 0) {
-//    // Drop first five values from all the sensors
-//    drop_count_baro -= 1;
-//    for (int i = 0; i < NUM_FINGERS; i++) {
-//      pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
-//      EMA_S_low = pressure_value_[i];        //set EMA S for t=1
-//      EMA_S_high = pressure_value_[i];
-//      prev_smoothed_baro[i] = pressure_value_[i];
-//      next_smoothed_baro[i] = pressure_value_[i];
-//      //      smooth_baro.add(pressure_value_[i]);
-//      //      smoothed_baro[i] = smooth_baro.get();
-//      inputStats.input(smoothed_baro[i]);
-//      current_mean = inputStats.mean();
-//      //      baro_buffer.push(smoothed_baro[i]);
-//      //      deri_buffer.push(smoothed_baro[i]);
-//    }
-//  }
+  if (drop_count_baro > 0) {
+    // Drop first five values from all the sensors to fill up variables. Should be in the setup
+    drop_count_baro -= 1;
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
+      filterOneLowpass.input( pressure_value_[i] );
+      smoothed_baro[i] = filterOneLowpass.output();
+      EMA_S_low = pressure_value_[i];        //set EMA S for t=1
+      EMA_S_high = pressure_value_[i];
+      prev_smoothed_baro[i] = pressure_value_[i];
+      next_smoothed_baro[i] = pressure_value_[i];
+//            smooth_baro.add(pressure_value_[i]);
+      //      smoothed_baro[i] = smooth_baro.get();
+      inputStats.input(smoothed_baro[i]);
+      current_mean = inputStats.mean();
+      inte_buffer.push(0.0);
+      deri_buffer.push(pressure_value_[i]);
+    }
+  }
 
   for (int i = 0; i < NUM_FINGERS; i++) {
 
@@ -198,24 +198,7 @@ void readPressureValues() {
 //    smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
 //    Serial.print(smoothed_baro[i]); Serial.print('\t');
 
-
-    //************* CURVE FITTING *************//
-    //    Serial.print(baro_buffer.shift()); Serial.print('\t');
-    //    baro_buffer.shift();
-    //    baro_buffer.push(smoothed_baro[i]);
-    //    for(int i=0; i<=POLY_LEN; i++){
-    //    x[i] = baro_buffer[i];}
-    //    for (int i = 0; i < sizeof(x)/sizeof(double); i++){
-    //    t[i] = i;}
-    //    int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
-    //    if (ret == 0){ //Returned value is 0 if no error
-    //    uint8_t c = 'a';
-    //    Serial.println("Coefficients are");
-    //    for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
-    //      Serial.printf("%c=%f\t ",c++, coeffs[i]);}
-    //  }
-
-    //    Serial.print(abs(smoothed_baro[i] - coeffs[1])); Serial.print('\t');
+    
 
 
     //    Serial.print(BaroSensor.getTemperature(CELSIUS, OSR_256, BARO_ADDRESS)); Serial.print('\t');
@@ -249,8 +232,9 @@ void readPressureValues() {
 
 
     //    //************ low pass filter ****************//
-//        filterOneLowpass.input( pressure_value_[i] );
-//        Serial.print(filterOneLowpass.output()); Serial.println('\t');
+      filterOneLowpass.input( pressure_value_[i] );
+      smoothed_baro[i] = filterOneLowpass.output();
+//      Serial.print(smoothed_baro[i]); Serial.print('\t');
 
 
     //******** Exponential average for more smoothing and the sub to get highpass response ********//
@@ -282,40 +266,63 @@ void readPressureValues() {
     //      }
 
 
+        
 
 
 
     //****** dy/dx on the smoothed signal ******//
-    deri_buffer.push(pressure_value_[i]);
-    deri_buffer.shift();
-    //    float slope = atan2((smoothed_baro[i] - y0),50.0); // in radians. 100 in the denominator is delta x which is set experimentally
-    deri = (deri_buffer.last() - deri_buffer.first()) / 5.0;
-    Serial.print(deri); Serial.print('\t');
+    deri_buffer.push(smoothed_baro[i]);
+    float last_baro = deri_buffer.shift(); 
+    float slope = atan2((deri_buffer.last() - deri_buffer.first()),0.01*DERI_LEN); // in radians. 100 in the denominator is delta x which is set experimentally
+    deri = (deri_buffer.last() - deri_buffer.first()) / 0.01*DERI_LEN;
+//    Serial.print(deri); Serial.print('\t');
 //    Serial.print(deri_buffer.first()); Serial.print('\t');
 //    Serial.print(deri_buffer.last()); Serial.print('\t');
 
     if(deri > -THRESHOLD & deri < THRESHOLD){
-      deri = 0.0;
-//      Serial.print(deri); Serial.print('\t');
-      }
-    else{
-      if(deri > THRESHOLD){
-        deri = deri - THRESHOLD;  
+          deri = 0.0;
+          }
+        else{
+          if(deri > THRESHOLD){
+            deri = deri - THRESHOLD;  
+            }
+          if(deri < -THRESHOLD){
+            deri = deri + THRESHOLD;
+            }
         }
-      if(deri < -THRESHOLD){
-        deri = deri + THRESHOLD;
+//        Serial.print(deri); Serial.print('\t');
+
+
+    //************* CURVE FITTING *************//
+        for(int i=0; i<=POLY_LEN; i++){
+        x[i] = deri_buffer[i];}
+        for (int i = 0; i < sizeof(x)/sizeof(double); i++){
+        t[i] = i;}
+        int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
+        if (ret == 0){ //Returned value is 0 if no error
+        uint8_t c = 'a';
+//        Serial.println("Coefficients are");
+//        for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
+//          Serial.printf("%c=%f\t ",c++, coeffs[i]);
+//            }
         }
-//      Serial.print(deri); Serial.print('\t');
-    }
+        Serial.print(coeffs[1]);
+//      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
+
+
+    
+
+    median_filter.in(int(deri));
+//    Serial.print(median_filter.out()); Serial.print('\t');
 
 
     //    //****** integrate the signal ******//
+    inte_buffer.push(median_filter.out());
     inte_buffer.shift();
-    inte_buffer.push(deri);
 //    if(inte_buffer.isEmpty()){
 //      Serial.println("full");
 //      }
-    inte += 0.001 * INTE_LEN * (inte_buffer.first() + inte_buffer.last()) * 0.5; // seems like another smoothing filter to me
+    inte += (0.01*INTE_LEN * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
 //    Serial.print(inte); Serial.println('\t');
 //    Serial.print(inte_buffer.first()); Serial.print('\t');
 //    Serial.print(inte_buffer.last()); Serial.print('\t');
