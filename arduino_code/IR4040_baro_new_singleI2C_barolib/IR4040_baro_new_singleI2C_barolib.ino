@@ -13,8 +13,8 @@
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x4E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
-#define VCNL4040_ADDR 0x58 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
+#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x18 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -192,7 +192,7 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-    Serial.print(pressure_value_[i]); Serial.print('\t');
+//    Serial.print(pressure_value_[i]); Serial.print('\t');
 
      //**************** band stop filter ***************//
     EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -212,8 +212,6 @@ void readPressureValues() {
 //    smooth_baro.add(pressure_value_[i]);
 //    smoothed_baro[i] = smooth_baro.get(); // Get the smoothed values
 //    Serial.print(smoothed_baro[i]); Serial.print('\t');
-
-    
 
 
     //    Serial.print(BaroSensor.getTemperature(CELSIUS, OSR_256, BARO_ADDRESS)); Serial.print('\t');
@@ -246,20 +244,19 @@ void readPressureValues() {
     //      }
 
 
-    //    //************ low pass filter ****************//
-<<<<<<< HEAD
+       //************ low pass filter ****************//
 //      filterOneLowpass.input( pressure_value_[i] );
 //      smoothed_baro[i] = filterOneLowpass.output();
 //      Serial.print(smoothed_baro[i]); Serial.print('\t');
-=======
-      filterOneLowpass.input( pressure_value_[i] );
-      smoothed_baro[i] = filterOneLowpass.output();
-      Serial.print(smoothed_baro[i]); Serial.print('\t');
->>>>>>> 2756d0056ab94604f299de15f715030355a97d43
+
+//      filterOneLowpass.input( pressure_value_[i] );
+//      smoothed_baro[i] = filterOneLowpass.output();
+//      Serial.print(smoothed_baro[i]);/ Serial.print('\t');
+
 
 
     //******** Exponential average for more smoothing and the sub to get highpass response ********//
-        EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
+//        EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
 //        highpass_pressure_value[i] = smoothed_baro[i] - EMA_S_baro[i];
 //        Serial.print(EMA_S_baro[i]); Serial.println('\t');
 
@@ -283,7 +280,7 @@ void readPressureValues() {
     //      Serial.print(press_nrm[i]); Serial.print('\t');
     //      }
     //    if(ideal_flag == true){
-    //      Serial.print(0.0); Serial.print('\t');
+//          Serial.print(0.0); Serial.print('\t');
     //      }
 
 
@@ -318,29 +315,21 @@ void readPressureValues() {
 //        Serial.print(deri); Serial.print('\t');
 
 
-    
-
 
     //************* CURVE FITTING *************//
-        for(int i=0; i<=POLY_LEN; i++){
-        x[i] = deri_buffer[i];}
-        for (int i = 0; i < sizeof(x)/sizeof(double); i++){
-        t[i] = i;}
-        int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
-        if (ret == 0){ //Returned value is 0 if no error
-        uint8_t c = 'a';
-//        Serial.println("Coefficients are");
-//        for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
-//          Serial.printf("%c=%f\t ",c++, coeffs[i]);
-//            }
-        }
-<<<<<<< HEAD
-//        Serial.print(c/oeffs[1]);
-=======
-//        Serial.print(coeffs[1]);
->>>>>>> 2756d0056ab94604f299de15f715030355a97d43
-//      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
-
+//        for(int i=0; i<=POLY_LEN; i++){
+//        x[i] = deri_buffer[i];}
+//        for (int i = 0; i < sizeof(x)/sizeof(double); i++){
+//        t[i] = i;}
+//        int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
+//        if (ret == 0){ //Returned value is 0 if no error
+//        uint8_t c = 'a';
+////        Serial.println("Coefficients are");
+////        for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
+////          Serial.printf("%c=%f\t ",c++, coeffs[i]);
+////            }
+//        }
+////      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
 
     
 
@@ -349,7 +338,7 @@ void readPressureValues() {
 
 
     //    //****** integrate the signal ******//
-    inte_buffer.push(deri);
+    inte_buffer.push(double_deri);
 //    inte_buffer.shift();
 
 //    if(inte_buffer.isFull()){
@@ -362,16 +351,18 @@ void readPressureValues() {
     
     inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
 //    Serial.print(inte); Serial.println('\t');
+    
 //    if(inte > -3000000.0 & inte < 3000000.0){
 //          inte = 0.0;
 //          }
+
 //    Serial.print(inte); Serial.println('\t');
 //    Serial.print(inte_buffer.first()); Serial.print('\t');
 //    Serial.print(inte_buffer.last()); Serial.print('\t');
 
-    double_inte_buffer.push(deri);
+    double_inte_buffer.push(inte);
     double_inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (double_inte_buffer.first() + double_inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
-    Serial.print(double_inte/100000.0); Serial.println('\t');  
+//    Serial.print(double_inte); Serial.println('\t');  
 
 //    inputStats.input(double_inte);
 //    Serial.print(inputStats.mean()); Serial.print('\t');
@@ -577,41 +568,34 @@ void setup() {
     initPressure(i);
   }
 
-  //  for (int i = 0; i < NUM_FINGERS; i++) {
-  //    packet.irVals[i] = 0;
-  //    packet.pressVals[i] = 0;
-  //  }
-  //  for (int i = 0; i < NUM_PBOARDS; i++) {
-  //    packet.encoders[i] = 0;
-  //  }
 
-  //  while (!Serial)
-  //    {
-  //    }
-  //
-  //  Serial.println ();
-  //  Serial.println ("I2C scanner. Scanning ...");
-  //  byte count = 0;
-  //
-  //  Wire.begin();
-  //  for (byte i = 8; i < 120; i++)
-  //  {
-  //    Wire.beginTransmission (i);
-  //    if (Wire.endTransmission () == 0)
-  //      {
-  //      Serial.print ("Found address: ");
-  //      Serial.print (i, DEC);
-  //      Serial.print (" (0x");
-  //      Serial.print (i, HEX);
-  //      Serial.println (")");
-  //      count++;
-  //      delay (1);  // maybe unneeded?
-  //      } // end of good response
-  //  } // end of for loop
-  //  Serial.println ("Done.");
-  //  Serial.print ("Found ");
-  //  Serial.print (count, DEC);
-  //  Serial.println (" device(s).");
+//    while (!Serial)
+//      {
+//      }
+//  
+//    Serial.println ();
+//    Serial.println ("I2C scanner. Scanning ...");
+//    byte count = 0;
+//  
+//    Wire.begin();
+//    for (byte i = 8; i < 120; i++)
+//    {
+//      Wire.beginTransmission (i);
+//      if (Wire.endTransmission () == 0)
+//        {
+//        Serial.print ("Found address: ");
+//        Serial.print (i, DEC);
+//        Serial.print (" (0x");
+//        Serial.print (i, HEX);
+//        Serial.println (")");
+//        count++;
+//        delay (1);  // maybe unneeded?
+//        } // end of good response
+//    } // end of for loop
+//    Serial.println ("Done.");
+//    Serial.print ("Found ");
+//    Serial.print (count, DEC);
+//    Serial.println (" device(s).");
 
   // moving avg. initalization
   smooth_ir.begin(SMOOTHED_AVERAGE, 100);
@@ -651,6 +635,7 @@ void loop() {
 //***** CALCULATE SAMPLING FREQ. BASED ON NORDIC CLOCK ****//   
 // WITH THIS BARO ALONE IS 146Hz and IR IS AROUND 1kHz. COMBINED AS EXPECTED IS 146Hz
 // SETTING THE SAMPLING RATE  TO 100Hz (SAMPLING_INTERVAL = 10000 microseconds)
+
 
 //    unsigned long start, elapsed;  
 //    start = micros();

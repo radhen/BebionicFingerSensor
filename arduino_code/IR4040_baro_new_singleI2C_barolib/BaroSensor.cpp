@@ -155,8 +155,8 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
 
     int32_t p = ((int64_t)d1 * sens/(1LL<<21) - off) / (1LL << 15);
 //    Serial.print(p); Serial.print('\t');
-    *pressure = (float)p / 100;
-//      *pressure = d1;
+//    *pressur/e = (float)p / 100;
+      *pressure = d1;
 //      Serial.print(*pressure); Serial.print('\t');
   }
   return true;
