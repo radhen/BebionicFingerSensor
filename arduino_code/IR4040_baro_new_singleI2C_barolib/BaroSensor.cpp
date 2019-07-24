@@ -136,27 +136,27 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
     int64_t sens = c1 * (1LL<<16) + (c3 * dt) / (1LL<<7);
 
     /* Second order temperature compensation for pressure */
-//    if(temp < 2000) {
-//      /* Low temperature */
-//      int32_t tx = temp-2000;
-//      tx *= tx;
-//      int32_t off2 = 61 * tx / (1<<4);
-//      int32_t sens2 = 29 * tx / (1<<4);
-//      if(temp < -1500) {
-//        /* Very low temperature */
-//        tx = temp+1500;
-//        tx *= tx;
-//        off2 += 17 * tx;
-//        sens2 += 9 * tx;
-//      }
-//      off -= off2;
-//      sens -= sens2;
-//    }
+    if(temp < 2000) {
+      /* Low temperature */
+      int32_t tx = temp-2000;
+      tx *= tx;
+      int32_t off2 = 61 * tx / (1<<4);
+      int32_t sens2 = 29 * tx / (1<<4);
+      if(temp < -1500) {
+        /* Very low temperature */
+        tx = temp+1500;
+        tx *= tx;
+        off2 += 17 * tx;
+        sens2 += 9 * tx;
+      }
+      off -= off2;
+      sens -= sens2;
+    }
 
     int32_t p = ((int64_t)d1 * sens/(1LL<<21) - off) / (1LL << 15);
 //    Serial.print(p); Serial.print('\t');
-//    *pressure = (float)p / 100;
-      *pressure = d1;
+    *pressure = (float)p / 100;
+//      *pressure = d1;
 //      Serial.print(*pressure); Serial.print('\t');
   }
   return true;
