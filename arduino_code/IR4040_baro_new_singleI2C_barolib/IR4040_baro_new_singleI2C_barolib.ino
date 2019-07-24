@@ -13,8 +13,8 @@
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
-#define VCNL4040_ADDR 0x18 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
+#define BARO_ADDRESS 0x4E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x58 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -184,13 +184,13 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-//    Serial.print(pressure_value_[i]); Serial.print('\t');
+    Serial.print(pressure_value_[i]); Serial.print('\t');
 
 
     //********* Median filter to remove the noise ************//
-    //    median_filter.in(int(pressure_value_[i]));
-    //    pressure_value_[i] = float(median_filter.out());
-    //    Serial.print(pressure_value_[i]); Serial.print('\t');
+//        median_filter.in(int(pressure_value_[i]));
+//        pressure_value_[i] = float(median_filter.out());
+//        Serial.print(pressure_value_[i]); Serial.print('\t');
 
 
     //******** Moving avg. to smooth the signal ********//
@@ -234,7 +234,7 @@ void readPressureValues() {
     //    //************ low pass filter ****************//
       filterOneLowpass.input( pressure_value_[i] );
       smoothed_baro[i] = filterOneLowpass.output();
-//      Serial.print(smoothed_baro[i]); Serial.print('\t');
+      Serial.print(smoothed_baro[i]); Serial.print('\t');
 
 
     //******** Exponential average for more smoothing and the sub to get highpass response ********//
@@ -306,7 +306,7 @@ void readPressureValues() {
 //          Serial.printf("%c=%f\t ",c++, coeffs[i]);
 //            }
         }
-        Serial.print(coeffs[1]);
+//        Serial.print(coeffs[1]);
 //      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
 
 
