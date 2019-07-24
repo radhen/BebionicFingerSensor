@@ -82,20 +82,18 @@ Smoothed <float> smooth_ir;
 Smoothed <float> smooth_baro;
 
 RunningStatistics inputStats; // create statistics to look at the raw test signal
-FilterOnePole filterOneLowpass( LOWPASS, 1.1 );  // create a one pole (RC) highpass filter
+FilterOnePole filterOneLowpass( LOWPASS, 2.0 );  // create a one pole (RC) highpass filter
 //RunningStatistics filterOneLowpassStats; // create running statistics to smooth these values
 
 MedianFilter median_filter(10, 0);
 
 float integrate = 0.0;
 
-
-float EMA_a_low = 0.1;     //initialization of EMA alpha (cutoff-frequency)
-float EMA_a_high = 1;
-
+// source bandstop filter: https://www.norwegiancreations.com/2016/03/arduino-tutorial-simple-high-pass-band-pass-and-band-stop-filtering/
+float EMA_a_low = 0.001;     //initialization of EMA alpha (cutoff-frequency) 0Hz
+float EMA_a_high = 0.1; // 2.2Hz
 int EMA_S_low = 0;          //initialization of EMA S
 int EMA_S_high = 0;
-
 int highpass = 0;
 int bandpass = 0;
 int bandstop = 0;
@@ -105,7 +103,7 @@ int bandstop = 0;
 QueueArray <float> queue;
 
 volatile float highpass_pressure_value[NUM_FINGERS] = {0.0};
-volatile float EMA_a_baro[NUM_FINGERS] = {0.1};
+volatile float EMA_a_baro[NUM_FINGERS] = {0.05};
 volatile float EMA_S_baro[NUM_FINGERS] = {0.0};
 
 bool first_slop_flag = true;
@@ -115,14 +113,21 @@ float current_mean = 0.0;
 bool ideal_flag = true;
 bool contact_flag = false;
 
-// Derivate and Integrate variables
-const int DERI_LEN = 30;
-const int INTE_LEN = 10;
-float deri;
-float inte = 0;
 
+// Derivate and Integrate variables
+const int DERI_LEN = 10;
+const int INTE_LEN = 10;
+const int DOUBLE_DERI_LEN = 10;
+const int DOUBLE_INTE_LEN = 10;
+float deri;
+float inte;
+float double_deri;
+float double_inte;
 CircularBuffer<float, DERI_LEN> deri_buffer;
 CircularBuffer<float, INTE_LEN> inte_buffer;
+CircularBuffer<float, DOUBLE_DERI_LEN> double_deri_buffer;
+CircularBuffer<float, DOUBLE_INTE_LEN> double_inte_buffer;
+
 
 // CURVE FITTING VARIABLES
 const int POLY_LEN = 30;
@@ -131,7 +136,7 @@ double x[POLY_LEN];
 double t[POLY_LEN];
 double coeffs[ORDER + 1];
 
-const float THRESHOLD = 250.0 ;
+const float THRESHOLD = 50.0 ;
 
 
 ///////////////////////////////////////////////////////////
@@ -168,8 +173,7 @@ void readPressureValues() {
       pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
       filterOneLowpass.input( pressure_value_[i] );
       smoothed_baro[i] = filterOneLowpass.output();
-      EMA_S_low = pressure_value_[i];        //set EMA S for t=1
-      EMA_S_high = pressure_value_[i];
+      
       prev_smoothed_baro[i] = pressure_value_[i];
       next_smoothed_baro[i] = pressure_value_[i];
 //            smooth_baro.add(pressure_value_[i]);
@@ -177,6 +181,10 @@ void readPressureValues() {
       inputStats.input(smoothed_baro[i]);
       current_mean = inputStats.mean();
       inte_buffer.push(0.0);
+      EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
+    EMA_S_high = (EMA_a_high * pressure_value_[i]) + ((1 - EMA_a_high) * EMA_S_high);
+    bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
+    bandstop = pressure_value_[i] - bandpass;
       deri_buffer.push(pressure_value_[i]);
     }
   }
@@ -185,6 +193,13 @@ void readPressureValues() {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
 //    Serial.print(pressure_value_[i]); Serial.print('\t');
+
+     //**************** band stop filter ***************//
+    EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
+    EMA_S_high = (EMA_a_high * pressure_value_[i]) + ((1 - EMA_a_high) * EMA_S_high);
+    bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
+    bandstop = pressure_value_[i] - bandpass;        //find the band-stop signal
+//    Serial.print(bandpass); Serial.print('\t');
 
 
     //********* Median filter to remove the noise ************//
@@ -232,15 +247,15 @@ void readPressureValues() {
 
 
     //    //************ low pass filter ****************//
-      filterOneLowpass.input( pressure_value_[i] );
-      smoothed_baro[i] = filterOneLowpass.output();
+//      filterOneLowpass.input( pressure_value_[i] );
+//      smoothed_baro[i] = filterOneLowpass.output();
 //      Serial.print(smoothed_baro[i]); Serial.print('\t');
 
 
     //******** Exponential average for more smoothing and the sub to get highpass response ********//
-    //    EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
-    //    highpass_pressure_value[i] = smoothed_baro[i] - EMA_S_baro[i];
-    //    Serial.print(highpass_pressure_value[i]); Serial.println('\t');
+        EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
+//        highpass_pressure_value[i] = smoothed_baro[i] - EMA_S_baro[i];
+//        Serial.print(EMA_S_baro[i]); Serial.println('\t');
 
 
     //********** normalizing based on contact detection event ***********//
@@ -271,26 +286,33 @@ void readPressureValues() {
 
 
     //****** dy/dx on the smoothed signal ******//
-    deri_buffer.push(smoothed_baro[i]);
-    float last_baro = deri_buffer.shift(); 
+    deri_buffer.push(pressure_value_[i]);
+//    float last_baro = deri_buffer.shift(); 
     float slope = atan2((deri_buffer.last() - deri_buffer.first()),0.01*DERI_LEN); // in radians. 100 in the denominator is delta x which is set experimentally
-    deri = (deri_buffer.last() - deri_buffer.first()) / 0.01*DERI_LEN;
+    deri = (deri_buffer.last() - deri_buffer.first()) / 50.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
 //    Serial.print(deri); Serial.print('\t');
 //    Serial.print(deri_buffer.first()); Serial.print('\t');
 //    Serial.print(deri_buffer.last()); Serial.print('\t');
 
+    double_deri_buffer.push(deri);
+    double_deri = (double_deri_buffer.last() - double_deri_buffer.first()) / 50.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
+//    Serial.print(double_deri); Serial.print('\t');
+
     if(deri > -THRESHOLD & deri < THRESHOLD){
           deri = 0.0;
           }
-        else{
-          if(deri > THRESHOLD){
-            deri = deri - THRESHOLD;  
-            }
-          if(deri < -THRESHOLD){
-            deri = deri + THRESHOLD;
-            }
-        }
+//        else{
+//          if(deri > THRESHOLD){
+//            deri = deri - THRESHOLD;  
+//            }
+//          if(deri < -THRESHOLD){
+//            deri = deri + THRESHOLD;
+//            }
+//        }
 //        Serial.print(deri); Serial.print('\t');
+
+
+    
 
 
     //************* CURVE FITTING *************//
@@ -306,30 +328,48 @@ void readPressureValues() {
 //          Serial.printf("%c=%f\t ",c++, coeffs[i]);
 //            }
         }
-        Serial.print(coeffs[1]);
+//        Serial.print(c/oeffs[1]);
 //      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
 
 
     
 
-    median_filter.in(int(deri));
+//    median_filter.in(int(deri));
 //    Serial.print(median_filter.out()); Serial.print('\t');
 
 
     //    //****** integrate the signal ******//
-    inte_buffer.push(median_filter.out());
-    inte_buffer.shift();
-//    if(inte_buffer.isEmpty()){
-//      Serial.println("full");
+    inte_buffer.push(deri);
+//    inte_buffer.shift();
+
+//    if(inte_buffer.isFull()){
+//      inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
+//      Serial.print(inte); Serial.println('\t');
+////      Serial.println("full");
+//      inte_buffer.clear();
+////      Serial.println(inte_buffer.size());
 //      }
-    inte += (0.01*INTE_LEN * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
+    
+    inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
+//    Serial.print(inte); Serial.println('\t');
+//    if(inte > -3000000.0 & inte < 3000000.0){
+//          inte = 0.0;
+//          }
 //    Serial.print(inte); Serial.println('\t');
 //    Serial.print(inte_buffer.first()); Serial.print('\t');
 //    Serial.print(inte_buffer.last()); Serial.print('\t');
-    
 
-    
+    double_inte_buffer.push(deri);
+    double_inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (double_inte_buffer.first() + double_inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
+    Serial.print(double_inte/100000.0); Serial.println('\t');  
 
+//    inputStats.input(double_inte);
+//    Serial.print(inputStats.mean()); Serial.print('\t');
+//    Serial.println(inputStats.variance());
+
+
+//    Serial.print(double_inte - inputStats.mean()); Serial.println('\t');  
+  
     //        Serial.print(1.57);  // To freeze the lower limit
     //        Serial.print(" ");
     //        Serial.print(0.349066);  // To freeze the lower limit
@@ -365,12 +405,7 @@ void readPressureValues() {
     //    Serial.print(EMA_S_baro[i]); Serial.println('\t');
 //    prev_smoothed_baro[i] = integrate;
 
-    //**************** band stop filter ***************//
-    //        EMA_S_low = (EMA_a_low * smoothed_baro[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
-    //        EMA_S_high = (EMA_a_high * smoothed_baro[i]) + ((1 - EMA_a_high) * EMA_S_high);
-    //        bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
-    //        bandstop = smoothed_baro[i] - bandpass;        //find the band-stop signal
-    //        Serial.print(bandstop); Serial.print('\t');
+   
 
 
     //*********** NORMALIZE BARO SENSOR VALUES ??? NOTHING WORKS ************//
@@ -574,6 +609,10 @@ void setup() {
 
   inputStats.setWindowSecs( 0.1 );
   //  filterOneLowpass.setWindowSecs( 0.1 );
+
+  float initial_pressure_value = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
+  EMA_S_low = initial_pressure_value;        //set EMA S for t=1
+  EMA_S_high = initial_pressure_value;
 
 
 }
