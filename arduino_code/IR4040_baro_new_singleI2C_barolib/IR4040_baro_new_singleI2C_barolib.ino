@@ -13,8 +13,8 @@
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x0E  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
-#define VCNL4040_ADDR 0x18 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
+#define BARO_ADDRESS 0x2F  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x39 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -85,7 +85,7 @@ RunningStatistics inputStats; // create statistics to look at the raw test signa
 FilterOnePole filterOneLowpass( LOWPASS, 2.0 );  // create a one pole (RC) highpass filter
 //RunningStatistics filterOneLowpassStats; // create running statistics to smooth these values
 
-MedianFilter median_filter(10, 0);
+MedianFilter median_filter(20, 0);
 
 float integrate = 0.0;
 
@@ -137,6 +137,9 @@ double t[POLY_LEN];
 double coeffs[ORDER + 1];
 
 const float THRESHOLD = 50.0 ;
+int running_mean;
+
+int counter = 0;
 
 
 ///////////////////////////////////////////////////////////
@@ -192,7 +195,7 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-//    Serial.print(pressure_value_[i]); Serial.print('\t');
+//    Serial.print(int(pressure_value_[i])); Serial.print('\t');
 
      //**************** band stop filter ***************//
     EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -206,11 +209,10 @@ void readPressureValues() {
 ////    Serial.print(inputStats.mean()); Serial.print('\t');
 ////    Serial.println(inputStats.variance());
 //    if(inputStats.variance() < 60000000.0){
-////      Serial.print(0.0);
-//        median_filter.in(int(0.0));      
+//      median_filter.in(0);
 //        }
 //    else{
-//       median_filter.in(int(pressure_value_[i]));
+//        median_filter.in(int(pressure_value_[i]));
 //      }
 
 
@@ -328,6 +330,7 @@ void readPressureValues() {
     double_deri = (double_deri_buffer.last() - double_deri_buffer.first()) / 10.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
 //    Serial.print(double_deri); Serial.print('\t');
 
+
     if(deri > -THRESHOLD & deri < THRESHOLD){
           deri = 0.0;
           }
@@ -349,10 +352,22 @@ void readPressureValues() {
 
     //    //****** integrate the signal ******//
     inte_buffer.push(deri);
-//    inte_buffer.shift();
-    
     inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
-    Serial.print(int(inte) >> 24); Serial.print('\t');
+    Serial.print(int(inte)); Serial.print('\t');
+
+
+//    inputStats.input(pressure_value_[i]);
+////    Serial.print(inputStats.mean()); Serial.print('\t');
+////    Serial.println(inputStats.variance());
+//    if(inputStats.variance() < 60000000.0){
+//      median_filter.in(0);
+//        }
+//    else{
+//      inte_buffer.push(deri);
+//      inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5);
+//      median_filter.in(int(inte));
+//      }
+//      Serial.print(median_filter.out()); Serial.print('\t');
     
 //    if(inte > -3000000.0 & inte < 3000000.0){
 //          inte = 0.0;
@@ -601,7 +616,7 @@ void setup() {
   smooth_ir.begin(SMOOTHED_AVERAGE, 100);
   smooth_baro.begin(SMOOTHED_AVERAGE, 10);
 
-  inputStats.setWindowSecs( 0.1 );
+  inputStats.setWindowSecs( 0.3 );
   //  filterOneLowpass.setWindowSecs( 0.1 );
 
   float initial_pressure_value = BaroSensor.getPressure(OSR_256, BARO_ADDRESS);
