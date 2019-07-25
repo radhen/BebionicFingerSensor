@@ -202,10 +202,22 @@ void readPressureValues() {
 //    Serial.print(bandpass); Serial.print('\t');
 
 
+//    inputStats.input(pressure_value_[i]);
+////    Serial.print(inputStats.mean()); Serial.print('\t');
+////    Serial.println(inputStats.variance());
+//    if(inputStats.variance() < 60000000.0){
+////      Serial.print(0.0);
+//        median_filter.in(int(0.0));      
+//        }
+//    else{
+//       median_filter.in(int(pressure_value_[i]));
+//      }
+
+
     //********* Median filter to remove the noise ************//
 //        median_filter.in(int(pressure_value_[i]));
 //        pressure_value_[i] = float(median_filter.out());
-//        Serial.print(pressure_value_[i]); Serial.print('\t');
+//        Serial.print(median_filter.out()); Serial.print('\t');
 
 
     //******** Moving avg. to smooth the signal ********//
@@ -244,6 +256,8 @@ void readPressureValues() {
     //      }
 
 
+  
+
        //************ low pass filter ****************//
 //      filterOneLowpass.input( pressure_value_[i] );
 //      smoothed_baro[i] = filterOneLowpass.output();
@@ -259,6 +273,23 @@ void readPressureValues() {
 //        EMA_S_baro[i] = (EMA_a_baro[i] * smoothed_baro[i]) + ((1.0 - EMA_a_baro[i]) * EMA_S_baro[i]);
 //        highpass_pressure_value[i] = smoothed_baro[i] - EMA_S_baro[i];
 //        Serial.print(EMA_S_baro[i]); Serial.println('\t');
+
+
+
+    //************* CURVE FITTING *************//
+//        for(int i=0; i<=POLY_LEN; i++){
+//        x[i] = deri_buffer[i];}
+//        for (int i = 0; i < sizeof(x)/sizeof(double); i++){
+//        t[i] = i;}
+//        int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
+//        if (ret == 0){ //Returned value is 0 if no error
+//        uint8_t c = 'a';
+////        Serial.println("Coefficients are");
+////        for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
+////          Serial.printf("%c=%f\t ",c++, coeffs[i]);
+////            }
+//        }
+////      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
 
 
     //********** normalizing based on contact detection event ***********//
@@ -284,21 +315,17 @@ void readPressureValues() {
     //      }
 
 
-        
-
-
-
     //****** dy/dx on the smoothed signal ******//
     deri_buffer.push(pressure_value_[i]);
 //    float last_baro = deri_buffer.shift(); 
     float slope = atan2((deri_buffer.last() - deri_buffer.first()),0.01*DERI_LEN); // in radians. 100 in the denominator is delta x which is set experimentally
-    deri = (deri_buffer.last() - deri_buffer.first()) / 50.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
+    deri = (deri_buffer.last() - deri_buffer.first()) / 10.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
 //    Serial.print(deri); Serial.print('\t');
 //    Serial.print(deri_buffer.first()); Serial.print('\t');
 //    Serial.print(deri_buffer.last()); Serial.print('\t');
 
     double_deri_buffer.push(deri);
-    double_deri = (double_deri_buffer.last() - double_deri_buffer.first()) / 50.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
+    double_deri = (double_deri_buffer.last() - double_deri_buffer.first()) / 10.0; // ((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0)
 //    Serial.print(double_deri); Serial.print('\t');
 
     if(deri > -THRESHOLD & deri < THRESHOLD){
@@ -314,43 +341,18 @@ void readPressureValues() {
 //        }
 //        Serial.print(deri); Serial.print('\t');
 
-
-
-    //************* CURVE FITTING *************//
-//        for(int i=0; i<=POLY_LEN; i++){
-//        x[i] = deri_buffer[i];}
-//        for (int i = 0; i < sizeof(x)/sizeof(double); i++){
-//        t[i] = i;}
-//        int ret = fitCurve(ORDER, sizeof(x)/sizeof(double), t, x, sizeof(coeffs)/sizeof(double), coeffs);
-//        if (ret == 0){ //Returned value is 0 if no error
-//        uint8_t c = 'a';
-////        Serial.println("Coefficients are");
-////        for (int i = 0; i < sizeof(coeffs)/sizeof(double); i++){
-////          Serial.printf("%c=%f\t ",c++, coeffs[i]);
-////            }
-//        }
-////      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
-
-    
+  
 
 //    median_filter.in(int(deri));
 //    Serial.print(median_filter.out()); Serial.print('\t');
 
 
     //    //****** integrate the signal ******//
-    inte_buffer.push(double_deri);
+    inte_buffer.push(deri);
 //    inte_buffer.shift();
-
-//    if(inte_buffer.isFull()){
-//      inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
-//      Serial.print(inte); Serial.println('\t');
-////      Serial.println("full");
-//      inte_buffer.clear();
-////      Serial.println(inte_buffer.size());
-//      }
     
     inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
-//    Serial.print(inte); Serial.println('\t');
+    Serial.print(int(inte) >> 24); Serial.print('\t');
     
 //    if(inte > -3000000.0 & inte < 3000000.0){
 //          inte = 0.0;
@@ -360,13 +362,11 @@ void readPressureValues() {
 //    Serial.print(inte_buffer.first()); Serial.print('\t');
 //    Serial.print(inte_buffer.last()); Serial.print('\t');
 
-    double_inte_buffer.push(inte);
-    double_inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (double_inte_buffer.first() + double_inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
+//    double_inte_buffer.push(inte);
+//    double_inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (double_inte_buffer.first() + double_inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
 //    Serial.print(double_inte); Serial.println('\t');  
 
-//    inputStats.input(double_inte);
-//    Serial.print(inputStats.mean()); Serial.print('\t');
-//    Serial.println(inputStats.variance());
+
 
 
 //    Serial.print(double_inte - inputStats.mean()); Serial.println('\t');  
