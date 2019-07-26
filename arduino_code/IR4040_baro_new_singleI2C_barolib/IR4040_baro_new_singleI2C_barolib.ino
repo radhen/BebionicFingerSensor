@@ -12,8 +12,8 @@
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
 
 /***** GLOBAL CONSTANTS *****/
-#define BARO_ADDRESS 0x2F  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
-#define VCNL4040_ADDR 0x39 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
+#define BARO_ADDRESS 0x63  // MS5637_02BA03 I2C address is on the fingertip sensor pcb
+#define VCNL4040_ADDR 0x75 // VCNL_4040 IR sensor I2C address is on the fingertip sensor pcb
 #define CMD_RESET 0x1E
 //Command Registers have an upper byte and lower byte.
 #define PS_CONF1 0x03
@@ -83,6 +83,7 @@ Smoothed <float> smooth_baro;
 RunningStatistics inputStats; // create statistics to look at the raw test signal
 FilterOnePole filterOneLowpass( LOWPASS, 2.0 );  // create a one pole (RC) highpass filter
 //RunningStatistics filterOneLowpassStats; // create running statistics to smooth these values
+FilterOnePole filterOneHighpass( HIGHPASS, 4.0 );  // create a one pole (RC) highpass filter
 
 MedianFilter median_filter(20, 0);
 
@@ -97,9 +98,6 @@ int highpass = 0;
 int bandpass = 0;
 int bandstop = 0;
 
-//Queue<char> queue = Queue<char>(5); // Max 5 chars!
-// create a queue of characters.
-QueueArray <float> queue;
 
 volatile float highpass_pressure_value[NUM_FINGERS] = {0.0};
 volatile float EMA_a_baro[NUM_FINGERS] = {0.05};
@@ -202,6 +200,11 @@ void readPressureValues() {
     bandpass = EMA_S_high - EMA_S_low;        //find the band-pass as before
     bandstop = pressure_value_[i] - bandpass;        //find the band-stop signal
 //    Serial.print(bandpass); Serial.print('\t');
+
+
+      filterOneHighpass.input(pressure_value_[i]);
+//      smoothed_baro[i] = filterOneHighpass.output();
+//      Serial.print(filterOneHighpass.output()); Serial.print('\t');
 
 
 //    inputStats.input(pressure_value_[i]);
@@ -350,7 +353,7 @@ void readPressureValues() {
 
 
     //    //****** integrate the signal ******//
-    inte_buffer.push(deri);
+    inte_buffer.push(filterOneHighpass.output());
     inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
     Serial.print(int(inte)); Serial.print('\t');
 
@@ -385,10 +388,10 @@ void readPressureValues() {
 
 //    Serial.print(double_inte - inputStats.mean()); Serial.println('\t');  
   
-    //        Serial.print(1.57);  // To freeze the lower limit
-    //        Serial.print(" ");
-    //        Serial.print(0.349066);  // To freeze the lower limit
-    //        Serial.print(" ");
+            Serial.print(0.0);  // To freeze the lower limit
+            Serial.print(" ");
+            Serial.print(2000000000.0);  // To freeze the lower limit
+            Serial.print(" ");
 
     //        Serial.print(0);  // To freeze the upper limit
     //        Serial.print(" ");
