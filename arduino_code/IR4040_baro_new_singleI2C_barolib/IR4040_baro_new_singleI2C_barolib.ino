@@ -7,7 +7,6 @@
 #include <Smoothed.h> // available @ https://github.com/MattFryer/Smoothed
 #include <Filters.h> // available @ https://github.com/JonHub/Filters
 #include <MedianFilter.h> //available @ https://github.com/daPhoosa/MedianFilter
-#include <QueueArray.h> // available @ https://playground.arduino.cc/Code/QueueArray/
 #include "BaroSensor.h" // available @ https://github.com/freetronics/BaroSensor
 #include "curveFitting.h" // available @ https://github.com/Rotario/arduinoCurveFitting
 #include <CircularBuffer.h> // available @ https://github.com/rlogiacco/CircularBuffer
