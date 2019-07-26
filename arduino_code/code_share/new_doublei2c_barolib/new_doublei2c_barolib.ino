@@ -39,7 +39,7 @@ TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 1 // number of fingers connected
+#define NUM_FINGERS 2 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -51,7 +51,7 @@ typedef struct {
 //first number is the ir port, second number is the pressure port (ir, barPort).
 // refer translatedAddress.xlsx file to know address of ir and baro for a sensor with specific address
 // OR use scan_i2c_in() function to scan the connected i2c devices
-Digit fingers[NUM_FINGERS] = {{0x63,0x75}};
+Digit fingers[NUM_FINGERS] = {{0x63,0x75}, {0x0E,0x18}};
 
 int muxStatus;
 
@@ -74,60 +74,11 @@ volatile uint16_t proximity_value_[NUM_FINGERS];
 
 int timer1_counter;
 
+// SAMPLING FREQ. STUFF.
+#define SAMPLING_INTERVAL 10000 // for eg. 10000 microseconds per sample for 100 Hz, change this for different sampling rates.
+unsigned long lastMicros = 0;
 
-///////////////////////////////////////////////////////////
-//////////////// SIGENICS INIT CODE BELOW ///////////////////////
-//////////////////////////////////////////////////////////
-
-// 100ms timeout for one forward command
-// command buffer 500 bytes
-
-//FSM
-#define NUM_PBOARDS 6
-
-byte user_input;
-byte close_finger[4];
-byte open_finger[4];
-byte apply_break[4];
-byte command[4];
-int outCount = 4;
-
-byte pBoardAddresses[NUM_PBOARDS] = {1, 2, 3, 4, 5, 6};
-
-// the pboard addrs actually are 1,2,3,4,5 but we perfrom bitshift accrd. to manual and hence 2,4,6,8,10
-byte addrs[NUM_PBOARDS] = {0x02, 0x04, 0x06, 0x08, 0x0A, 0x0C};
-//byte addrs[NUM_PBOARDS] = {0x0A};
-
-#define fNONE 0
-#define fSTART 1
-#define fESCAPE 2
-#define fEND 3
-
-#define ESCAPE 0x7D
-#define HDLC 0x7E
-#define SCAN_I2C 0x2C  //break hdlc to tell the arduino to scan the i2c bus
-//and report back any ACK'd addresses
-//return format goes:
-
-//|| # of addresses || device 1 address || device 2 address || ... || device x address ||
-
-
-byte inBuf[16];
-byte i2cBuf[16];
-//byte outCount = 0;
-byte state = fNONE;
-bool newCommand = false, toggle = false, debugFlag = true;
-byte inByte;
-
-volatile uint16_t encoder_value_;
-
-typedef struct data_packet_struct {
-  int irVals[NUM_FINGERS];
-  float pressVals[NUM_FINGERS];
-  int encoders[NUM_PBOARDS];
-} DataPacket;
-DataPacket packet;
-
+bool toggle = false;
 
 ///////////////////////////////////////////////////////////
 ///////////// MISC FUNCTIONS BELOW ///////////////
@@ -246,14 +197,14 @@ void toggle_light(){
 ///////////// PCF SENSOR FUNCTIONS BELOW ///////////////
 //////////////////////////////////////////////////////////
 
-void initPressure(byte address) {
-  BaroSensor.begin(address);
+void initPressure(byte address, int i) {
+  BaroSensor.begin(address, i);
 }
 
 void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
     const byte baro_address = fingers[i].baroAddr;
-    pressure_value_[i] = BaroSensor.getPressure(OSR_256, baro_address);
+    pressure_value_[i] = BaroSensor.getPressure(OSR_256, baro_address, i);
     Serial.print(pressure_value_[i]); Serial.print('\t');
 
 //    #if(I2C_OUT_ENABLED)
@@ -331,7 +282,7 @@ const int response_code = 0x186;
     Serial.println(deviceID, HEX);
     while (1); //Freeze!
   }
-  Serial.println("VCNL4040 detected!");
+//  Serial.println("VCNL4040 detected!");
   initVCNL4040(address); //Configure sensor
 
   //    delay(50);
@@ -413,13 +364,12 @@ void setup() {
 
    //  I2C_in.setClock(100000);
   //pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
-  newCommand = false;
 
 //  initialize attached devices
   for (int i = 0; i < NUM_FINGERS; i++)
   {
     initIRSensor(fingers[i].irAddr);
-    initPressure(fingers[i].baroAddr);
+    initPressure(fingers[i].baroAddr, i);
   }
 
   muxStatus = 0;
@@ -441,7 +391,7 @@ void loop() {
   if (micros() - lastMicros > SAMPLING_INTERVAL) {
     lastMicros = micros(); // do this first or your interval is too long!
 
-//    readIRValues(); //-> array of IR values (2 bytes per sensor)
+    readIRValues(); //-> array of IR values (2 bytes per sensor)
     readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
     Serial.print('\n');

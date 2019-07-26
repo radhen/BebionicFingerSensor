@@ -43,7 +43,7 @@ inline static int8_t _endTransmission(bool stop = true)
 #endif
 }
 
-void BaroSensorClass::begin(byte address)
+void BaroSensorClass::begin(byte address, int i)
 { 
   Wire.begin();
   Wire.beginTransmission(byte(address));
@@ -69,35 +69,35 @@ void BaroSensorClass::begin(byte address)
   Serial.println("HERE");
   // TODO verify CRC4 in top 4 bits of prom[0] (follows AN520 but not directly...)
 
-  c1 = prom[1];
-  c2 = prom[2];
-  c3 = prom[3];
-  c4 = prom[4];
-  c5 = prom[5];
-  c6 = prom[6];
+  c1[i] = prom[1];
+  c2[i] = prom[2];
+  c3[i] = prom[3];
+  c4[i] = prom[4];
+  c5[i] = prom[5];
+  c6[i] = prom[6];
   initialised = true;
   
 }
 
-float BaroSensorClass::getTemperature(TempUnit scale, BaroOversampleLevel level, byte address)
+float BaroSensorClass::getTemperature(TempUnit scale, BaroOversampleLevel level, byte address, int i)
 {
   float result;
-  if(getTempAndPressure(&result, NULL, scale, level, byte(address)))
+  if(getTempAndPressure(&result, NULL, scale, level, byte(address), i))
     return result;
   else
     return NAN;
 }
 
-float BaroSensorClass::getPressure(BaroOversampleLevel level, byte address)
+float BaroSensorClass::getPressure(BaroOversampleLevel level, byte address, int i)
 {
   float result;
-  if(getTempAndPressure(NULL, &result, CELSIUS, level, byte(address)))
+  if(getTempAndPressure(NULL, &result, CELSIUS, level, byte(address), i))
     return result;
   else
     return NAN;
 }
 
-bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, TempUnit tempScale, BaroOversampleLevel level, byte address)
+bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, TempUnit tempScale, BaroOversampleLevel level, byte address, int i)
 {
   if(err || !initialised)
     return false;
@@ -106,9 +106,9 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
 //  Serial.print(d2); Serial.print('\t'); // print the temp
   if(d2 == 0)
     return false;
-  int64_t dt = d2 - c5 * (1L<<8);
+  int64_t dt = d2 - c5[i] * (1L<<8);
 
-  int32_t temp = 2000 + (dt * c6) / (1L<<23);
+  int32_t temp = 2000 + (dt * c6[i]) / (1L<<23);
 
   /* Second order temperature compensation */
   int64_t t2;
@@ -132,8 +132,8 @@ bool BaroSensorClass::getTempAndPressure(float *temperature, float *pressure, Te
       return false;
 //    Serial.print(d1>>16); Serial.print('\t');
 
-    int64_t off = c2 * (1LL<<17) + (c4 * dt) / (1LL<<6);
-    int64_t sens = c1 * (1LL<<16) + (c3 * dt) / (1LL<<7);
+    int64_t off = c2[i] * (1LL<<17) + (c4[i] * dt) / (1LL<<6);
+    int64_t sens = c1[i] * (1LL<<16) + (c3[i] * dt) / (1LL<<7);
 
     /* Second order temperature compensation for pressure */
     if(temp < 2000) {

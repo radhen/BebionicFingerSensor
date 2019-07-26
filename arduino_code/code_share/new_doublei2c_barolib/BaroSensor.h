@@ -39,16 +39,18 @@ typedef enum {
 #define ERR_BAD_READLEN -2
 #define ERR_NEEDS_BEGIN -3
 
+#define NUM_FINGERS 2 // number of fingers connected
+
 class BaroSensorClass {
  public:
   BaroSensorClass() : initialised(false), err(ERR_NEEDS_BEGIN) { }
-  void begin(byte address);
+  void begin(byte address, int i);
 
   /* Return temperature in C or Fahrenheit */
   float getTemperature(TempUnit scale = CELSIUS,
-                       BaroOversampleLevel level = OSR_8192, byte address = byte(0x65));
+                       BaroOversampleLevel level = OSR_8192, byte address = byte(0x65), int i = 0);
   /* Return pressure in mbar */
-  float getPressure(BaroOversampleLevel level = OSR_8192, byte address = byte(0x65));
+  float getPressure(BaroOversampleLevel level = OSR_8192, byte address = byte(0x65), int i = 0);
 
   /* Update both temperature and pressure together. This takes less
      time than calling each function separately (as pressure result
@@ -58,7 +60,8 @@ class BaroSensorClass {
                           float *pressure,
                           TempUnit tempScale = CELSIUS,
                           BaroOversampleLevel level = OSR_8192,
-                          byte address = byte(0x65));
+                          byte address = byte(0x65),
+                          int i = 0);
 
   inline bool isOK() { return initialised && err == 0; }
   inline byte getError() { return initialised ? err : ERR_NEEDS_BEGIN; }
@@ -68,7 +71,7 @@ class BaroSensorClass {
 private:
   bool initialised;
   int8_t err;
-  uint16_t c1,c2,c3,c4,c5,c6; // Calibration constants used in producing results
+  uint16_t c1[NUM_FINGERS],c2[NUM_FINGERS],c3[NUM_FINGERS],c4[NUM_FINGERS],c5[NUM_FINGERS],c6[NUM_FINGERS]; // Calibration constants used in producing results
 
   uint32_t takeReading(uint8_t trigger_cmd, BaroOversampleLevel oversample_level, byte address);
 };

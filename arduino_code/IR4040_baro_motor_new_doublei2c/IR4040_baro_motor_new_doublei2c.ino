@@ -44,18 +44,17 @@ TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 5 // number of fingers connected
+#define NUM_FINGERS 2 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
+  byte baroAddr;
   byte irAddr;
-  byte barAddr;
 } Digit;
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
 //first number is the ir port, second number is the pressure port (ir, barPort).
-Digit fingers[NUM_FINGERS] = {{0x73,0x65},{0X75,0X63},{0X76,0X60},{0X58,0X4E},{0X5A,0X4C}};
-
+Digit fingers[NUM_FINGERS] = {{0x63,0x75}, {0x0E,0x18}};
 int muxStatus;
 
 int num_devices_;
@@ -188,7 +187,7 @@ Serial.println(" I2C Devices found.");
 void initPressure(int fingerID) {
   byte dataLo, dataHi;
 
-  const byte baro_address = fingers[fingerID].barAddr;
+  const byte baro_address = fingers[fingerID].baroAddr;
   
   I2C_in.beginTransmission(baro_address);
   I2C_in.write(byte(0));
@@ -253,7 +252,7 @@ int32_t getPressureReading(byte address) {
 
 void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
-    const byte baro_address = fingers[i].barAddr;
+    const byte baro_address = fingers[i].baroAddr;
     pressure_value_[i] = getPressureReading(baro_address);
     Serial.print(pressure_value_[i]); Serial.print('\t');
 
@@ -594,7 +593,7 @@ void setup() {
 /*************************/
 /*** SCAN I2c CHANNELS ***/
 /*************************/
-  scan_i2c_in();
+//  scan_i2c_in();
 //  #if(I2C_OUT_ENABLED)
 //  scan_i2c_out();
 //  #endif
@@ -604,11 +603,11 @@ void setup() {
   newCommand = false;
 
 //  initialize attached devices
-//  for (int i = 0; i < NUM_FINGERS; i++)
-//  {
-//    initIRSensor(fingers[i].irAddr);
-//    initPressure(i);
-//  }
+  for (int i = 0; i < NUM_FINGERS; i++)
+  {
+    initIRSensor(fingers[i].irAddr);
+    initPressure(i);
+  }
 
   muxStatus = 0;
 
@@ -648,13 +647,13 @@ void loop() {
 //      newCommand = false;
 //    }
 
-//  readIRValues(); //-> array of IR values (2 bytes per sensor)
-//  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+  readIRValues(); //-> array of IR values (2 bytes per sensor)
+  readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
   
   //  readNNpredictions();
 //    readMotorEncodersValues();
 
-//  Serial.print('\n');
+  Serial.print('\n');
 //  transmitData(OUTPUT_I2C_ADDRESS);
 
 }
