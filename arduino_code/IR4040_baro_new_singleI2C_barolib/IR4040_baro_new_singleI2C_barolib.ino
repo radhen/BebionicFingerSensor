@@ -192,7 +192,7 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-//    Serial.print(int(pressure_value_[i])); Serial.print('\t');
+    Serial.print(int(pressure_value_[i])); Serial.print('\t');
 
      //**************** band stop filter ***************//
     EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -355,7 +355,7 @@ void readPressureValues() {
     //    //****** integrate the signal ******//
     inte_buffer.push(filterOneHighpass.output());
     inte += (((1/float(SAMPLING_INTERVAL))*DERI_LEN*1000000.0) * (inte_buffer.first() + inte_buffer.last()) * 0.5); // delta_x * delta_y * 0.5
-    Serial.print(int(inte)); Serial.print('\t');
+//    Serial.print(int(inte)); Serial.print('\t');
 
 
 //    inputStats.input(pressure_value_[i]);
@@ -388,10 +388,10 @@ void readPressureValues() {
 
 //    Serial.print(double_inte - inputStats.mean()); Serial.println('\t');  
   
-            Serial.print(0.0);  // To freeze the lower limit
-            Serial.print(" ");
-            Serial.print(2000000000.0);  // To freeze the lower limit
-            Serial.print(" ");
+//            Serial.print(0.0);  // To freeze the lower limit
+//            Serial.print(" ");
+//            Serial.print(2000000000.0);  // To freeze the lower limit
+//            Serial.print(" ");
 
     //        Serial.print(0);  // To freeze the upper limit
     //        Serial.print(" ");
@@ -520,24 +520,24 @@ void readIRValues() {
 
   for (int i = 0; i < NUM_FINGERS; i++) {
     proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
-    Serial.print(proximity_value_[i]); Serial.print('\t');
+//    Serial.print(proximity_value_[i]); Serial.print('\t');
 
     //*********** NORMALIZE IR SENSOR VALUES ************//
     // keep track of the running min values
-    if (min_flag_ir == true) {
-      min_distance[i] = proximity_value_[i];
-    }
-    if (proximity_value_[i] < min_distance[i]) {
-      min_distance[i] = proximity_value_[i];
-    }
+//    if (min_flag_ir == true) {
+//      min_distance[i] = proximity_value_[i];
+//    }
+//    if (proximity_value_[i] < min_distance[i]) {
+//      min_distance[i] = proximity_value_[i];
+//    }
 
-    prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
+//    prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
     //      Serial.print(prox_nrm[i]); Serial.print('\t');
 
     //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
-    EMA_S_ir[i] = (EMA_a_ir[i] * prox_nrm[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
-    highpass_proximity_value_[i] = prox_nrm[i] - EMA_S_ir[i];
-    //    Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+    EMA_S_ir[i] = (EMA_a_ir[i] * proximity_value_[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
+    highpass_proximity_value_[i] = proximity_value_[i] - EMA_S_ir[i];
+    Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
 
     //******** Moving avg. ********//
     smooth_ir.add(proximity_value_[i]);
