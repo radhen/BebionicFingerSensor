@@ -138,6 +138,8 @@ int running_mean;
 
 int counter = 0;
 
+volatile float smoothed_ir;
+
 
 ///////////////////////////////////////////////////////////
 ///////////// PCF SENSOR FUNCTIONS BELOW ///////////////
@@ -192,7 +194,7 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-    Serial.print(int(pressure_value_[i])); Serial.print('\t');
+//    Serial.print(int(pressure_value_[i])); Serial.print('\t');
 
      //**************** band stop filter ***************//
     EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -295,28 +297,38 @@ void readPressureValues() {
 //        }
 ////      Serial.print(abs(smoothed_baro[i] - coeffs[ORDER+1])); Serial.print('\t');
 
+//Serial.print(smoothed_ir); Serial.print('\t');
 
     //********** normalizing based on contact detection event ***********//
-    //    if(highpass_pressure_value[i]>5000 & contact_flag == false){
-    //      contact_flag = true;
-    //      ideal_flag = false;
-    //      }
-    //    if(highpass_pressure_value[i]<-10000 & ideal_flag == false){
-    //      contact_flag = false;
-    //      ideal_flag = true;
-    //      }
-    //    if(contact_flag == true){
-    //      if (first_slop_flag == true){
-    //            first_min_value = smoothed_baro[i];
-    //    //        Serial.println(first_min_value);
-    //            first_slop_flag = false;
-    //            }
-    //      press_nrm[i] = abs(smoothed_baro[i] - first_min_value)/(16678896.0 - first_min_value);
-    //      Serial.print(press_nrm[i]); Serial.print('\t');
-    //      }
-    //    if(ideal_flag == true){
+        if(smoothed_ir > 35500.0 & contact_flag == false){
+          contact_flag = true;
+          ideal_flag = false;
+          }
+          
+        if(smoothed_ir < 37000.0 & ideal_flag == false){
+          contact_flag = false;
+          ideal_flag = true;
+          }
+          
+        if(contact_flag == true){
+          if (first_slop_flag == true){
+                first_min_value = pressure_value_[i];
+        //        Serial.println(first_min_value);
+                first_slop_flag = false;
+                }
+          press_nrm[i] = pressure_value_[i] - first_min_value;
+          
+          }
+        if(ideal_flag == true){
+          press_nrm[i] = 0.0;
 //          Serial.print(0.0); Serial.print('\t');
-    //      }
+          first_slop_flag = true;
+        }
+
+        if(press_nrm[i] > -0.00001){
+          Serial.print(press_nrm[i]); Serial.print('\t');
+          }
+          
 
 
     //****** dy/dx on the smoothed signal ******//
@@ -522,6 +534,7 @@ void readIRValues() {
     proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
 //    Serial.print(proximity_value_[i]); Serial.print('\t');
 
+
     //*********** NORMALIZE IR SENSOR VALUES ************//
     // keep track of the running min values
 //    if (min_flag_ir == true) {
@@ -533,17 +546,19 @@ void readIRValues() {
 
 //    prox_nrm[i] = float(proximity_value_[i] - min_distance[i]);
     //      Serial.print(prox_nrm[i]); Serial.print('\t');
+    
 
     //******** Exponential average for Contact detection. Losspass filter and then subtract the orig. singal ********//
     EMA_S_ir[i] = (EMA_a_ir[i] * proximity_value_[i]) + ((1.0 - EMA_a_ir[i]) * EMA_S_ir[i]);
     highpass_proximity_value_[i] = proximity_value_[i] - EMA_S_ir[i];
-    Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+//    Serial.print(highpass_proximity_value_[i], 6); Serial.print('\t');
+    
 
     //******** Moving avg. ********//
     smooth_ir.add(proximity_value_[i]);
     // Get the smoothed values
-    float smoothed_ir = smooth_ir.get();
-    //    Serial.print(smoothed_ir); Serial.print('\t');
+    smoothed_ir = smooth_ir.get();
+//    Serial.print(smoothed_ir); Serial.print('\t');
     //      Serial.print(smoothed_ir/4000.0, 6); Serial.print('\t'); //Found the max value 4000.0 by manually pressing the sensor
   }
 
@@ -615,7 +630,7 @@ void setup() {
 //    Serial.println (" device(s).");
 
   // moving avg. initalization
-  smooth_ir.begin(SMOOTHED_AVERAGE, 100);
+  smooth_ir.begin(SMOOTHED_AVERAGE, 10);
   smooth_baro.begin(SMOOTHED_AVERAGE, 10);
 
   inputStats.setWindowSecs( 0.3 );
@@ -642,7 +657,7 @@ void loop() {
   if (micros() - lastMicros > SAMPLING_INTERVAL) {
     lastMicros = micros(); // do this first or your interval is too long!
 
-//    readIRValues(); //-> array of IR values (2 bytes per sensor)
+    readIRValues(); //-> array of IR values (2 bytes per sensor)
     readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
     Serial.print('\n');
