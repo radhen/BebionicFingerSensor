@@ -107,7 +107,7 @@ bool first_slop_flag = true;
 float first_min_value;
 
 float current_mean = 0.0;
-bool ideal_flag = true;
+bool idle_flag = true;
 bool contact_flag = false;
 
 
@@ -139,6 +139,7 @@ int running_mean;
 int counter = 0;
 
 volatile float smoothed_ir;
+int flag_counter = 0;
 
 
 ///////////////////////////////////////////////////////////
@@ -248,13 +249,13 @@ void readPressureValues() {
     //      Serial.println(inputStats.variance());
 
     //    if(smoothed_baro[i] < 1.01*(current_mean+8.0)){
-    //      ideal_flag = true;
+    //      idle_flag = true;
     //      contact_flag = false;
     //      Serial.println(0.0);
     //      current_mean = inputStats.mean();
     //      }
     //    else{
-    //      ideal_flag = false;
+    //      idle_flag = false;
     //      contact_flag = true;
     //      }
     //    if(contact_flag == true){
@@ -300,34 +301,40 @@ void readPressureValues() {
 //Serial.print(smoothed_ir); Serial.print('\t');
 
     //********** normalizing based on contact detection event ***********//
-        if(smoothed_ir > 35500.0 & contact_flag == false){
-          contact_flag = true;
-          ideal_flag = false;
-          }
-          
-        if(smoothed_ir < 37000.0 & ideal_flag == false){
-          contact_flag = false;
-          ideal_flag = true;
-          }
-          
-        if(contact_flag == true){
+        if(smoothed_ir > 38000.0){
           if (first_slop_flag == true){
-                first_min_value = pressure_value_[i];
-        //        Serial.println(first_min_value);
-                first_slop_flag = false;
-                }
-          press_nrm[i] = pressure_value_[i] - first_min_value;
+              first_min_value = pressure_value_[i];
+  //                Serial.println(first_min_value);
+              first_slop_flag = false;
+            }
           
-          }
-        if(ideal_flag == true){
+          press_nrm[i] = pressure_value_[i] - first_min_value; 
+          press_nrm[i] = constrain(press_nrm[i],0,1000000000000.0); // neglect -ve values
+          press_nrm[i] = press_nrm[i] / (16678896.0 - first_min_value);
+//          Serial.print(press_nrm[i]); Serial.print('\t');   
+
+          if(press_nrm[i] > 1.03 * first_min_value & flag_counter == 0){
+            flag_counter = 1;
+            }
+          if(press_nrm[i] < 1.03 * first_min_value & flag_counter == 1){
+            press_nrm[i] = 0.0;
+            flag_counter = 0;
+            }
+        }
+        else{
           press_nrm[i] = 0.0;
-//          Serial.print(0.0); Serial.print('\t');
           first_slop_flag = true;
         }
 
-        if(press_nrm[i] > -0.00001){
-          Serial.print(press_nrm[i]); Serial.print('\t');
-          }
+        Serial.print(press_nrm[i]); Serial.print('\t');
+
+        Serial.print(0);  // To freeze the upper limit
+        Serial.print(" ");
+        Serial.print(1);  // To freeze the lower limit
+        Serial.print(" ");
+        
+          
+        
           
 
 
@@ -404,11 +411,6 @@ void readPressureValues() {
 //            Serial.print(" ");
 //            Serial.print(2000000000.0);  // To freeze the lower limit
 //            Serial.print(" ");
-
-    //        Serial.print(0);  // To freeze the upper limit
-    //        Serial.print(" ");
-    //        Serial.print(10);  // To freeze the lower limit
-    //        Serial.print(" ");
 
     //        Serial.println(integrate);
     //
