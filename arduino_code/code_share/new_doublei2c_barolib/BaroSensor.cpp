@@ -43,6 +43,7 @@ inline static int8_t _endTransmission(bool stop = true)
 #endif
 }
 
+
 void BaroSensorClass::begin(byte address, int i)
 { 
   Wire.begin();
@@ -76,8 +77,8 @@ void BaroSensorClass::begin(byte address, int i)
   c5[i] = prom[5];
   c6[i] = prom[6];
   initialised = true;
-  
 }
+
 
 float BaroSensorClass::getTemperature(TempUnit scale, BaroOversampleLevel level, byte address, int i)
 {

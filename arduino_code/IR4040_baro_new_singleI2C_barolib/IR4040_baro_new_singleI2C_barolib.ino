@@ -54,7 +54,12 @@ int timer1_counter;
 
 bool min_flag_ir = true;
 bool min_flag_baro =  true;
-int drop_count_ir = 50;
+
+const int drop_count_ir = 500;
+float ir_avg[drop_count_ir]; 
+float IR_AVG = 0.0;
+float sum = 0.0;
+
 int drop_count_baro = 500;
 
 volatile float smoothed_baro[NUM_FINGERS];
@@ -301,7 +306,7 @@ void readPressureValues() {
 //Serial.print(smoothed_ir); Serial.print('\t');
 
     //********** normalizing based on contact detection event ***********//
-        if(smoothed_ir > 38000.0){
+        if(smoothed_ir > IR_AVG + 3500.0){
           if (first_slop_flag == true){
               first_min_value = pressure_value_[i];
   //                Serial.println(first_min_value);
@@ -310,7 +315,7 @@ void readPressureValues() {
           
           press_nrm[i] = pressure_value_[i] - first_min_value; 
           press_nrm[i] = constrain(press_nrm[i],0,1000000000000.0); // neglect -ve values
-          press_nrm[i] = press_nrm[i] / (16678896.0 - first_min_value);
+          press_nrm[i] = (press_nrm[i]) / (16678896.0 - first_min_value);
 //          Serial.print(press_nrm[i]); Serial.print('\t');   
 
           if(press_nrm[i] > 1.03 * first_min_value & flag_counter == 0){
@@ -328,10 +333,10 @@ void readPressureValues() {
 
         Serial.print(press_nrm[i]); Serial.print('\t');
 
-        Serial.print(0);  // To freeze the upper limit
-        Serial.print(" ");
-        Serial.print(1);  // To freeze the lower limit
-        Serial.print(" ");
+//        Serial.print(0);  // To freeze the upper limit
+//        Serial.print(" ");
+//        Serial.print(1);  // To freeze the lower limit
+//        Serial.print(" ");
         
           
         
@@ -523,14 +528,7 @@ void readIRValues() {
   //    count += 1;
   //  }
 
-  if (drop_count_ir > 0 ) {
-    // Drop first five values from all the sensors
-    drop_count_ir -= 1;
-    //    Serial.println("dropping values");
-    for (int i = 0; i < NUM_FINGERS; i++) {
-      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
-    }
-  }
+  
 
   for (int i = 0; i < NUM_FINGERS; i++) {
     proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
@@ -642,6 +640,20 @@ void setup() {
   EMA_S_low = initial_pressure_value;        //set EMA S for t=1
   EMA_S_high = initial_pressure_value;
 
+
+// Get the avg of first few samples of IR signal
+  for(int j = 0; j < drop_count_ir; j++) {
+    for (int i = 0; i < NUM_FINGERS; i++) {
+      proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
+      ir_avg[j] = proximity_value_[i];
+    }
+  }
+
+  for(int i = 0; i < drop_count_ir; i++) {
+      sum = sum + ir_avg[i];
+   }
+   IR_AVG = (float)sum / drop_count_ir;
+//   Serial.print(IR_AVG);
 
 }
 

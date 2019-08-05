@@ -39,7 +39,7 @@ TwoWire I2C_out(NRF_TWIM0, NRF_TWIS0, SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0_IRQn, SD
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 2 // number of fingers connected
+#define NUM_FINGERS 5 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -48,19 +48,10 @@ typedef struct {
 } Digit;
 
 //Each finger is a pair of ports (as read off of the mux board. Should all be between 0 and 15).
-//first number is the ir port, second number is the pressure port (ir, barPort).
+//first number is the barometer add., second number is the ir add. (baroAddr, irAddr).
 // refer translatedAddress.xlsx file to know address of ir and baro for a sensor with specific address
 // OR use scan_i2c_in() function to scan the connected i2c devices
-Digit fingers[NUM_FINGERS] = {{0x63,0x75}, {0x0E,0x18}};
-
-int muxStatus;
-
-int num_devices_;
-unsigned int ambient_value_;
-byte serialByte;
-uint16_t Coff[6][NUM_FINGERS];
-int32_t Ti = 0, offi = 0, sensi = 0;
-int32_t data[3];
+Digit fingers[NUM_FINGERS] = {{0x0E,0x18},{0x0C,0x1A}, {0x63,0x75}, {0x65,0x73}, {0x2F, 0x39}}; //  
 
 bool light_on;
 unsigned long last_light_switch;
@@ -149,7 +140,7 @@ void bluetooth_init(){
   Bluefruit.begin();
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
   Bluefruit.setTxPower(4);
-  Bluefruit.setName("RoboticMaterials_Centerboard");
+  Bluefruit.setName("Centerboard");
   bleuart.begin();
 
   // Start advertising device and bleuart services
@@ -280,7 +271,7 @@ const int response_code = 0x186;
     Serial.println("Device not found. Check wiring.");
     Serial.print("Expected: 0x186. Heard: 0x");
     Serial.println(deviceID, HEX);
-    while (1); //Freeze!
+//    while (1); //Freeze!
   }
 //  Serial.println("VCNL4040 detected!");
   initVCNL4040(address); //Configure sensor
@@ -349,8 +340,8 @@ void setup() {
     bluetooth_init();
   #endif
 
-  delay(1000);
-  Serial.println("Starting up...");
+//  delay(1000);
+//  Serial.println("Starting up...");
 
 
 /*************************/
@@ -372,8 +363,6 @@ void setup() {
     initPressure(fingers[i].baroAddr, i);
   }
 
-  muxStatus = 0;
-
 }
 
 
@@ -383,19 +372,19 @@ void setup() {
 //////////////////////////////////////////////////////////////////////
 
 void loop() {
-  if((millis()-last_light_switch)>BLINKY_LIGHT_PERIOD_MS){
-    toggle_light();
-  }
+//  if((millis()-last_light_switch)>BLINKY_LIGHT_PERIOD_MS){
+//    toggle_light();
+//  }
 
   
-  if (micros() - lastMicros > SAMPLING_INTERVAL) {
-    lastMicros = micros(); // do this first or your interval is too long!
+//  if (micros() - lastMicros > SAMPLING_INTERVAL) {
+//    lastMicros = micros(); // do this first or your interval is too long!
 
     readIRValues(); //-> array of IR values (2 bytes per sensor)
     readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
 
     Serial.print('\n');
-  }
+//  }
 
 
 //  transmitData(OUTPUT_I2C_ADDRESS);

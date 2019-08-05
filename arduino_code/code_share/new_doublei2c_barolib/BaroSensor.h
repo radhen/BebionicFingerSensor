@@ -39,7 +39,7 @@ typedef enum {
 #define ERR_BAD_READLEN -2
 #define ERR_NEEDS_BEGIN -3
 
-#define NUM_FINGERS 2 // number of fingers connected
+#define MAX_FINGERS 6 // max number of fingers that can be connected. Used in Coeff. 
 
 class BaroSensorClass {
  public:
@@ -71,7 +71,7 @@ class BaroSensorClass {
 private:
   bool initialised;
   int8_t err;
-  uint16_t c1[NUM_FINGERS],c2[NUM_FINGERS],c3[NUM_FINGERS],c4[NUM_FINGERS],c5[NUM_FINGERS],c6[NUM_FINGERS]; // Calibration constants used in producing results
+  uint16_t c1[MAX_FINGERS],c2[MAX_FINGERS],c3[MAX_FINGERS],c4[MAX_FINGERS],c5[MAX_FINGERS],c6[MAX_FINGERS]; // Calibration constants used in producing results
 
   uint32_t takeReading(uint8_t trigger_cmd, BaroOversampleLevel oversample_level, byte address);
 };
