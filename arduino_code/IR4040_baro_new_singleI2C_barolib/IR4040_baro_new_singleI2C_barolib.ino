@@ -200,7 +200,7 @@ void readPressureValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
 
     pressure_value_[i] = BaroSensor.getPressure(OSR_256, BARO_ADDRESS); // get just the 24-bit raw pressure values
-//    Serial.print(int(pressure_value_[i])); Serial.print('\t');
+    Serial.print(int(pressure_value_[i])); Serial.print('\t');
 
      //**************** band stop filter ***************//
     EMA_S_low = (EMA_a_low * pressure_value_[i]) + ((1 - EMA_a_low) * EMA_S_low);    //run the EMA
@@ -331,7 +331,7 @@ void readPressureValues() {
           first_slop_flag = true;
         }
 
-        Serial.print(press_nrm[i]); Serial.print('\t');
+//        Serial.print(press_nrm[i]); Serial.print('\t');
 
 //        Serial.print(0);  // To freeze the upper limit
 //        Serial.print(" ");
@@ -532,7 +532,7 @@ void readIRValues() {
 
   for (int i = 0; i < NUM_FINGERS; i++) {
     proximity_value_[i] = readFromCommandRegister(PS_DATA_L);
-//    Serial.print(proximity_value_[i]); Serial.print('\t');
+    Serial.print(proximity_value_[i]); Serial.print('\t');
 
 
     //*********** NORMALIZE IR SENSOR VALUES ************//
