@@ -42,7 +42,7 @@ VCNL4040 proximitySensor;
 #define ID  0x0C
 #define I2C_FASTMODE 1
 
-#define NUM_FINGERS 2 // number of fingers connected
+#define NUM_FINGERS 4 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -54,7 +54,7 @@ typedef struct {
 //first number is the barometer add., second number is the ir add. (baroAddr, irAddr).
 // refer translatedAddress.xlsx file to know address of ir and baro for a sensor with specific address
 // OR use scan_i2c_in() function to scan the connected i2c devices
-Digit fingers[NUM_FINGERS] = {{0x65,0x73}, {0x63,0x75}};//, {0x4E,0x58}, {0x2F, 0x39}};//, {0x0E,0x18}}; //  
+Digit fingers[NUM_FINGERS] = {{0x65,0x73}, {0x63,0x75}, {0x4E,0x58}, {0x2F, 0x39}};//, {0x0E,0x18}}; // 
 
 bool light_on;
 unsigned long last_light_switch;
@@ -261,36 +261,36 @@ void initVCNL4040(byte address) {
 
 void initIRSensor(uint8_t ir_address) {
 
-//  I2C_in.beginTransmission(ir_address);
-//  I2C_in.write(byte(0));
-//  int errcode = I2C_in.endTransmission();
-////  Serial.println(errcode);
-//
-//
-//  int deviceID = readFromCommandRegister(address, ID);
-////  Serial.println(deviceID);
-//const int response_code = 0x186;
-//  if (deviceID != response_code)
-//  {
-//    Serial.println("Device not found. Check wiring.");
-//    Serial.print("Expected: 0x186. Heard: 0x");
-//    Serial.println(deviceID, HEX);
+  I2C_in.beginTransmission(ir_address);
+  I2C_in.write(byte(0));
+  int errcode = I2C_in.endTransmission();
+//  Serial.println(errcode);
+
+
+  int deviceID = readFromCommandRegister(ir_address, ID);
+//  Serial.println(deviceID);
+const int response_code = 0x186;
+  if (deviceID != response_code)
+  {
+    Serial.println("Device not found. Check wiring.");
+    Serial.print("Expected: 0x186. Heard: 0x");
+    Serial.println(deviceID, HEX);
 //    while (1); //Freeze!
-//  }
-////  Serial.println("VCNL4040 detected!");
-//  initVCNL4040(ir_address); //Configure sensor
-//
-//  delay(50);
-//  I2C_in.beginTransmission(ir_address);
-//  I2C_in.write(byte(0));
-//  I2C_in.endTransmission();
+  }
+//  Serial.println("VCNL4040 detected!");
+  initVCNL4040(ir_address); //Configure sensor
+
+  delay(50);
+  I2C_in.beginTransmission(ir_address);
+  I2C_in.write(byte(0));
+  I2C_in.endTransmission();
 
     //********* read IR sensor using the library from sparkfun **************//
-    if (proximitySensor.begin((uint8_t)ir_address, I2C_in) == false)
-      {
-        Serial.println("Device not found. Please check wiring.");
-        while (1); //Freeze!
-      }
+//    if (proximitySensor.begin((uint8_t)ir_address, I2C_in) == false)
+//      {
+//        Serial.println("Device not found. Please check wiring.");
+//        while (1); //Freeze!
+//      }
   
 }
 
@@ -298,35 +298,35 @@ void initIRSensor(uint8_t ir_address) {
 void readIRValues() {
   for (int i = 0; i < NUM_FINGERS; i++) {
     
-//    const byte ir_address = fingers[i].irAddr;
-//    proximity_value_[i] = readFromCommandRegister(ir_address, PS_DATA_L);
-//    //Serial out
-//    Serial.print(proximity_value_[i]); Serial.print('\t');
-//
-//    //I2C out
-////    #if(I2C_OUT_ENABLED)
-////      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
-////      int num_sent = I2C_out.write(proximity_value_[i]); 
-////      if(num_sent!=2){
-////        Serial.print("I2C_out write failed! ");
-////        Serial.println(num_sent);
-////        while(true);
-////      }      
-////      I2C_out.write('\t');
-////      I2C_out.endTransmission();
-////    #endif
-//    
-//    //bluetooth out
-//    #if(BLUETOOTH_ENABLED)
-//      if(bleuart.available()){
-//        bleuart.write(proximity_value_[i]); bleuart.write('\t');
-//      }
+    const byte ir_address = fingers[i].irAddr;
+    proximity_value_[i] = readFromCommandRegister(ir_address, PS_DATA_L);
+    //Serial out
+    Serial.print(proximity_value_[i]); Serial.print('\t');
+
+    //I2C out
+//    #if(I2C_OUT_ENABLED)
+//      I2C_out.beginTransmission(OUTPUT_I2C_ADDRESS);
+//      int num_sent = I2C_out.write(proximity_value_[i]); 
+//      if(num_sent!=2){
+//        Serial.print("I2C_out write failed! ");
+//        Serial.println(num_sent);
+//        while(true);
+//      }      
+//      I2C_out.write('\t');
+//      I2C_out.endTransmission();
 //    #endif
+    
+    //bluetooth out
+    #if(BLUETOOTH_ENABLED)
+      if(bleuart.available()){
+        bleuart.write(proximity_value_[i]); bleuart.write('\t');
+      }
+    #endif
 
     //********* read IR sensor using the library from sparkfun **************//
-    const uint8_t ir_address = fingers[i].irAddr;
-    proximity_value_[i] = proximitySensor.getProximity(ir_address);
-    Serial.print(proximity_value_[i]); Serial.print('\t');
+//    const uint8_t ir_address = fingers[i].irAddr;
+//    proximity_value_[i] = proximitySensor.getProximity(ir_address);
+//    Serial.print(proximity_value_[i]); Serial.print('\t');
 
   }
  
@@ -376,11 +376,11 @@ void setup() {
   //pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
 
   ///// ******** initialize attached devices ********* /////
-  for (int i = 0; i < NUM_FINGERS; i++)
-  {
-//    initPressure(fingers[i].baroAddr, i);
-    initIRSensor(fingers[i].irAddr);
-  }
+//  for (int i = 0; i < NUM_FINGERS; i++)
+//  {
+////    initPressure(fingers[i].baroAddr, i);
+//    initIRSensor(fingers[i].irAddr);
+//  }
   
 }
 
@@ -402,11 +402,11 @@ void loop() {
     lastMicros = micros(); // do this first or your interval is too long!
   
 //    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-    readIRValues(); //-> array of IR values (2 bytes per sensor)
+//    readIRValues(); //-> array of IR values (2 bytes per sensor)
 
     Serial.print('\n');
     
-//    scan_i2c_in();
+    scan_i2c_in();
   }
 
 

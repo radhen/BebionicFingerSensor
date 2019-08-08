@@ -65,9 +65,9 @@ boolean VCNL4040::begin(uint8_t ir_address, TwoWire &wirePort) {
   _i2cPort->begin();
 
   //Check connection
-  if (isConnected(ir_address) == false); return (false); //I2C comm failure
+//  if (isConnected(ir_address) == false); return (false); //I2C comm failure
 
-  if (getID(ir_address) != 0x0186) return (false); //Check default ID value
+//  if (getID(ir_address) != 0x0186) return (false); //Check default ID value
 
   //Configure the various parts of the sensor
   setLEDCurrent(ir_address, 200); //Max IR LED current
