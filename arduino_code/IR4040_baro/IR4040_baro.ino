@@ -280,7 +280,7 @@ void initIRSensor(int id) {
     initVCNL4040(); //Configure sensor
   }
   Wire.beginTransmission(id);
-  Wire.write(0);
+  Wire.write(byte(0));
   Wire.endTransmission();
 }
 
@@ -343,7 +343,7 @@ void setup() {
   for (int i = 0; i < num_devices_; i++)
   {
     Wire.beginTransmission(i2c_ids_[i]);
-    Wire.write(0);
+    Wire.write(byte(0));
     int errcode = Wire.endTransmission();
     //    Serial.println(errcode);
     initIRSensor(i2c_ids_[i]);
