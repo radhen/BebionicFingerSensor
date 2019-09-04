@@ -42,7 +42,7 @@ VCNL4040 proximitySensor;
 #define ID  0x0C
 //#define I2C_FASTMODE 1
 
-#define NUM_FINGERS 5 // number of fingers connected
+#define NUM_FINGERS 4 // number of fingers connected
 #define PRESS_MEAS_DELAY_MS 20 //duration of each pressure measurement is twice this.
 
 typedef struct {
@@ -54,7 +54,7 @@ typedef struct {
 //first number is the barometer add., second number is the ir add. (baroAddr, irAddr).
 // refer translatedAddress.xlsx file to know address of ir and baro for a sensor with specific address
 // OR use scan_i2c_in() function to scan the connected i2c devices
-Digit fingers[NUM_FINGERS] = {{0x4C, 0x5A}, {0x67, 0x71}, {0x65, 0x73}, {0x23, 0x35}, {0x4E,0x58}}; //
+Digit fingers[NUM_FINGERS] = {{0x4C, 0x5A}, {0x63, 0x75}, {0x65, 0x73}, {0x23, 0x35}}; //
 
 bool light_on;
 unsigned long last_light_switch;
@@ -73,6 +73,14 @@ int timer1_counter;
 unsigned long lastMicros = 0;
 
 bool toggle = false;
+
+//// VARIABLES REQ. FOR CALIBRATING THE PRESSURE SENSOR
+bool first_slop_flag = true;
+const int DROP_COUNT_IR = 500;
+float ir_avg[NUM_FINGERS][DROP_COUNT_IR];
+float IR_AVG[NUM_FINGERS];
+float ir_sum = 0.0;
+float IR_CONTACT_THRES[NUM_FINGERS] = {3500.0, 3500.0, 3500.0, 3500.0}; // Need to set these values experimentally. Diff sensors will have diff values
 
 ///////////////////////////////////////////////////////////
 ///////////// MISC FUNCTIONS BELOW ///////////////
@@ -213,6 +221,30 @@ void readPressureValues() {
       bleuart.write(pressure_value_[i]); bleuart.write('\t');
     }
 #endif
+
+    //********** Normalizing based on contact detection event from the IR sensor ***********//
+        if (pressure_value_[i] > IR_AVG[i] + IR_CONTACT_THRES[i]) {
+          if (first_slop_flag == true) {
+            first_min_value = pressure_value_[i];
+            first_slop_flag = false;
+          }
+          press_nrm[i] = pressure_value_[i] - first_min_value;
+          press_nrm[i] = constrain(press_nrm[i], 0, 1000000000000.0); // neglect -ve values
+          press_nrm[i] = (press_nrm[i]) / (16678896.0 - first_min_value);
+          //          Serial.print(press_nrm[i]); Serial.print('\t');
+          if (press_nrm[i] > 1.03 * first_min_value & flag_counter == 0) {
+            flag_counter = 1;
+          }
+          if (press_nrm[i] < 1.03 * first_min_value & flag_counter == 1) {
+            press_nrm[i] = 0.0;
+            flag_counter = 0;
+          }
+        }
+        else {
+          press_nrm[i] = 0.0;
+          first_slop_flag = true;
+        }
+
   }
 
 }
@@ -270,7 +302,7 @@ void initIRSensor(uint8_t ir_address) {
     Serial.println("Device not found. Check wiring.");
     Serial.print("Expected: 0x186. Heard: 0x");
     Serial.println(deviceID, HEX);
-//    while (1); //Freeze!
+    //    while (1); //Freeze!
   }
   //  Serial.println("VCNL4040 detected!");
   initVCNL4040(ir_address); //Configure sensor
@@ -371,11 +403,30 @@ void setup() {
   //pinMode(13, OUTPUT); // to measure samp. frq. using oscilloscope
 
   ///// ******** initialize attached devices ********* /////
-//  for (int i = 0; i < NUM_FINGERS; i++)
-//  {
-//    initPressure(fingers[i].baroAddr, i);
-//    initIRSensor(fingers[i].irAddr);
-//  }
+  for (int i = 0; i < NUM_FINGERS; i++)
+  {
+    initPressure(fingers[i].baroAddr, i);
+    initIRSensor(fingers[i].irAddr);
+  }
+
+
+  //// Get the avg of first few samples of IR signal
+  for (int j = 0; j < NUM_FINGERS; j++) {
+    const byte ir_address = fingers[j].irAddr;
+    for (int i = 0; i < DROP_COUNT_IR; i++) {
+      ir_avg[j][i] = readFromCommandRegister(ir_address, PS_DATA_L);
+    }
+  }
+
+  for (int j = 0; j < NUM_FINGERS; j++) {
+    for (int i = 0; i < DROP_COUNT_IR; i++) {
+      ir_sum = ir_sum + ir_avg[j][i];
+    }
+    IR_AVG[j] = ir_sum / DROP_COUNT_IR;
+    ir_sum = 0.0;
+  }
+
+
 
 }
 
@@ -388,18 +439,12 @@ void setup() {
 
 void loop() {
 
-  //  if((millis()-last_light_switch)>BLINKY_LIGHT_PERIOD_MS){
-  //    toggle_light();
-  //  }
-
 
   if (micros() - lastMicros > SAMPLING_INTERVAL) {
     lastMicros = micros(); // do this first or your interval is too long!
 
-//    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
-//    readIRValues(); //-> array of IR values (2 bytes per sensor)
-
-        scan_i2c_in();
+    readPressureValues(); //-> array of Pressure Values (4 bytes per sensor)
+    readIRValues(); //-> array of IR values (2 bytes per sensor)
 
     Serial.print('\n');
   }
